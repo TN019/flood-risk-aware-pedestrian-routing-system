@@ -22,7 +22,8 @@ from shapely.strtree import STRtree
 
 from floodroute.network.schema import is_snappable
 from floodroute.risk.cost import EdgeCost, walking_cost
-from floodroute.routing.pathfinding import NetworkXDijkstra, NoPathError, PathFinder
+from floodroute.routing.dijkstra import Dijkstra
+from floodroute.routing.pathfinding import NoPathError, PathFinder
 
 WALKING_SPEED_M_S = 1.3  # typical adult walking speed
 MAX_SNAP_DISTANCE_M = 100.0  # a point further than this from any footpath is rejected
@@ -69,7 +70,7 @@ class Router:
         self.graph = graph
         self.study_area: BaseGeometry | None = graph.graph.get("study_area")
         self.max_snap_m = max_snap_m
-        self.path_finder = path_finder or NetworkXDijkstra()
+        self.path_finder = path_finder or Dijkstra()
         self._edges = [(u, v) for u, v, d in graph.edges(data=True) if is_snappable(d)]
         self._geoms = [graph.edges[e]["geometry"] for e in self._edges]
         self._tree = STRtree(self._geoms)

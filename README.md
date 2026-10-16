@@ -27,6 +27,7 @@ uv sync                                    # create .venv and install dependenci
 uv run python scripts/download_data.py     # fetch OSM and City of Melbourne data into data/raw
 uv run python scripts/build_network.py     # build data/processed/southbank_network.gpkg and places
 uv run pytest                              # run the test suite
+uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
 uv run streamlit run streamlit_app.py      # open the interim map UI
 ```
 

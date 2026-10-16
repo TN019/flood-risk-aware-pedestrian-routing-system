@@ -40,7 +40,7 @@ network beyond it so detours and river crossings work; start and end points must
 |---|---|---|---|
 | `HazardProvider.snapshot(graph, at)` → `HazardSnapshot` | `hazard` | `NoHazard` | synthetic flood scenarios, real-time sensors, model forecasts per time horizon |
 | `EdgeCost(u, v, data)` → cost or `None` | `risk` | `walking_cost` (length × `cost_factor`) | flood-risk cost and safety filtering from a hazard snapshot and the traveller's depth tolerance |
-| `PathFinder.find_path(graph, source, target, cost)` | `routing.pathfinding` | `NetworkXDijkstra` | in-house risk-cost Dijkstra (must match the reference on dry networks), A*, time-dependent search |
+| `PathFinder.find_path(graph, source, target, cost)` | `routing.pathfinding` | `Dijkstra` (in-house, default); `NetworkXDijkstra` (reference) | A*, time-dependent search |
 | `Predictor.fit / predict` | `prediction` | — | linear regression, conditional Markov chains over hazard states, neural networks |
 
 Conventions that keep these interchangeable:
@@ -62,3 +62,14 @@ Conventions that keep these interchangeable:
    footpaths when no entrance is mapped).
 3. The path finder searches from a virtual origin to a virtual destination under the cost
    function; route length includes the short access legs at both ends.
+
+## Verifying the path finder
+
+`routing.dijkstra.Dijkstra` is a binary-heap Dijkstra with lazy deletion that stops once the
+target is settled. It is checked against NetworkX's implementation, which serves as the
+reference:
+
+- `tests/test_dijkstra.py` — hand-made cases (ties, zero-cost and impassable edges, no path,
+  negative costs rejected), 40 random graphs × 25 pairs, and 200 pairs on the Southbank network.
+- `scripts/compare_pathfinders.py` — 1,000 node pairs and 300 end-to-end routes on the Southbank
+  network; every pair must have the same cost. Writes `reports/pathfinder_comparison.md`.
