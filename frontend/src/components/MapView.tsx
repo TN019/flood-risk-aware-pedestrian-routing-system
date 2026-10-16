@@ -23,9 +23,13 @@ const FALLBACK_STYLE: maplibregl.StyleSpecification = {
 const BASEMAP_TIMEOUT_MS = 8000;
 // The vector basemap has detail up to zoom 14; stretching it much further crashes Safari's WebGL.
 const OVERSCALE_ZOOM_LEVELS = 4;
-// Safari can drop the WebGL context and not give it back; then the map is built again.
-const CONTEXT_RESTORE_WAIT_MS = 3000;
-const MAX_REBUILDS = 3;
+// Safari drops the WebGL context (e.g. in background tabs). When it hands it back, MapLibre's
+// restore keeps using buffers from the old context, which Safari rejects, and the map stays blank.
+// So after a lost context the map is built again on a fresh canvas, once the page is visible. If the
+// new map loses its context again soon after, rebuilding would only loop: the map shows a prompt
+// to reload it instead.
+const REBUILD_DELAY_MS = 300;
+const STABLE_MS = 30_000; // an automatic rebuild must have lasted this long before another one
 
 export const COLOURS = {
   path: "#4a6f94",
@@ -160,6 +164,8 @@ export function MapView(props: Props) {
   // Bumped each time a style finishes parsing and the app layers have been (re)added to it.
   const [styleVersion, setStyleVersion] = useState(0);
   const [generation, setGeneration] = useState(0); // bumped to rebuild the map after a lost context
+  const lastRebuild = useRef(0); // time of the last automatic rebuild
+  const [failed, setFailed] = useState(false); // the map keeps losing its context
   const camera = useRef<{ center: [number, number]; zoom: number }>({ center: [144.962, -37.826], zoom: 14.5 });
   const latest = useRef(props);
   const fitted = useRef(false);
@@ -179,19 +185,26 @@ export function MapView(props: Props) {
       attributionControl: { compact: true },
     });
     map.current = m;
-    let restoreTimer: number | undefined;
+    let rebuildTimer: number | undefined;
+    let rebuildPending = false;
+    const rebuild = () => {
+      if (document.visibilityState !== "visible") {
+        document.addEventListener("visibilitychange", rebuild, { once: true });
+        return;
+      }
+      lastRebuild.current = Date.now();
+      setGeneration((g) => g + 1);
+    };
     m.on("webglcontextlost", () => {
-      window.clearTimeout(restoreTimer);
-      restoreTimer = window.setTimeout(() => {
-        if (generation >= MAX_REBUILDS) return;
-        const c = m.getCenter();
-        camera.current = { center: [c.lng, c.lat], zoom: m.getZoom() };
-        setGeneration((g) => g + 1);
-      }, CONTEXT_RESTORE_WAIT_MS);
-    });
-    m.on("webglcontextrestored", () => {
-      window.clearTimeout(restoreTimer);
-      m.triggerRepaint();
+      if (rebuildPending) return;
+      rebuildPending = true;
+      const c = m.getCenter();
+      camera.current = { center: [c.lng, c.lat], zoom: m.getZoom() };
+      if (Date.now() - lastRebuild.current < STABLE_MS) {
+        setFailed(true);
+        return;
+      }
+      rebuildTimer = window.setTimeout(rebuild, REBUILD_DELAY_MS);
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     // The app's own layers are added as soon as the style is parsed, not on "load", which waits for
@@ -339,8 +352,13 @@ export function MapView(props: Props) {
       window.removeEventListener("focus", redraw);
       resizes.disconnect();
       window.clearTimeout(fallback);
-      window.clearTimeout(restoreTimer);
-      m.remove();
+      window.clearTimeout(rebuildTimer);
+      document.removeEventListener("visibilitychange", rebuild);
+      try {
+        m.remove();
+      } catch {
+        // removing a map whose context is already lost can throw; the new map does not need it
+      }
       map.current = null;
     };
   }, [generation]);
@@ -406,5 +424,28 @@ export function MapView(props: Props) {
     );
   }, [styleVersion, props.start, props.destination]);
 
-  return <div ref={container} className="map" role="application" aria-label="Map of Southbank" />;
+  return (
+    <>
+      <div ref={container} className="map" role="application" aria-label="Map of Southbank" />
+      {failed && (
+        <div className="map-failed" role="alert">
+          <p>
+            <strong>The map stopped drawing.</strong> The browser ran out of graphics resources.
+          </p>
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              setFailed(false);
+              lastRebuild.current = Date.now();
+              setGeneration((g) => g + 1);
+            }}
+          >
+            Reload map
+          </button>
+          <p className="muted small">If this keeps happening, quit and reopen the browser.</p>
+        </div>
+      )}
+    </>
+  );
 }
