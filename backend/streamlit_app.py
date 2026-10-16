@@ -22,8 +22,9 @@ from floodroute import places as pl
 from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
 from floodroute.network import is_snappable, load_graph, to_gdfs
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import DEFAULT_ALPHA, DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
+from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
+from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
 from floodroute.routing import RECOMMENDED, SAFE_SHORTEST, SHORTEST, RoutePlan, Router, RoutingError
 from floodroute.sources import geocoding as geocode
 from floodroute.trip import ONLY_OPTION, TripPlan, plan_trip
@@ -297,15 +298,29 @@ with st.sidebar:
     wheelchair = st.checkbox("I use a wheelchair or mobility aid")
     profile = TravellerProfile(height_cm / 100, part, uses_wheelchair=wheelchair)
     st.caption(f"Your limit: **{profile.depth_limit_m * 100:.0f} cm** (never more than {HARD_LIMIT_M * 100:.0f} cm)")
-    with st.expander("Routing settings"):
-        alpha = st.slider(
-            "Risk weight α",
-            0.0,
-            10.0,
-            DEFAULT_ALPHA,
-            0.5,
-            help="Extra metres worth walking to avoid one metre of water at your limit.",
-        )
+    preference = st.radio(
+        "Route preference",
+        list(RoutePreference),
+        index=list(RoutePreference).index(DEFAULT_PREFERENCE),
+        format_func=lambda p: p.label,
+        captions=[p.summary for p in RoutePreference],
+        help="Water deeper than your limit is always avoided. This only decides whether water within "
+        "your limit is worth walking around.",
+    )
+    alpha = preference.alpha
+    with st.expander("Advanced"):
+        if st.checkbox("Set the risk weight α directly"):
+            alpha = st.slider(
+                "Risk weight α",
+                0.0,
+                20.0,
+                preference.alpha,
+                0.5,
+                help="Extra metres worth walking to avoid one metre of water right at your limit.",
+            )
+        else:
+            st.caption(f"{preference.label} uses α = {preference.alpha:g}.")
+    st.caption(explain(alpha, profile))
 
     st.divider()
     options = [DEST] if gps_ok else [START, DEST]

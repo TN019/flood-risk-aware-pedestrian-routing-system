@@ -84,6 +84,25 @@ With no water R = 0 everywhere and the cost equals the plain walking cost, so ro
 flood are identical to routing without the risk layer (tested on the Southbank network). Flow
 velocity is not used yet.
 
+### Route preferences
+
+Travellers choose a preference rather than a number; each maps to α
+(`risk.preference.RoutePreference`):
+
+| Preference | α | Meaning |
+|---|---|---|
+| Shortest | 0.5 | take the shorter way through water within the limit |
+| Balanced (default) | 2 | walk a bit further to stay out of water close to the limit |
+| Avoid water | 5 | walk noticeably further to avoid water within the limit |
+| Stay as dry as possible | 15 | walk much further, if needed, to keep out of water |
+
+α is the number of extra metres worth walking to avoid one metre of water right at the limit,
+scaled down for shallower water. `explain` states it for the traveller in metres, using 50 m of
+water at 75% of their limit: for an adult with an ankle limit, Balanced reads "To avoid 50 m of
+water 5 cm deep (up to the ankle), you would walk up to about 75 m further." Water over the limit
+is never used whatever the preference; for travellers who will not wade the preference has no
+effect.
+
 `routing.metrics.route_metrics` reports what a route means for the traveller, separately from the
 cost: deepest water and where it reaches on their body, distance in water, depth-weighted
 distance in water, sections over their limit, and detour against the shortest route.
