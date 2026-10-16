@@ -45,6 +45,13 @@ and the interfaces new code should plug into.
    uv run pytest                  # tests
    ```
 
+   If you change the web client, also run, from `frontend/`:
+
+   ```bash
+   npm run build                  # type check and production build
+   npm test                       # unit tests
+   ```
+
    If you change path finding, also run `uv run python scripts/compare_pathfinders.py`; it must
    report no mismatches against the NetworkX reference.
 4. Open a pull request into `main` describing what changed, why, and how it was verified.

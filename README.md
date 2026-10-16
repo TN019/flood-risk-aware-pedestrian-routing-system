@@ -11,10 +11,11 @@ water is never routed through, and shallower water costs more the closer it is t
 ```
 backend/                 Python package, scripts and tests (uv project)
   src/floodroute/        routing engine — see docs/architecture.md
+    api/                 HTTP API for the web client (FastAPI)
   scripts/               data pipeline: download, build, validate
   tests/
-  streamlit_app.py       interim map UI, to be replaced by frontend/
-frontend/                web client (planned)
+  streamlit_app.py       Streamlit map UI, kept alongside the web client
+frontend/                web client: React, TypeScript and MapLibre; phones and desktops
 data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
                          data/scenarios/ holds the flood scenario definitions (JSON)
 docs/                    architecture, parameters and their basis, verification
@@ -22,7 +23,7 @@ docs/                    architecture, parameters and their basis, verification
 
 ## Getting started
 
-Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.12 and [uv](https://docs.astral.sh/uv/); the web client also needs Node.js 20.
 
 ```bash
 cd backend
@@ -34,8 +35,20 @@ uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
 uv run python scripts/verify.py            # cases A–F vs the predictions in docs/verification.md
-uv run streamlit run streamlit_app.py      # open the interim map UI
+uv run streamlit run streamlit_app.py      # open the Streamlit map UI
 ```
+
+The web application:
+
+```bash
+cd frontend && npm install && npm run build   # build the web client into frontend/dist
+cd ../backend && uv run uvicorn floodroute.api.app:app --port 8000
+```
+
+then open http://localhost:8000; the API serves the built client and its own routes under
+`/api` (interactive reference at http://localhost:8000/docs). While working on the client, run
+`npm run dev` in `frontend/` instead and open the address it prints; it passes `/api` requests to
+the API on port 8000 and reloads on every change.
 
 `scripts/build_network.py --source com` builds the alternative City of Melbourne network, and
 `scripts/validate_com_network.py` reports its topology and coverage against OpenStreetMap.

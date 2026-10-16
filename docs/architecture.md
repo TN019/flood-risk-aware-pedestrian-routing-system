@@ -20,6 +20,28 @@ prediction  forecasting models                       ── Predictor
 
 A web API (FastAPI) and the web client sit on top of these layers; neither contains routing logic.
 
+## Web API and client
+
+`floodroute.api` serves the engine over HTTP. `api.service.Service` loads the network, places,
+refuges and scenarios once and answers in WGS84 GeoJSON; `api.app` maps it onto routes:
+
+| Route | Returns |
+|---|---|
+| `GET /api/area` | study area, routable area (with its margin) and bounds |
+| `GET /api/network` | walking network for display: paths, margin paths, avoided carriageways |
+| `GET /api/options` | body-part limits, landmarks, route preferences, flood levels, SOS undo window |
+| `GET /api/scenarios` | scenarios with their level, typical depth, description and sources |
+| `GET /api/scenarios/{id}/water` | wet and unknown-depth edges of a scenario |
+| `GET /api/search?q=` | place search inside the routable area (Nominatim, cached, one request a second) |
+| `POST /api/traveller` | a traveller's depth limit and what their preference means in metres |
+| `POST /api/trip` | the whole trip plan: where they stand, three routes, downgrade, refuge, emergency |
+
+Start and destination must lie inside the study area; requests that cannot be answered as asked
+return 422 with a message for the user. The web client (`frontend/`, React, TypeScript and
+MapLibre on an OpenStreetMap basemap) keeps no routing rules of its own: it shows what the API
+returns, with the map and a side panel on desktops and the map above a sliding sheet on phones.
+Sending an SOS is simulated in the client, with a short window to undo it.
+
 ## Routing graph
 
 `network.schema` documents the graph every source must produce: an undirected `networkx.Graph`
