@@ -17,12 +17,10 @@ from streamlit_js_eval import get_geolocation
 
 from floodroute import config
 from floodroute import places as pl
-from floodroute.hazard import NoHazard
 from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
 from floodroute.network import is_snappable, load_graph, to_gdfs
-from floodroute.risk import DEFAULT_ALPHA, HARD_LIMIT_M, BodyPart, TravellerProfile, risk_cost
-from floodroute.risk.metrics import route_metrics
-from floodroute.routing import Router, RoutingError
+from floodroute.risk import DEFAULT_ALPHA, DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
+from floodroute.routing import RECOMMENDED, SAFE_SHORTEST, SHORTEST, RoutePlan, Router, RoutingError, plan_routes
 from floodroute.sources import geocoding as geocode
 
 GRAPH_PATH = config.PROCESSED_NETWORK_PATH
@@ -32,10 +30,14 @@ CHOOSE, CURRENT = "A point I choose", "My current location"
 
 NETWORK_COLOUR = "#4a6f94"
 ROUTE_COLOUR = "#7b2cbf"
-SHORTEST_COLOUR = "#555555"
 WATER_COLOUR = "#1f78b4"
 OVER_LIMIT_COLOUR = "#d62728"
-NO_FLOOD = "No flooding"
+# How each of the three planned routes is drawn and named.
+OPTION_STYLE = {
+    SHORTEST: ("#555555", 4, "8 6", "Shortest, ignoring flooding"),
+    SAFE_SHORTEST: ("#e6550d", 5, "2 6", "Shortest within your limit"),
+    RECOMMENDED: (ROUTE_COLOUR, 7, None, "Recommended"),
+}
 START_COLOUR = "green"
 DEST_COLOUR = "red"
 
@@ -64,8 +66,8 @@ def load_places() -> pl.PlaceResolver:
 
 @st.cache_resource
 def load_hazards() -> dict:
-    """Scenario title -> hazard provider."""
-    hazards = {NO_FLOOD: NoHazard()}
+    """Scenario title -> hazard provider, from normal conditions to the most severe."""
+    hazards = {}
     for path in list_scenarios():
         scenario = load_scenario(path)
         hazards[scenario.title] = ScenarioHazard(scenario)
@@ -76,7 +78,7 @@ def load_hazards() -> dict:
 def flood_features(title: str) -> dict:
     """Zones and wet edges of a scenario, as WGS84 GeoJSON with depths."""
     hazard = load_hazards()[title]
-    if not isinstance(hazard, ScenarioHazard):
+    if not hazard.scenario.zones:
         return {"zones": None, "edges": []}
     graph = load_router().graph
     snapshot = hazard.snapshot(graph)
@@ -309,23 +311,18 @@ with st.sidebar:
 
 router = load_router()
 snapshot = hazard.snapshot(router.graph)
-route, shortest, error, ends = None, None, None, {}
+plan: RoutePlan | None = None
+error, ends = None, {}
 if state.start and state.dest:
     if not (in_southbank(state.start) and in_southbank(state.dest)):
         error = "Start and destination must both be inside Southbank (the black boundary)."
     else:
         ends = {START: resolve(START), DEST: resolve(DEST)}
         try:
-            shortest = router.route(ends[START].access_points, ends[DEST].access_points)
-            route = router.route(
-                ends[START].access_points, ends[DEST].access_points, risk_cost(snapshot, profile, alpha=alpha)
-            )
+            plan = plan_routes(router, ends[START].access_points, ends[DEST].access_points, snapshot, profile, alpha)
         except RoutingError:
-            error = (
-                (f"No route keeps you within your limit ({profile.depth_limit_m * 100:.0f} cm) in this scenario.")
-                if shortest is not None
-                else "No route connects these points."
-            )
+            error = "No route connects these points."
+route = plan.recommended.route if plan else None
 
 overlay = folium.FeatureGroup(name="route")
 flood = flood_features(scenario_title)
@@ -369,23 +366,28 @@ for which, place in ends.items():  # the building a start/destination resolved t
                 fill_opacity=0.6,
                 tooltip=f"{place.label}: {a.label}",
             ).add_to(overlay)
-if shortest is not None and (route is None or not shortest.geometry.equals(route.geometry)):
-    folium.PolyLine(
-        [to_latlon(Point(c)) for c in shortest.geometry.coords],
-        color=SHORTEST_COLOUR,
-        weight=4,
-        opacity=0.8,
-        dash_array="8 6",
-        tooltip=f"Shortest, ignoring flooding: {shortest.length_m:.0f} m",
-    ).add_to(overlay)
+if plan is not None:
+    # Draw each distinct route once; where options coincide, use the style of the most important one.
+    groups: list[tuple[object, list[str]]] = []
+    for option in plan.options:
+        if not option.found:
+            continue
+        match = next((g for g in groups if g[0].geometry.equals(option.route.geometry)), None)
+        if match:
+            match[1].append(option.kind)
+        else:
+            groups.append((option.route, [option.kind]))
+    for drawn_route, kinds in sorted(groups, key=lambda g: RECOMMENDED in g[1]):  # recommended on top
+        colour, weight, dash, _ = OPTION_STYLE[RECOMMENDED if RECOMMENDED in kinds else kinds[0]]
+        folium.PolyLine(
+            [to_latlon(Point(c)) for c in drawn_route.geometry.coords],
+            color=colour,
+            weight=weight,
+            opacity=0.9,
+            dash_array=dash,
+            tooltip=" = ".join(OPTION_STYLE[k][3] for k in kinds) + f": {drawn_route.length_m:,.0f} m",
+        ).add_to(overlay)
 if route is not None:
-    folium.PolyLine(
-        [to_latlon(Point(c)) for c in route.geometry.coords],
-        color=ROUTE_COLOUR,
-        weight=7,
-        opacity=0.9,
-        tooltip=f"Recommended: {route.length_m:.0f} m",
-    ).add_to(overlay)
     for snap in (route.origin, route.destination):  # short walk between the door/point and the footpath
         folium.PolyLine(
             [to_latlon(snap.point), to_latlon(snap.snapped)], color=ROUTE_COLOUR, weight=3, dash_array="4 6"
@@ -399,40 +401,77 @@ for which, colour in ((START, START_COLOUR), (DEST, DEST_COLOUR)):
             latlon, tooltip=which, icon=folium.Icon(color=colour, icon="flag" if which == DEST else "user", prefix="fa")
         ).add_to(overlay)
 
+
+def depth_text(depth: float | None) -> str:
+    if depth is None:
+        return "unknown"
+    return "none" if depth <= DRY_DEPTH_M else f"{depth * 100:.0f} cm ({profile.describe_depth(depth)})"
+
+
 if error:
     st.error(error)
-elif route is not None:
-    m = route_metrics(route, snapshot, profile, reference_length_m=shortest.length_m)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(
-        "Walking distance",
-        f"{m.length_m:,.0f} m",
-        f"+{m.detour_ratio:.0%} vs shortest" if m.detour_ratio and m.detour_ratio > 0.005 else None,
-        delta_color="off",
-    )
-    c2.metric("Estimated time", f"{m.travel_time_s / 60:.0f} min")
-    c3.metric(
-        "Deepest water",
-        "none" if not m.max_depth_m or m.max_depth_m <= 0.02 else f"{m.max_depth_m * 100:.0f} cm",
-        m.max_depth_label if m.max_depth_m and m.max_depth_m > 0.02 else None,
-        delta_color="off",
-    )
-    c4.metric("Distance in water", f"{m.wading_length_m:,.0f} m")
-    if shortest is not None and not shortest.geometry.equals(route.geometry):
-        s = route_metrics(shortest, snapshot, profile)
-        st.caption(
-            f"Grey dashed line: shortest route ignoring flooding, {s.length_m:,.0f} m, "
-            f"{s.wading_length_m:,.0f} m in water, deepest {s.max_depth_label}"
-            + (f", **{s.segments_over_limit} section(s) over your limit**" if s.segments_over_limit else "")
-            + "."
+elif plan is not None:
+    if route is not None:
+        m = plan.recommended.metrics
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric(
+            "Walking distance",
+            f"{m.length_m:,.0f} m",
+            f"+{m.detour_ratio:.0%} vs shortest" if m.detour_ratio and m.detour_ratio > 0.005 else None,
+            delta_color="off",
         )
+        c2.metric("Estimated time", f"{m.travel_time_s / 60:.0f} min")
+        c3.metric(
+            "Deepest water",
+            "none" if not m.max_depth_m or m.max_depth_m <= DRY_DEPTH_M else f"{m.max_depth_m * 100:.0f} cm",
+            m.max_depth_label if m.max_depth_m and m.max_depth_m > DRY_DEPTH_M else None,
+            delta_color="off",
+        )
+        c4.metric("Distance in water", f"{m.wading_length_m:,.0f} m")
+    else:
+        st.error(plan.recommended.error + " Try a higher wading limit, or wait somewhere safe.")
+    rows = []
+    for option in plan.options:
+        name = OPTION_STYLE[option.kind][3]
+        if not option.found:
+            rows.append(
+                {
+                    "Route": name,
+                    "Distance": "—",
+                    "Time": "—",
+                    "Deepest water": "—",
+                    "In water": "—",
+                    "Over your limit": option.error,
+                }
+            )
+            continue
+        om = option.metrics
+        rows.append(
+            {
+                "Route": name,
+                "Distance": f"{om.length_m:,.0f} m" + (f" (+{om.detour_ratio:.0%})" if om.detour_ratio else ""),
+                "Time": f"{om.travel_time_s / 60:.0f} min",
+                "Deepest water": depth_text(om.max_depth_m),
+                "In water": f"{om.wading_length_m:,.0f} m",
+                "Over your limit": f"{om.segments_over_limit} section(s)" if om.segments_over_limit else "no",
+            }
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    st.caption(
+        f"{plan.blocked_edges} network sections are over your limit in this scenario. "
+        "Grey dashed: shortest ignoring flooding · orange dotted: shortest within your limit · "
+        "purple: recommended (also weighs how close the water is to your limit)."
+    )
 
     def describe(place: pl.Place, used) -> str:
         if place.method == "point":
             return "**selected point**"
         return f"**{place.label}** ({place.access_label(used)})"
 
-    st.caption(f"From {describe(ends[START], route.origin.point)} → {describe(ends[DEST], route.destination.point)}")
+    if route is not None:
+        st.caption(
+            f"From {describe(ends[START], route.origin.point)} → {describe(ends[DEST], route.destination.point)}"
+        )
 else:
     st.info(
         f"Set a start and a destination: search in the sidebar or click the map "
