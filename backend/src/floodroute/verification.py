@@ -30,7 +30,7 @@ from floodroute.routing import Route, Router, RoutingError, plan_routes
 from floodroute.trip import ONLY_OPTION, plan_trip
 
 LENGTH_TOL_M = 0.01
-ADULT, CHILD = 1.70, 1.20
+ADULT, CHILD, TALL = 1.70, 1.20, 1.90
 
 
 @dataclass(frozen=True)
@@ -207,7 +207,13 @@ def run_test_town() -> list[Check]:
         (300.0, 0.40, "up to the knee"),
         (_len(s), s.metrics.max_depth_m, s.metrics.max_depth_label),
     )
-    add("E1", "downgrade", None, t.downgrade)
+    d = t.downgrade
+    add(
+        "E1",
+        "downgrade to, least water (m), route (m)",
+        ("knee", 0.40, 300.0),
+        (d.body_part.label, d.required_depth_m, round(d.option.route.length_m, 3)) if d else None,
+    )
     add(
         "E1",
         "refuge, length (m), within limit",
@@ -235,14 +241,15 @@ def run_test_town() -> list[Check]:
 
     standing = Point(150, 0)
     t = _trip(flood(b12=0.40, t12=0.40), mid, start=standing)
-    add("E3", "start depth (m), level", (0.40, "DEEP"), (t.origin.depth_m, t.origin.level.name))
+    add("E3", "start depth (m), level", (0.40, "OVER_LIMIT"), (t.origin.depth_m, t.origin.level.name))
+    add("E3", "emergency", None, t.emergency)
+    d = t.downgrade
     add(
         "E3",
-        "emergency advice, SOS depth (m)",
-        ("available", 0.40),
-        (t.emergency.advice, t.emergency.sos.depth_m) if t.emergency else None,
+        "downgrade to, least water (m), route (m)",
+        ("knee", 0.40, 150.0),
+        (d.body_part.label, d.required_depth_m, round(d.option.route.length_m, 3)) if d else None,
     )
-    add("E3", "downgrade", None, t.downgrade)
     add(
         "E3",
         "refuge, length (m), deepest (m), within limit",
@@ -267,6 +274,33 @@ def run_test_town() -> list[Check]:
     )
     t = _trip(flood(b12=0.40, t12=0.40), mid, with_shelter=False)
     add("E6", "refuge, emergency advice", (None, ONLY_OPTION), (t.refuge, t.emergency.advice if t.emergency else None))
+    t = _trip(flood(b12=0.60, t12=0.60), mid)
+    add("E7", "route within limit", False, t.has_safe_route)
+    add("E7", "downgrade", None, t.downgrade)
+    add(
+        "E7",
+        "refuge, length (m), within limit",
+        ("Shelter", 35.0, True),
+        (t.refuge.refuge.name, round(t.refuge.route.length_m, 3), t.refuge.within_limit) if t.refuge else None,
+    )
+    add("E7", "start level, emergency", ("OK", None), (t.origin.level.name, t.emergency))
+    t = _trip(flood(b12=0.52, t12=0.52), TravellerProfile(TALL, BodyPart.MID_CALF), start=standing)
+    add("E8", "start depth (m), level", (0.52, "DEEP"), (t.origin.depth_m, t.origin.level.name))
+    add(
+        "E8",
+        "emergency advice, SOS depth (m)",
+        ("available", 0.52),
+        (t.emergency.advice, t.emergency.sos.depth_m) if t.emergency else None,
+    )
+    add("E8", "downgrade", None, t.downgrade)
+    add(
+        "E8",
+        "refuge, length (m), deepest (m), within limit",
+        ("Shelter", 185.0, 0.52, False),
+        (t.refuge.refuge.name, round(t.refuge.route.length_m, 3), t.refuge.metrics.max_depth_m, t.refuge.within_limit)
+        if t.refuge
+        else None,
+    )
 
     # F — switching conditions on one router
     router, resolver, refuges = test_town()
@@ -327,7 +361,7 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
             except RoutingError:
                 continue
             pairs.append((resolver.resolve(a, "a", role="origin"), resolver.resolve(b, "b")))
-    parts = [BodyPart.NO_WADING, BodyPart.ANKLE, BodyPart.LOWER_CALF, BodyPart.MID_CALF]
+    parts = [BodyPart.NO_WADING, BodyPart.ANKLE, BodyPart.LOWER_CALF, BodyPart.MID_CALF, BodyPart.KNEE]
     travellers = {p.label: adult(p) for p in parts}
     travellers["child, ankle"] = TravellerProfile(CHILD, BodyPart.ANKLE)
     travellers["wheelchair"] = adult(BodyPart.MID_CALF, uses_wheelchair=True)
