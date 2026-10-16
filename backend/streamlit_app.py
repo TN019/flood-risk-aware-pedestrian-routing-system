@@ -261,8 +261,8 @@ def search_box(which: str) -> None:
 with st.sidebar:
     st.header("Southbank Routing")
     st.caption(
-        "Shortest walking route on the OpenStreetMap walking network (indoor corridors excluded; "
-        "routes prefer sidewalks over walking along roads). Flood conditions are not applied yet."
+        "Walking routes on the OpenStreetMap walking network that avoid water deeper than you choose "
+        "to walk through, under the flood scenario selected below."
     )
 
     mode = st.radio("Start from", [CHOOSE, CURRENT], horizontal=True)
