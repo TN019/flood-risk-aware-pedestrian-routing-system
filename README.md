@@ -2,7 +2,9 @@
 
 Walking routes for Southbank, Melbourne that minimise exposure to flood hazards instead of only
 distance. The routing engine works on a real pedestrian network; flood conditions come from
-interchangeable sources (synthetic scenarios today, sensors and forecasts later).
+interchangeable sources (synthetic scenarios today, sensors and forecasts later). Each traveller
+sets the deepest water they accept as a body part, converted to a depth from their height; deeper
+water is never routed through, and shallower water costs more the closer it is to that limit.
 
 ## Repository layout
 
@@ -13,7 +15,8 @@ backend/                 Python package, scripts and tests (uv project)
   tests/
   streamlit_app.py       interim map UI, to be replaced by frontend/
 frontend/                web client (planned)
-data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts)
+data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
+                         data/scenarios/ holds synthetic flood scenarios (GeoJSON)
 docs/                    architecture and design notes
 ```
 

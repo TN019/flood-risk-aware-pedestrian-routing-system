@@ -25,6 +25,7 @@ import networkx as nx
 class EdgeCondition:
     depth_m: float | None  # deepest water along the edge; None = unknown
     velocity_m_s: float | None = None
+    flooded_length_m: float | None = None  # length under water; None = the whole edge
 
     @property
     def is_known(self) -> bool:

@@ -49,6 +49,16 @@ class Snap:
 
 
 @dataclass(frozen=True)
+class RouteSegment:
+    """One edge of a route as walked: a whole network edge, part of one, or an access leg."""
+
+    source_edge_id: str  # the network edge it lies on (hazard conditions are keyed by this)
+    length_m: float
+    source_length_m: float  # length of that whole network edge
+    is_access: bool = False
+
+
+@dataclass(frozen=True)
 class Route:
     nodes: list
     edge_ids: list[str]
@@ -56,6 +66,7 @@ class Route:
     length_m: float  # total walk, including the short access legs at both ends
     origin: Snap
     destination: Snap
+    segments: tuple[RouteSegment, ...] = ()
 
     @property
     def travel_time_s(self) -> float:
@@ -123,8 +134,11 @@ class Router:
             graph.add_node(name, x=points[0].x, y=points[0].y, kind=VIRTUAL, in_study_area=True)
             for i, snap in enumerate(candidates[name]):
                 access = splitter.split(snap, f"{name}_{i}")
+                # The access leg inherits the conditions of the edge it joins.
+                joined = self.graph.edges[snap.edge]
                 graph.add_edge(name, access, geometry=LineString([snap.point, snap.snapped]),
-                               length_m=snap.distance_m, cost_factor=1.0, edge_id=ACCESS_EDGE, snap=snap)
+                               length_m=snap.distance_m, cost_factor=1.0, edge_id=ACCESS_EDGE, snap=snap,
+                               parent_edge_id=joined["edge_id"], parent_length_m=joined["length_m"])
         try:
             nodes = self.path_finder.find_path(graph, ORIGIN, DESTINATION, cost)
         except NoPathError:
@@ -133,17 +147,20 @@ class Router:
         o_snap = graph.edges[nodes[0], nodes[1]]["snap"]
         d_snap = graph.edges[nodes[-2], nodes[-1]]["snap"]
         coords: list = [o_snap.snapped.coords[0]]
-        edge_ids, length = [], 0.0
+        edge_ids, segments, length = [], [], 0.0
         for a, b in zip(nodes, nodes[1:]):
             data = graph.edges[a, b]
             length += data["length_m"]
-            if data["edge_id"] == ACCESS_EDGE:
+            is_access = data["edge_id"] == ACCESS_EDGE
+            segments.append(RouteSegment(data.get("parent_edge_id") or data["edge_id"], data["length_m"],
+                                         data.get("parent_length_m") or data["length_m"], is_access))
+            if is_access:
                 continue
             coords.extend(_oriented(data["geometry"], _node_point(graph, a)).coords[1:])
             edge_ids.append(data["edge_id"])
         if len(coords) < 2:  # both ends joined the network at the same spot
             coords.append(d_snap.snapped.coords[0])
-        return Route(nodes, edge_ids, LineString(coords), length, o_snap, d_snap)
+        return Route(nodes, edge_ids, LineString(coords), length, o_snap, d_snap, tuple(segments))
 
 
 def _as_points(value: Point | Sequence[Point]) -> list[Point]:
@@ -184,8 +201,10 @@ class _EdgeSplitter:
         t = geom.project(snap.snapped)
         graph.remove_edge(a, b)
         graph.add_node(name, x=snap.snapped.x, y=snap.snapped.y, kind=VIRTUAL, in_study_area=True)
+        parent = {"parent_edge_id": data.get("parent_edge_id") or data["edge_id"],
+                  "parent_length_m": data.get("parent_length_m") or data["length_m"]}
         for x, y, part, tag in ((a, name, _piece(geom, 0, t), "a"), (name, b, _piece(geom, t, geom.length), "b")):
-            graph.add_edge(x, y, **{**data, "geometry": part, "length_m": part.length,
+            graph.add_edge(x, y, **{**data, **parent, "geometry": part, "length_m": part.length,
                                     "edge_id": f"{data['edge_id']}{tag}"})
         pieces.remove((a, b))
         pieces.extend([(a, name), (name, b)])

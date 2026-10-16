@@ -38,8 +38,9 @@ network beyond it so detours and river crossings work; start and end points must
 
 | Interface | Module | Current implementation | Planned |
 |---|---|---|---|
-| `HazardProvider.snapshot(graph, at)` → `HazardSnapshot` | `hazard` | `NoHazard` | synthetic flood scenarios, real-time sensors, model forecasts per time horizon |
-| `EdgeCost(u, v, data)` → cost or `None` | `risk` | `walking_cost` (length × `cost_factor`) | flood-risk cost and safety filtering from a hazard snapshot and the traveller's depth tolerance |
+| `HazardProvider.snapshot(graph, at)` → `HazardSnapshot` | `hazard` | `NoHazard`; `ScenarioHazard` (synthetic scenarios in `data/scenarios/`) | real-time sensors, model forecasts per time horizon |
+| `RiskModel.edge_risk(condition, profile)` → risk or `None` | `risk.model` | `DepthRelativeRisk` (depth ÷ the traveller's limit) | flow velocity (depth × velocity against stability limits), probabilistic models |
+| `EdgeCost(u, v, data)` → cost or `None` | `risk` | `walking_cost`; `risk_cost(snapshot, profile, alpha)` | time-dependent costs |
 | `PathFinder.find_path(graph, source, target, cost)` | `routing.pathfinding` | `Dijkstra` (in-house, default); `NetworkXDijkstra` (reference) | A*, time-dependent search |
 | `Predictor.fit / predict` | `prediction` | — | linear regression, conditional Markov chains over hazard states, neural networks |
 
@@ -62,6 +63,35 @@ Conventions that keep these interchangeable:
    footpaths when no entrance is mapped).
 3. The path finder searches from a virtual origin to a virtual destination under the cost
    function; route length includes the short access legs at both ends.
+
+## Flood risk
+
+A traveller picks the deepest water they accept as a body part (no wading, ankle, lower calf,
+mid calf); `risk.profile.TravellerProfile` converts it to a depth from their height using
+anthropometric proportions, capped at 30 cm. Wheelchair users are limited to 2 cm.
+
+`risk.model.DepthRelativeRisk` gives each edge a risk from its deepest point:
+
+- ≤ 2 cm: R = 0 (dry); above the traveller's limit, or unknown depth: impassable
+- otherwise R = depth ÷ limit, so R = 1 is "right at your limit"
+
+and `risk_cost` turns it into the routing cost
+
+    cost = cost_factor × (dry length + wet length × (1 + α·R)),   α = 2 by default
+
+With no water R = 0 everywhere and the cost equals the plain walking cost, so routes without a
+flood are identical to routing without the risk layer (tested on the Southbank network). Flow
+velocity is not used yet.
+
+`risk.metrics.route_metrics` reports what a route means for the traveller, separately from the
+cost: deepest water and where it reaches on their body, distance in water, depth-weighted
+distance in water, sections over their limit, and detour against the shortest route.
+
+### Synthetic scenarios
+
+`hazard.scenarios` reads GeoJSON flood zones (`name`, `max_depth_m`, `ramp_m`); depth rises from
+0 at a zone's edge to its maximum `ramp_m` inside it. Each edge gets its deepest sampled depth
+and its wet length. Edges outside every zone are dry. Scenarios live in `data/scenarios/`.
 
 ## Verifying the path finder
 
