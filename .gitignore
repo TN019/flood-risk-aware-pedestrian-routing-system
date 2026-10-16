@@ -7,8 +7,8 @@ __pycache__/
 # osmnx / Overpass response cache
 cache/
 
-# Downloaded and generated data: rebuild with `python src/network_loader.py` and
-# `python scripts/build_network.py`. Small reference inputs are kept.
+# Downloaded and generated data: rebuild with `uv run python scripts/download_data.py` and
+# `uv run python scripts/build_network.py` (from backend/). Small reference inputs are kept.
 data/raw/*
 !data/raw/clue_southbank_boundary.geojson
 data/processed/

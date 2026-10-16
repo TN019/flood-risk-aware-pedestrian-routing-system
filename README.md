@@ -30,6 +30,7 @@ uv sync                                    # create .venv and install dependenci
 uv run python scripts/download_data.py     # fetch OSM and City of Melbourne data into data/raw
 uv run python scripts/build_network.py     # build data/processed/southbank_network.gpkg and places
 uv run pytest                              # run the test suite
+uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
 uv run streamlit run streamlit_app.py      # open the interim map UI
 ```
@@ -46,6 +47,11 @@ Both write maps and reports to `reports/` (git-ignored).
 | Southbank boundary (study area) | City of Melbourne, CLUE small areas | CC BY |
 | Pedestrian network (alternative source) | City of Melbourne, Pedestrian Network | CC BY |
 | Place search | OpenStreetMap Nominatim | ODbL; usage policy applies |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch and commit conventions, and checks to run
+before opening a pull request.
 
 ## Safety notice
 
