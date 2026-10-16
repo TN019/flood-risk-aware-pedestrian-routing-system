@@ -7,6 +7,8 @@ Run (from backend/):  uv run streamlit run streamlit_app.py
 
 from __future__ import annotations
 
+import time
+
 import folium
 import geopandas as gpd
 import streamlit as st
@@ -19,9 +21,12 @@ from floodroute import config
 from floodroute import places as pl
 from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
 from floodroute.network import is_snappable, load_graph, to_gdfs
+from floodroute.places.refuges import RefugeIndex
 from floodroute.risk import DEFAULT_ALPHA, DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
-from floodroute.routing import RECOMMENDED, SAFE_SHORTEST, SHORTEST, RoutePlan, Router, RoutingError, plan_routes
+from floodroute.risk.alerts import AlertLevel
+from floodroute.routing import RECOMMENDED, SAFE_SHORTEST, SHORTEST, RoutePlan, Router, RoutingError
 from floodroute.sources import geocoding as geocode
+from floodroute.trip import ONLY_OPTION, TripPlan, plan_trip
 
 GRAPH_PATH = config.PROCESSED_NETWORK_PATH
 PLACES_PATH = config.PROCESSED_PLACES_PATH
@@ -38,6 +43,7 @@ OPTION_STYLE = {
     SAFE_SHORTEST: ("#e6550d", 5, "2 6", "Shortest within your limit"),
     RECOMMENDED: (ROUTE_COLOUR, 7, None, "Recommended"),
 }
+SOS_UNDO_SECONDS = 5
 START_COLOUR = "green"
 DEST_COLOUR = "red"
 
@@ -62,6 +68,12 @@ def load_places() -> pl.PlaceResolver:
         gpd.read_file(PLACES_PATH, layer="entrances"),
         load_router().footpaths,
     )
+
+
+@st.cache_resource
+def load_refuges() -> RefugeIndex:
+    graph = load_router().graph
+    return RefugeIndex(load_places(), graph.graph["study_area"].buffer(graph.graph["buffer_m"]))
 
 
 @st.cache_resource
@@ -228,7 +240,7 @@ def search_box(which: str) -> None:
         key=f"pick_{which}",
         label_visibility="collapsed",
     )
-    if st.button(f"Use as {which.lower()}", key=f"use_{which}", use_container_width=True):
+    if st.button(f"Use as {which.lower()}", key=f"use_{which}", width="stretch"):
         hit = places[choice]
         set_point(which, (hit.lat, hit.lon), "search", hit.footprint, hit.label.split(",")[0])
         st.rerun()
@@ -276,7 +288,12 @@ with st.sidebar:
     if isinstance(hazard, ScenarioHazard):
         st.caption(hazard.scenario.description)
     height_cm = st.number_input("Your height (cm)", min_value=60, max_value=230, value=170, step=1)
-    part = st.selectbox("Deepest water you will walk through", list(BodyPart), index=1, format_func=lambda b: b.label)
+    if "next_wading_part" in state:  # set by "use this limit"; widgets may only change before they render
+        state.wading_part = state.pop("next_wading_part")
+    state.setdefault("wading_part", BodyPart.ANKLE)
+    part = st.selectbox(
+        "Deepest water you will walk through", list(BodyPart), key="wading_part", format_func=lambda b: b.label
+    )
     wheelchair = st.checkbox("I use a wheelchair or mobility aid")
     profile = TravellerProfile(height_cm / 100, part, uses_wheelchair=wheelchair)
     st.caption(f"Your limit: **{profile.depth_limit_m * 100:.0f} cm** (never more than {HARD_LIMIT_M * 100:.0f} cm)")
@@ -300,7 +317,7 @@ with st.sidebar:
 
     for label, latlon, src in ((START, state.start, state.start_src), (DEST, state.dest, state.dest_src)):
         st.markdown(f"**{label}:** " + (f"{latlon[0]:.5f}, {latlon[1]:.5f} · {src}" if latlon else "not set"))
-    if st.button("Clear points", use_container_width=True):
+    if st.button("Clear points", width="stretch"):
         for key in ("start", "dest", "start_src", "dest_src", "start_fp", "dest_fp", "start_label", "dest_label"):
             state[key] = None
         state.click_target = START
@@ -311,7 +328,7 @@ with st.sidebar:
 
 router = load_router()
 snapshot = hazard.snapshot(router.graph)
-plan: RoutePlan | None = None
+trip: TripPlan | None = None
 error, ends = None, {}
 if state.start and state.dest:
     if not (in_southbank(state.start) and in_southbank(state.dest)):
@@ -319,10 +336,13 @@ if state.start and state.dest:
     else:
         ends = {START: resolve(START), DEST: resolve(DEST)}
         try:
-            plan = plan_routes(router, ends[START].access_points, ends[DEST].access_points, snapshot, profile, alpha)
-        except RoutingError:
-            error = "No route connects these points."
+            trip = plan_trip(router, load_refuges(), ends[START], ends[DEST], snapshot, profile, alpha)
+        except RoutingError as exc:
+            error = str(exc)
+plan: RoutePlan | None = trip.routes if trip else None
 route = plan.recommended.route if plan else None
+REFUGE_COLOUR = "#2ca02c"
+DOWNGRADE_COLOUR = "#b07cd8"
 
 overlay = folium.FeatureGroup(name="route")
 flood = flood_features(scenario_title)
@@ -387,6 +407,28 @@ if plan is not None:
             dash_array=dash,
             tooltip=" = ".join(OPTION_STYLE[k][3] for k in kinds) + f": {drawn_route.length_m:,.0f} m",
         ).add_to(overlay)
+if trip is not None and trip.downgrade is not None:
+    folium.PolyLine(
+        [to_latlon(Point(c)) for c in trip.downgrade.option.route.geometry.coords],
+        color=DOWNGRADE_COLOUR,
+        weight=5,
+        opacity=0.9,
+        dash_array="10 6",
+        tooltip=f"With a {trip.downgrade.body_part.label} limit: {trip.downgrade.option.route.length_m:,.0f} m",
+    ).add_to(overlay)
+if trip is not None and trip.refuge is not None:
+    folium.PolyLine(
+        [to_latlon(Point(c)) for c in trip.refuge.route.geometry.coords],
+        color=REFUGE_COLOUR,
+        weight=6,
+        opacity=0.9,
+        tooltip=f"To shelter: {trip.refuge.refuge.name}, {trip.refuge.route.length_m:,.0f} m",
+    ).add_to(overlay)
+    folium.GeoJson(
+        gpd.GeoSeries([trip.refuge.refuge.building], crs=config.METRIC_CRS).to_crs(config.WGS84).__geo_interface__,
+        style_function=lambda _: {"color": REFUGE_COLOUR, "weight": 2, "fillOpacity": 0.25},
+        tooltip=f"Shelter: {trip.refuge.refuge.name}",
+    ).add_to(overlay)
 if route is not None:
     for snap in (route.origin, route.destination):  # short walk between the door/point and the footpath
         folium.PolyLine(
@@ -408,8 +450,84 @@ def depth_text(depth: float | None) -> str:
     return "none" if depth <= DRY_DEPTH_M else f"{depth * 100:.0f} cm ({profile.describe_depth(depth)})"
 
 
+def show_origin_and_emergency(trip: TripPlan) -> None:
+    """The alert for where the traveller stands, and the emergency panel."""
+    o = trip.origin
+    depth = "unknown" if o.depth_m is None else f"{o.depth_m * 100:.0f} cm"
+    if o.sheltered and not trip.has_safe_route:
+        st.info(
+            f"You are starting inside {ends[START].label}. No route keeps you within your limit, so the safest "
+            "choice is to stay inside until the water goes down."
+        )
+    if o.level == AlertLevel.OVER_LIMIT:
+        st.warning(f"You are standing in {depth} of water ({o.depth_label}), deeper than your limit.")
+    elif o.level == AlertLevel.DEEP:
+        st.warning(f"⚠️ You are standing in {depth} of water ({o.depth_label}). Move carefully; help is available.")
+    elif o.level == AlertLevel.VERY_DEEP:
+        st.error(f"🟠 Water here is {depth}, above your knee. Calling for help is recommended before moving.")
+    elif o.level == AlertLevel.CRITICAL:
+        st.error(f"🔴 Water here is {depth} ({o.depth_label}). Stay where you are if you can and call for help now.")
+    if trip.emergency is None:
+        return
+    advice = trip.emergency.advice
+    title = "Emergency help — " + ("your only option" if advice == ONLY_OPTION else advice)
+    with st.container(border=True):
+        st.markdown(f"**{title}**")
+        if advice == ONLY_OPTION:
+            st.caption("No shelter can be reached from here. Stay on the highest ground you can reach.")
+        c1, c2 = st.columns(2)
+        c1.link_button("📞 Call 000", "tel:000", type="primary", width="stretch")
+        if state.get("sos_sent_at") is None:
+            if c2.button("📣 Alert people nearby (SOS)", width="stretch"):
+                state.sos_sent_at = time.time()
+                st.rerun()
+        else:
+            sent = time.time() - state.sos_sent_at
+            c2.success(f"SOS sent {sent:.0f} s ago with your location and {depth} water depth (simulated).")
+            if sent < SOS_UNDO_SECONDS and c2.button("Undo SOS", width="stretch"):
+                state.sos_sent_at = None
+                st.rerun()
+
+
+def show_alternatives(trip: TripPlan) -> None:
+    if trip.downgrade is not None:
+        d = trip.downgrade
+        m = d.option.metrics
+        with st.container(border=True):
+            st.markdown(
+                f"**Accept water up to the {d.body_part.label} ({d.depth_limit_m * 100:.0f} cm)?** "
+                f"Then you can get there: {m.length_m:,.0f} m, deepest {m.max_depth_m * 100:.0f} cm "
+                f"({m.max_depth_label}). Dashed light purple on the map."
+            )
+            if st.button(f"Use the {d.body_part.label} limit"):
+                state.next_wading_part = d.body_part
+                st.rerun()
+    if trip.refuge is not None:
+        r = trip.refuge
+        m = r.metrics
+        text = (
+            f"**Shelter nearby: {r.refuge.name}** ({r.entrance_label}), {m.length_m:,.0f} m, "
+            f"deepest water {'none' if not m.max_depth_m or m.max_depth_m <= DRY_DEPTH_M else m.max_depth_label}. "
+            "Green on the map. Wait there until the water goes down; this is based on current conditions only."
+        )
+        if not r.within_limit:
+            text += " ⚠️ The way there crosses water deeper than your limit; it is the shallowest way out."
+        if trip.origin.level == AlertLevel.CRITICAL:
+            with st.expander("If you cannot wait for help: route to shelter"):
+                st.markdown(text)
+        else:
+            with st.container(border=True):
+                st.markdown(text)
+
+
+if trip is not None:
+    show_origin_and_emergency(trip)
+    if not trip.has_safe_route:
+        show_alternatives(trip)
 if error:
     st.error(error)
+elif plan is None and trip is not None:
+    st.error("No route connects these points.")
 elif plan is not None:
     if route is not None:
         m = plan.recommended.metrics
@@ -429,7 +547,7 @@ elif plan is not None:
         )
         c4.metric("Distance in water", f"{m.wading_length_m:,.0f} m")
     else:
-        st.error(plan.recommended.error + " Try a higher wading limit, or wait somewhere safe.")
+        st.error(plan.recommended.error)
     rows = []
     for option in plan.options:
         name = OPTION_STYLE[option.kind][3]
@@ -456,7 +574,7 @@ elif plan is not None:
                 "Over your limit": f"{om.segments_over_limit} section(s)" if om.segments_over_limit else "no",
             }
         )
-    st.dataframe(rows, hide_index=True, use_container_width=True)
+    st.dataframe(rows, hide_index=True, width="stretch")
     st.caption(
         f"{plan.blocked_edges} network sections are over your limit in this scenario. "
         "Grey dashed: shortest ignoring flooding · orange dotted: shortest within your limit · "
