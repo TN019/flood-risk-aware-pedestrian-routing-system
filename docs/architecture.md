@@ -1,11 +1,14 @@
 # Architecture
 
+Every number used below is listed with its source or reason in [parameters.md](parameters.md).
+
 ## Layers
 
 The `floodroute` package is organised bottom-up. Each layer depends only on the layers below it.
 
 ```
-sources     external data: OpenStreetMap, City of Melbourne, Nominatim place search
+sources     external data: OpenStreetMap, City of Melbourne, Nominatim place search,
+            Geoscience Australia elevation, Vicmap Planning flood overlays
 network     routing graph construction, schema, storage
 hazard      flood conditions on network edges        ── HazardProvider
 risk        edge costs and impassable edges          ── EdgeCost
@@ -67,9 +70,20 @@ Conventions that keep these interchangeable:
 
 ## Flood risk
 
-A traveller picks the deepest water they accept as a body part (no wading, ankle, lower calf,
-mid calf); `risk.profile.TravellerProfile` converts it to a depth from their height using
-anthropometric proportions, capped at 30 cm. Wheelchair users are limited to 2 cm.
+A traveller picks the deepest water they accept as a body part; `risk.profile.TravellerProfile`
+converts it to a depth from their height H, capped at 30 cm:
+
+| Choice | Depth | 170 cm adult |
+|---|---|---|
+| No wading | 2 cm | 2 cm |
+| Ankle | 0.039 × H | 6.6 cm |
+| Lower calf | 0.121 × H | 20.6 cm |
+| Mid calf | 0.162 × H | 27.5 cm |
+
+Ankle and knee heights are Drillis & Contini's body proportions; the calf points lie a third of
+the way and halfway from ankle to knee. Knee (0.285 × H) is not offered: it exceeds 30 cm for
+anyone taller than about 105 cm. Wheelchair users are limited to 2 cm. Up to 2 cm counts as dry
+pavement for everyone, so "no wading" means no water beyond what any pavement carries in rain.
 
 `risk.model.DepthRelativeRisk` gives each edge a risk from its deepest point:
 
@@ -79,6 +93,9 @@ anthropometric proportions, capped at 30 cm. Wheelchair users are limited to 2 c
 and `risk_cost` turns it into the routing cost
 
     cost = cost_factor × (dry length + wet length × (1 + α·R)),   α = 2 by default
+
+where wet length is the part of the edge deeper than 2 cm, R comes from the edge's deepest point,
+and `cost_factor` is 3 for walking along a carriageway that has a sidewalk alongside, 1 otherwise.
 
 With no water R = 0 everywhere and the cost equals the plain walking cost, so routes without a
 flood are identical to routing without the risk layer (tested on the Southbank network). Flow
@@ -140,11 +157,44 @@ Development Plan (2026), estimated from the Geoscience Australia 5 m LiDAR eleva
 | 3 Severe flooding | 1.8 | full | the same in 2040, the event Melbourne Water uses for safe pedestrian access |
 | 4 Extreme flooding | 2.4 | full | the same in 2100, the basis of the flood protection level for buildings |
 
-Before filling, the ground is adjusted to the walking surface: river cells take the bank's
-elevation, and pits more than 0.5 m below their 25 m neighbourhood (basement ramps, cuttings) are
-raised, which can hide water in a genuine pedestrian underpass. This is a static estimate, not a
-hydraulic model: no flow, velocity, timing or drainage. A hydraulic model's depth grid (e.g. a
-TUFLOW run) can replace it through the same `GridHazard`.
+How a depth grid is computed, cell by cell on the 5 m grid:
+
+1. **Walking surface.** River and dock cells (flattened to 0 m AHD in the ground model) take the
+   elevation of the nearest bank, so paths along the water do not read the river surface. Pits more
+   than 0.5 m below the median of their 25 m neighbourhood (basement ramps, road cuttings) are
+   raised to 0.5 m below it. A 3 × 3 median then removes single-cell noise.
+2. **River.** Starting from the river cells, water spreads to every neighbouring cell (including
+   diagonals) whose ground is below the river level, and on from there. Depth = river level −
+   ground. Low ground behind higher ground stays dry, however low it is.
+3. **Ponding.** For every cell, the spill elevation is the lowest level water there would have to
+   rise to before it could flow, cell by cell, to the river or the edge of the grid (found by
+   priority-flood depression filling). Where it is above the ground the cell lies in a closed
+   depression. Each depression has a bottom (its lowest cell) and a rim (its spill elevation); its
+   water level is bottom + fill fraction × (rim − bottom), and depth = water level − ground. For a
+   depression with its bottom at 1.80 m and its rim at 2.20 m AHD, light ponding (a quarter) puts
+   the water at 1.90 m, 10 cm deep at the bottom; full ponding puts it at 2.20 m, 40 cm deep.
+4. **Combined.** Each cell takes the deeper of the river and ponding depths.
+5. **On the network.** `GridHazard` reads the depth every 2 m along each edge, as described above.
+
+Which parts rest on a source and which are chosen:
+
+- From sources: the ground model, the two mechanisms, the three river levels and the 0.8 m of sea
+  level rise in the 2100 level.
+- Chosen: the quarter fill for light ponding (there is no published depth for local ponding in
+  Southbank), the pit rule, the smoothing and the 2 m sampling.
+
+Limits:
+
+- A static estimate, not a hydraulic model: no flow, velocity, timing or drainage. Water fills
+  every depression even where a drain would empty it.
+- River levels are the bay's tide levels; river flows can raise Southbank levels above them, so
+  river depths are a lower bound.
+- 5 m cells cannot show kerbs and gutters, where real ponding often sits, and buildings are
+  removed from a bare-earth model, so water can spread across ground a building occupies.
+- Raising pits can hide water in a genuine pedestrian underpass.
+
+A hydraulic model's depth grid (e.g. a TUFLOW run) can replace this estimate through the same
+`GridHazard`.
 
 As a check against a result the method was not fitted to: the plan describes river water spilling
 over the promenade and filling a low area around Clarke Street between City Road and Haig Lane; the
@@ -210,7 +260,8 @@ the least water that has to be faced; the smallest body part covering it (never 
 for wheelchair users) is offered with that route.
 
 **Refuges.** In this version every building with a way in counts as a sheltered refuge
-(`places.refuges`); whether it is open to the public is not known from the data. From dry ground
+(`places.refuges`); whether it is open to the public is not known from the data. The nearest 25
+buildings within 800 m in a straight line are tried; beyond that, emergency help is offered instead. From dry ground
 the route to the nearest refuge stays within the limit; from water over the limit it is the
 safest route and is marked as crossing water over the limit.
 
