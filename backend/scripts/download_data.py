@@ -1,19 +1,21 @@
 """Download the raw input data into data/raw/.
 
-Run:  uv run python scripts/download_data.py [--only osm|buildings|context|com|boundary ...]
+Run:  uv run python scripts/download_data.py [--only osm|buildings|context|com|boundary|dem|overlays ...]
 
 - osm        OpenStreetMap walking network (unsimplified GraphML)
 - buildings  OpenStreetMap building footprints and entrances
 - context    OpenStreetMap water and bridges (used by scripts/validate_com_network.py)
 - com        City of Melbourne pedestrian network (alternative network source)
 - boundary   City of Melbourne CLUE Southbank boundary (study area)
+- dem        Geoscience Australia 5 m LiDAR DEM (ground elevation, m AHD)
+- overlays   Vicmap Planning flood overlays (LSIO / SBO / FO extents)
 """
 
 from __future__ import annotations
 
 import argparse
 
-from floodroute.sources import com, osm
+from floodroute.sources import com, osm, terrain
 
 STEPS = {
     "boundary": com.download_clue_boundary,
@@ -21,6 +23,8 @@ STEPS = {
     "buildings": osm.download_buildings,
     "context": osm.download_water_and_bridges,
     "com": com.download_pedestrian_network,
+    "dem": terrain.download_dem,
+    "overlays": terrain.download_flood_overlays,
 }
 
 

@@ -1,4 +1,7 @@
-"""Synthetic flood scenarios: hand-drawn flood zones turned into edge conditions.
+"""Hand-drawn flood zones turned into edge conditions, for tests and what-if experiments.
+
+The bundled scenarios are built from official flood extents and terrain instead
+(``hazard.catalog``, ``hazard.terrain``).
 
 A scenario is a GeoJSON FeatureCollection (WGS84) of polygon flood zones with top-level members
 ``id``, ``title``, ``description`` and ``order`` (severity rank, 0 = normal). Each zone has
@@ -80,10 +83,6 @@ def load_scenario(path: Path, crs: str = config.METRIC_CRS) -> FloodScenario:
         tuple(zones),
         int(doc.get("order", 0)),
     )
-
-
-def list_scenarios(directory: Path = config.SCENARIO_DIR) -> list[Path]:
-    return sorted(Path(directory).glob("*.geojson"))
 
 
 def edge_condition(scenario: FloodScenario, geometry: BaseGeometry, flooded_area: BaseGeometry) -> EdgeCondition:

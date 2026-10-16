@@ -1,0 +1,14 @@
+{
+  "id": "light-ponding",
+  "order": 1,
+  "title": "Light ponding",
+  "method": "terrain-fill",
+  "river_level_m_ahd": null,
+  "ponding_fill_fraction": 0.5,
+  "description": "Short heavy rain: stormwater collects in the low spots of the mapped overland flow paths, each depression half full. The river stays within its banks. A static estimate, not a hydraulic model: no flow or velocity.",
+  "sources": [
+    "Mechanism: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026).",
+    "Stormwater ponding: closed terrain depressions inside the Special Building Overlay (overland flow) extents, Vicmap Planning (CC BY 4.0).",
+    "Ground: Geoscience Australia 5 m LiDAR digital elevation model (CC BY 4.0)."
+  ]
+}

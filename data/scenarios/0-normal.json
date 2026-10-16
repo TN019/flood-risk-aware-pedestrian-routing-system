@@ -1,0 +1,7 @@
+{
+  "id": "normal",
+  "order": 0,
+  "title": "Normal conditions",
+  "method": "none",
+  "description": "No standing water. Routes match the plain shortest walking routes."
+}
