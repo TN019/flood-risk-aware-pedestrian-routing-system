@@ -16,7 +16,10 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.17.1",
+]
 # Map rendering for the build scripts, and the interim Streamlit app.
 tools = [
     "folium>=0.17",
@@ -37,3 +40,28 @@ default-groups = ["dev", "tools"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import sorting
+    "B",       # bugbear: likely bugs
+    "UP",      # pyupgrade: modern syntax for the target Python
+    "SIM",     # simplifications
+    "RUF",     # ruff-specific checks
+]
+
+# Intentional symbols in formulas and text: multiplication sign, en dash, alpha.
+allowed-confusables = ["×", "–", "α"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["floodroute"]
+
+[tool.ruff.format]
+quote-style = "double"
