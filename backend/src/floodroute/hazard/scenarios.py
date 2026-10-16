@@ -1,9 +1,10 @@
 """Synthetic flood scenarios: hand-drawn flood zones turned into edge conditions.
 
 A scenario is a GeoJSON FeatureCollection (WGS84) of polygon flood zones with top-level members
-``id``, ``title`` and ``description``. Each zone has properties ``name``, ``max_depth_m`` and
-``ramp_m``: water is 0 m deep at the zone's edge and deepens linearly inward, reaching
-``max_depth_m`` at ``ramp_m`` from the edge. Overlapping zones take the deeper value.
+``id``, ``title``, ``description`` and ``order`` (severity rank, 0 = normal). Each zone has
+properties ``name``, ``max_depth_m`` and ``ramp_m``: water is 0 m deep at the zone's edge and
+deepens linearly inward, reaching ``max_depth_m`` at ``ramp_m`` from the edge. Overlapping zones
+take the deeper value.
 
 Each network edge gets its deepest sampled depth and the length that is wetter than
 ``DRY_DEPTH_M``. Edges outside every zone are dry: a scenario fully specifies its own water.
@@ -26,8 +27,7 @@ from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
 from floodroute import config
-from floodroute.hazard.base import DRY, EdgeCondition, HazardSnapshot
-from floodroute.risk.profile import DRY_DEPTH_M
+from floodroute.hazard.base import DRY, DRY_DEPTH_M, EdgeCondition, HazardSnapshot
 
 SAMPLE_SPACING_M = 1.0  # depth is sampled along flooded edges at this spacing
 
@@ -52,6 +52,7 @@ class FloodScenario:
     title: str
     description: str
     zones: tuple[FloodZone, ...]
+    order: int = 0
 
     def depth_at(self, point: Point) -> float:
         return max((z.depth_at(point) for z in self.zones), default=0.0)
@@ -73,7 +74,11 @@ def load_scenario(path: Path, crs: str = config.METRIC_CRS) -> FloodScenario:
             )
         )
     return FloodScenario(
-        doc.get("id", Path(path).stem), doc.get("title", Path(path).stem), doc.get("description", ""), tuple(zones)
+        doc.get("id", Path(path).stem),
+        doc.get("title", Path(path).stem),
+        doc.get("description", ""),
+        tuple(zones),
+        int(doc.get("order", 0)),
     )
 
 

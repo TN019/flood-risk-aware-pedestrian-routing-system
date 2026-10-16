@@ -20,6 +20,8 @@ from typing import Protocol
 
 import networkx as nx
 
+DRY_DEPTH_M = 0.02  # water up to this depth counts as dry pavement
+
 
 @dataclass(frozen=True)
 class EdgeCondition:

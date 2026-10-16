@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from floodroute.hazard import HazardSnapshot
+from floodroute.hazard import DRY_DEPTH_M, HazardSnapshot
 from floodroute.risk.model import wet_length
-from floodroute.risk.profile import DRY_DEPTH_M, TravellerProfile
+from floodroute.risk.profile import TravellerProfile
 from floodroute.routing.router import Route
 
 

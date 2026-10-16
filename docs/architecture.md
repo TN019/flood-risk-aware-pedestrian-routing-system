@@ -83,7 +83,7 @@ With no water R = 0 everywhere and the cost equals the plain walking cost, so ro
 flood are identical to routing without the risk layer (tested on the Southbank network). Flow
 velocity is not used yet.
 
-`risk.metrics.route_metrics` reports what a route means for the traveller, separately from the
+`routing.metrics.route_metrics` reports what a route means for the traveller, separately from the
 cost: deepest water and where it reaches on their body, distance in water, depth-weighted
 distance in water, sections over their limit, and detour against the shortest route.
 
@@ -92,6 +92,32 @@ distance in water, sections over their limit, and detour against the shortest ro
 `hazard.scenarios` reads GeoJSON flood zones (`name`, `max_depth_m`, `ramp_m`); depth rises from
 0 at a zone's edge to its maximum `ramp_m` inside it. Each edge gets its deepest sampled depth
 and its wet length. Edges outside every zone are dry. Scenarios live in `data/scenarios/`.
+
+`scripts/make_scenarios.py` generates five escalating levels of one illustrative storm; corridors
+follow OSM ways by name and the riverfront follows the OSM river polygon. They are synthetic, not
+the output of a flood model. Share of the Southbank network under water, and share of 150 random
+trips with a route within the limit of a 170 cm adult:
+
+| Level | Network wet | Deepest | No wading | Ankle | Lower calf | Mid calf |
+|---|---|---|---|---|---|---|
+| 0 Normal | 0% | — | 100% | 100% | 100% | 100% |
+| 1 Light ponding | 3% | 5 cm | 96% | 100% | 100% | 100% |
+| 2 Moderate flooding | 7% | 25 cm | 92% | 92% | 98% | 100% |
+| 3 Severe flooding | 36% | 45 cm | 15% | 16% | 64% | 73% |
+| 4 Extreme flooding | 65% | 1 m | 5% | 5% | 8% | 8% |
+
+## Planning a walk
+
+`routing.planning.plan_routes` returns three routes so the effect of each rule is visible:
+
+| Option | Cost | Shows |
+|---|---|---|
+| `shortest` | walking cost, flood ignored | what an ordinary navigation app would suggest, and its exposure |
+| `safe_shortest` | risk cost with α = 0 (safety filter only) | what excluding water over the limit changes |
+| `recommended` | risk cost with α (default 2) | what weighting the remaining water changes |
+
+When water is the obstacle, the safe and recommended options carry an error instead of a route;
+the shortest option is still returned so the exposure it would involve can be shown.
 
 ## Verifying the path finder
 

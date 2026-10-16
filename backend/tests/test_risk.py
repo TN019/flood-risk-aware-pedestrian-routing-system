@@ -12,8 +12,8 @@ from floodroute import config
 from floodroute.hazard import DRY, UNKNOWN, EdgeCondition, HazardSnapshot, NoHazard
 from floodroute.hazard.scenarios import FloodScenario, FloodZone, ScenarioHazard, load_scenario
 from floodroute.risk import BodyPart, DepthRelativeRisk, TravellerProfile, describe_depth, risk_cost, walking_cost
-from floodroute.risk.metrics import route_metrics
 from floodroute.routing import Router, RoutingError
+from floodroute.routing.metrics import route_metrics
 
 ADULT = 1.70
 
@@ -205,14 +205,30 @@ def test_load_scenario_from_geojson(tmp_path):
     assert scenario.id == "x" and scenario.zones[0].polygon.area == pytest.approx(2500, rel=1e-3)
 
 
-def test_bundled_scenarios_load():
+def test_bundled_scenarios_are_five_ordered_levels():
     from floodroute.hazard.scenarios import list_scenarios
 
-    paths = list_scenarios()
-    assert paths, "no scenario files in data/scenarios"
-    for p in paths:
-        s = load_scenario(p)
+    scenarios = [load_scenario(p) for p in list_scenarios()]
+    assert [s.order for s in scenarios] == [0, 1, 2, 3, 4]
+    assert scenarios[0].zones == ()  # normal: no water
+    for s in scenarios[1:]:
         assert s.zones and all(0 < z.max_depth_m < 2 for z in s.zones)
+    deepest = [max((z.max_depth_m for z in s.zones), default=0) for s in scenarios]
+    assert deepest == sorted(deepest)
+
+
+@pytest.mark.skipif(not config.PROCESSED_NETWORK_PATH.exists(), reason="processed network not built")
+def test_scenarios_flood_more_of_the_network_as_they_escalate():
+    from floodroute.hazard.scenarios import list_scenarios
+    from floodroute.network import load_graph
+
+    g = load_graph(config.PROCESSED_NETWORK_PATH)
+    wet = []
+    for path in list_scenarios():
+        snap = ScenarioHazard(load_scenario(path)).snapshot(g)
+        wet.append(sum(1 for c in snap.conditions.values() if c.depth_m and c.depth_m > 0.02))
+    assert wet[0] == 0
+    assert wet == sorted(wet) and len(set(wet)) == len(wet)
 
 
 @pytest.mark.skipif(not config.PROCESSED_NETWORK_PATH.exists(), reason="processed network not built")

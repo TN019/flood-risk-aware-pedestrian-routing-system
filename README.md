@@ -29,6 +29,7 @@ cd backend
 uv sync                                    # create .venv and install dependencies
 uv run python scripts/download_data.py     # fetch OSM and City of Melbourne data into data/raw
 uv run python scripts/build_network.py     # build data/processed/southbank_network.gpkg and places
+uv run python scripts/make_scenarios.py    # regenerate the synthetic flood scenarios (already committed)
 uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX

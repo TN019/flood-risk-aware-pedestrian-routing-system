@@ -11,7 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-DRY_DEPTH_M = 0.02  # water up to this depth counts as dry pavement
+from floodroute.hazard.base import DRY_DEPTH_M
+
 HARD_LIMIT_M = 0.30  # nobody is routed through deeper water
 DEFAULT_WALKING_SPEED_M_S = 1.3
 
