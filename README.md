@@ -48,7 +48,8 @@ cd ../backend && uv run uvicorn floodroute.api.app:app --port 8000
 then open http://localhost:8000; the API serves the built client and its own routes under
 `/api` (interactive reference at http://localhost:8000/docs). While working on the client, run
 `npm run dev` in `frontend/` instead and open the address it prints; it passes `/api` requests to
-the API on port 8000 and reloads on every change.
+the API on port 8000 (or wherever `FLOODROUTE_API_URL` points, e.g. `http://127.0.0.1:8010` when
+port 8000 is taken) and reloads on every change.
 
 `scripts/build_network.py --source com` builds the alternative City of Melbourne network, and
 `scripts/validate_com_network.py` reports its topology and coverage against OpenStreetMap.

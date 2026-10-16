@@ -227,7 +227,23 @@ export function MapView(props: Props) {
       m.on("click", (e: MapMouseEvent) => clickHandler.current(e.lngLat.lat, e.lngLat.lng));
       setReady(true);
     });
+    // Browsers may clear a WebGL canvas while the page is hidden or its container is resized;
+    // redraw when it is shown again or changes size, so the map never stays blank.
+    const redraw = () => {
+      m.resize();
+      m.triggerRepaint();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") redraw();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", redraw);
+    const resizes = new ResizeObserver(redraw);
+    resizes.observe(container.current);
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", redraw);
+      resizes.disconnect();
       m.remove();
       map.current = null;
     };
