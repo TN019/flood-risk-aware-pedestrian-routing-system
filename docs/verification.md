@@ -174,4 +174,4 @@ Before running, E1 and E3 were re-derived under the new rules (above: E1 now off
 to the knee; in E3 40 cm is OVER_LIMIT, so there is a downgrade and no emergency), and E7 and E8
 were added to keep testing what E1 and E3 used to test: water beyond the hard limit (no
 downgrade) and the DEEP level (only reachable by people taller than about 175 cm). Part 2 adds a
-knee traveller to R-A to R-E.
+knee traveller to R-A to R-E. Result: **76 of 76 checks met**.

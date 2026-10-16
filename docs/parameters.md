@@ -19,9 +19,10 @@ Basis:
 | Knee, hip, chest, shoulder heights | 0.285, 0.53, 0.72, 0.818 × height | `risk.profile.LANDMARKS` | Cited: Drillis & Contini (1966) |
 | Lower calf height | 0.121 × height | `risk.profile.BodyPart` | Derived: a third of the way from ankle to knee, 0.039 + (0.285 − 0.039) / 3 |
 | Mid calf height | 0.162 × height | `risk.profile.BodyPart` | Derived: halfway between ankle and knee |
+| Knee limit | 0.285 × height | `risk.profile.BodyPart` | Cited: Drillis & Contini (1966); 48.5 cm for a 170 cm adult |
 | Mid thigh, waist heights | 0.41, 0.63 × height | `risk.profile.LANDMARKS` | Derived: about halfway knee–hip and hip–chest; used only to describe a depth |
-| Hard limit | 30 cm | `risk.profile.HARD_LIMIT_M` | Chosen: nobody is routed through deeper water whatever their height or choice. For comparison, Melbourne Water's Southbank plan takes up to 500 mm as safe pedestrian access, and up to 300 mm for vulnerable uses |
-| No-wading limit, wheelchair limit, dry pavement | 2 cm | `hazard.base.DRY_DEPTH_M` | Chosen: a film of water any pavement carries in rain. Water up to 2 cm costs nothing; deeper water counts as wading. "Knee" is not offered as a limit: at 0.285 × height it exceeds 30 cm for anyone taller than about 105 cm |
+| Hard limit | 50 cm | `risk.profile.HARD_LIMIT_M` | Cited: Melbourne Water's Southbank plan takes up to 500 mm as safe pedestrian access (300 mm for vulnerable uses); 0.5 m is also the H2 depth limit for people (Smith, Davey & Cox, 2014). Nobody is routed through deeper water whatever their height or choice. Thigh and waist are not offered: at 0.41 and 0.63 × height they would be capped to 50 cm for almost everyone |
+| No-wading limit, wheelchair limit, dry pavement | 2 cm | `hazard.base.DRY_DEPTH_M` | Chosen: a film of water any pavement carries in rain. Water up to 2 cm costs nothing; deeper water counts as wading. |
 | Accepted heights | 0.5–2.5 m | `risk.profile.TravellerProfile` | Chosen: input check |
 | Walking speed | 1.3 m/s | `risk.profile.DEFAULT_WALKING_SPEED_M_S` | Chosen: a typical adult pace; only used for travel times |
 
@@ -29,7 +30,7 @@ Basis:
 
 | Parameter | Value | Where | Basis |
 |---|---|---|---|
-| Deep | over 30 cm | `risk.alerts` | The hard limit |
+| Deep | over 50 cm | `risk.alerts` | The hard limit; for most adults the knee comes first, so this level applies only to people taller than about 175 cm |
 | Very deep | above the knee, 0.285 × height | `risk.alerts.KNEE_FRACTION` | Cited proportion; chosen as the point where walking out is no longer advised without help |
 | Critical | above half the height, or unknown depth | `risk.alerts.HALF_HEIGHT_FRACTION` | Chosen: at half a person's height the water lifts enough of their weight that they can lose their footing even in still water; unknown depth is treated as the worst case |
 
