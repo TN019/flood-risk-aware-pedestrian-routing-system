@@ -3,14 +3,15 @@
 Levels, from the traveller's height H and their chosen limit:
 
     OK          at or below their limit
-    OVER_LIMIT  deeper than their limit, up to the 30 cm hard limit
-    DEEP        deeper than 30 cm                      → emergency help available
+    OVER_LIMIT  deeper than their limit, up to the 50 cm hard limit
+    DEEP        deeper than 50 cm                      → emergency help available
     VERY_DEEP   deeper than the knee (0.285·H)         → emergency help recommended
     CRITICAL    deeper than half their height, or unknown → emergency help strongly recommended
 
 Body proportions make the levels stricter for shorter people: a 120 cm child reaches VERY_DEEP
-at about 34 cm. Flow velocity is not considered yet, so these levels understate the danger of
-moving water.
+at about 34 cm. For most adults the knee (48.5 cm at 170 cm) is below 50 cm, so they go straight
+from OVER_LIMIT to VERY_DEEP; DEEP applies only to people taller than about 175 cm. Flow velocity
+is not considered yet, so these levels understate the danger of moving water.
 """
 
 from __future__ import annotations

@@ -41,14 +41,21 @@ def flooded(depth, flooded_length=None):
 
 @pytest.mark.parametrize(
     "part, expected_cm",
-    [(BodyPart.NO_WADING, 2.0), (BodyPart.ANKLE, 6.63), (BodyPart.LOWER_CALF, 20.57), (BodyPart.MID_CALF, 27.54)],
+    [
+        (BodyPart.NO_WADING, 2.0),
+        (BodyPart.ANKLE, 6.63),
+        (BodyPart.LOWER_CALF, 20.57),
+        (BodyPart.MID_CALF, 27.54),
+        (BodyPart.KNEE, 48.45),
+    ],
 )
 def test_body_part_limits_scale_with_height(part, expected_cm):
     assert TravellerProfile(ADULT, part).depth_limit_m * 100 == pytest.approx(expected_cm, abs=0.01)
 
 
 def test_hard_limit_and_wheelchair():
-    assert TravellerProfile(2.2, BodyPart.MID_CALF).depth_limit_m == pytest.approx(0.30)  # 35.6 cm capped
+    assert TravellerProfile(2.0, BodyPart.KNEE).depth_limit_m == pytest.approx(0.50)  # 57 cm capped
+    assert TravellerProfile(2.2, BodyPart.MID_CALF).depth_limit_m == pytest.approx(0.3564)  # under the cap
     assert TravellerProfile(ADULT, BodyPart.MID_CALF, uses_wheelchair=True).depth_limit_m == pytest.approx(0.02)
     assert (
         TravellerProfile(1.2, BodyPart.LOWER_CALF).depth_limit_m

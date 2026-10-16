@@ -80,10 +80,10 @@ def trip(client, scenario="wet", start=(0, -5), end=(300, -5), **traveller):
 
 def test_options_list_every_choice(client):
     o = client.get("/api/options").json()
-    assert [p["key"] for p in o["body_parts"]] == ["no_wading", "ankle", "lower_calf", "mid_calf"]
+    assert [p["key"] for p in o["body_parts"]] == ["no_wading", "ankle", "lower_calf", "mid_calf", "knee"]
     assert [p["key"] for p in o["preferences"]] == ["shortest", "balanced", "avoid_water", "driest"]
     assert [lv["key"] for lv in o["flood_levels"]] == ["light", "moderate", "heavy", "extreme"]
-    assert o["hard_limit_m"] == 0.30 and o["default_preference"] == "balanced"
+    assert o["hard_limit_m"] == 0.50 and o["default_preference"] == "balanced"
 
 
 def test_scenarios_report_their_level_and_water(client):
@@ -137,7 +137,7 @@ def test_requests_outside_southbank_or_invalid_are_refused(client):
     r = trip(client, start=(-500, -500))
     assert r.status_code == 422 and "inside Southbank" in r.json()["detail"]
     assert trip(client, scenario="nope").status_code == 422
-    assert trip(client, wading="knee").status_code == 422
+    assert trip(client, wading="waist").status_code == 422
     assert trip(client, height_cm=20).status_code == 422
 
 

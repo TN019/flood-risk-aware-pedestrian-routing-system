@@ -7,11 +7,11 @@
 2. **Three routes** to the destination (``routing.planning``).
 3. When no route stays within their limit, or they are already in water over it:
    - **Downgrade**: the shallowest body-part limit that would make the trip possible (never above
-     30 cm, never for wheelchair users), found with a minimax search, and the route under it.
+     50 cm, never for wheelchair users), found with a minimax search, and the route under it.
    - **Refuge**: a nearby building to shelter in. From dry ground the route stays within the
      limit; from water over the limit it is the *safest* route (shallowest deepest point, then
      shortest), which may cross deep water and is marked as such.
-4. **Emergency help** when the start is over 30 cm deep (more strongly above the knee and above
+4. **Emergency help** when the start is over 50 cm deep (more strongly above the knee and above
    half the traveller's height), or when no refuge can be reached at all. Only the request is
    produced here; sending it (e.g. alerting people nearby) is outside this package.
 """

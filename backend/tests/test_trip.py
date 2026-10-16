@@ -7,7 +7,7 @@ from floodroute import config
 from floodroute.hazard import DRY, EdgeCondition, HazardSnapshot
 from floodroute.places import PlaceResolver
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import BodyPart, TravellerProfile
+from floodroute.risk import HARD_LIMIT_M, BodyPart, TravellerProfile
 from floodroute.risk.alerts import AlertLevel, alert_level
 from floodroute.routing import Router
 from floodroute.trip import ONLY_OPTION, plan_trip
@@ -68,7 +68,7 @@ def trip(snap, profile, origin=(75, 0), destination=(300, 50), buildings=None):
     [
         (0.05, AlertLevel.OK),
         (0.10, AlertLevel.OVER_LIMIT),
-        (0.35, AlertLevel.DEEP),
+        (0.45, AlertLevel.OVER_LIMIT),  # under the knee and under 50 cm
         (0.50, AlertLevel.VERY_DEEP),
         (0.90, AlertLevel.CRITICAL),
         (None, AlertLevel.CRITICAL),
@@ -81,8 +81,15 @@ def test_alert_levels_for_an_adult(depth, level):
 def test_alert_levels_are_stricter_for_a_child():
     child = TravellerProfile(1.20, BodyPart.ANKLE)  # knee 34 cm, half height 60 cm
     assert alert_level(0.35, child) == AlertLevel.VERY_DEEP
-    assert alert_level(0.35, TravellerProfile(ADULT, BodyPart.ANKLE)) == AlertLevel.DEEP
+    assert alert_level(0.35, TravellerProfile(ADULT, BodyPart.ANKLE)) == AlertLevel.OVER_LIMIT
     assert alert_level(0.65, child) == AlertLevel.CRITICAL
+
+
+def test_deep_applies_between_50_cm_and_the_knee_of_a_tall_person():
+    tall = TravellerProfile(1.90, BodyPart.ANKLE)  # knee 54 cm
+    assert alert_level(0.50, tall) == AlertLevel.OVER_LIMIT
+    assert alert_level(0.52, tall) == AlertLevel.DEEP
+    assert alert_level(0.55, tall) == AlertLevel.VERY_DEEP
 
 
 def test_emergency_advice_by_level():
@@ -111,9 +118,11 @@ def test_downgrade_finds_the_smallest_body_part_that_works():
     assert plan.downgrade.option.metrics.max_depth_m == pytest.approx(0.10)
 
 
-def test_no_downgrade_for_wheelchair_users_or_beyond_30_cm():
+def test_no_downgrade_for_wheelchair_users_or_beyond_the_hard_limit():
     assert trip(snapshot(e1=0.10, e4=0.15), TravellerProfile(ADULT, uses_wheelchair=True)).downgrade is None
-    assert trip(snapshot(e1=0.35, e4=0.35), TravellerProfile(ADULT, BodyPart.ANKLE)).downgrade is None
+    assert trip(snapshot(e1=0.55, e4=0.55), TravellerProfile(ADULT, BodyPart.ANKLE)).downgrade is None
+    knee = trip(snapshot(e1=0.40, e4=0.40), TravellerProfile(ADULT, BodyPart.ANKLE)).downgrade
+    assert knee.body_part == BodyPart.KNEE and knee.required_depth_m == pytest.approx(0.40)
 
 
 def test_refuge_from_dry_ground_stays_within_the_limit():
@@ -124,13 +133,13 @@ def test_refuge_from_dry_ground_stays_within_the_limit():
 
 
 def test_refuge_from_deep_water_is_the_safest_way_out():
-    # Standing in 40 cm on e0. South is closer but its door is reached through 60 cm on e1;
-    # North is reached through the 40 cm the traveller is already in.
-    plan = trip(snapshot(e0=0.40, e1=0.60, e4=0.60), TravellerProfile(ADULT, BodyPart.ANKLE))
+    # A 190 cm traveller (knee 54 cm) standing in 52 cm on e0. South is closer but its door is
+    # reached through 60 cm on e1; North is reached through the 52 cm they are already in.
+    plan = trip(snapshot(e0=0.52, e1=0.60, e4=0.60), TravellerProfile(1.90, BodyPart.ANKLE))
     assert plan.origin.level == AlertLevel.DEEP
     assert plan.refuge.refuge.name == "North" and not plan.refuge.within_limit
-    assert plan.refuge.metrics.max_depth_m == pytest.approx(0.40)
-    assert plan.emergency.advice == "available" and plan.emergency.sos.depth_m == pytest.approx(0.40)
+    assert plan.refuge.metrics.max_depth_m == pytest.approx(0.52)
+    assert plan.emergency.advice == "available" and plan.emergency.sos.depth_m == pytest.approx(0.52)
     assert plan.downgrade is None  # get out of the water first
 
 
@@ -198,4 +207,4 @@ def test_plans_on_the_southbank_network_are_consistent():
             assert plan.emergency is not None and plan.downgrade is None
         if plan.downgrade is not None:
             assert plan.downgrade.depth_limit_m >= plan.downgrade.required_depth_m
-            assert plan.downgrade.required_depth_m <= 0.30
+            assert plan.downgrade.required_depth_m <= HARD_LIMIT_M
