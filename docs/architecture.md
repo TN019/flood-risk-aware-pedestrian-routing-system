@@ -9,8 +9,9 @@ sources     external data: OpenStreetMap, City of Melbourne, Nominatim place sea
 network     routing graph construction, schema, storage
 hazard      flood conditions on network edges        ── HazardProvider
 risk        edge costs and impassable edges          ── EdgeCost
-routing     snapping and cheapest-path search        ── PathFinder
-places      where a walk starts and ends (building entrances)
+routing     snapping, cheapest and safest-path search ── PathFinder
+places      where a walk starts and ends (building entrances), refuges
+trip        whole-trip planning: routes, downgrade, refuge, emergency
 prediction  forecasting models                       ── Predictor
 ```
 
@@ -118,6 +119,49 @@ trips with a route within the limit of a 170 cm adult:
 
 When water is the obstacle, the safe and recommended options carry an error instead of a route;
 the shortest option is still returned so the exposure it would involve can be shown.
+
+## When no safe route exists
+
+`trip.plan_trip` wraps `plan_routes` with what to do when the traveller cannot stay within their
+limit, or is already standing in water over it.
+
+**Where the traveller stands.** The depth at the start is judged against their own body
+(`risk.alerts`): at a corner where several footpaths meet they stand on the shallowest. Starting
+inside a building counts as sheltered.
+
+| Level | Water at the start | What is offered |
+|---|---|---|
+| `OK` | within their limit | normal routes |
+| `OVER_LIMIT` | over their limit, up to 30 cm | warning; refuge and downgrade if no safe route |
+| `DEEP` | over 30 cm | refuge (safest route); emergency help available |
+| `VERY_DEEP` | above the knee (0.285 × height) | refuge; emergency help recommended |
+| `CRITICAL` | above half their height, or unknown | emergency help strongly recommended; refuge route only "if you cannot wait" |
+
+If no refuge can be reached at all, emergency help is the only option, with advice to stay on
+the highest ground available.
+
+**Safest-path search.** `routing.minimax.MinimaxPathFinder` first finds the lowest possible
+"deepest point" over all paths (a bottleneck search: Dijkstra with `max` in place of `+`), then
+the cheapest path that never goes deeper. Two phases are needed: a single search on the pair
+(deepest so far, cost so far) can discard a prefix that later turns out cheaper. It is checked
+against brute-force enumeration of every path on small random graphs. Unknown depth counts as
+infinitely deep, used only when nothing else connects.
+
+**Downgrade.** When the destination is out of reach within the limit, the safest-path search gives
+the least water that has to be faced; the smallest body part covering it (never above 30 cm, never
+for wheelchair users) is offered with that route.
+
+**Refuges.** In this version every building with a way in counts as a sheltered refuge
+(`places.refuges`); whether it is open to the public is not known from the data. From dry ground
+the route to the nearest refuge stays within the limit; from water over the limit it is the
+safest route and is marked as crossing water over the limit.
+
+**Emergency help.** `plan_trip` produces an `SosRequest` (location, depth, how deep that is on the
+traveller, their limit, time); sending it, and calling 000, happen in the client.
+
+**Access legs.** The short leg from a point to the footpath it joins also carries the water where
+the traveller stands (`standing_on`), so starting from a dry footpath a few metres away does not
+hide the water they first have to cross.
 
 ## Verifying the path finder
 

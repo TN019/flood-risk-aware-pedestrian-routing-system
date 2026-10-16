@@ -61,6 +61,26 @@ def source_edge_id(data: dict) -> str:
     return data.get("parent_edge_id") or data["edge_id"]
 
 
+def _deep(condition: EdgeCondition) -> float:
+    return float("inf") if condition.depth_m is None else condition.depth_m
+
+
+def edge_condition(snapshot: HazardSnapshot, data: dict) -> EdgeCondition:
+    """Conditions an edge is walked in.
+
+    An access leg that joins a footpath other than the one the traveller is standing on also
+    carries the water where they stand: ``standing_on`` lists the footpaths nearest the point (more
+    than one at a corner; they stand on the shallowest). The worse of the two applies to the whole
+    leg."""
+    condition = snapshot.condition(source_edge_id(data))
+    standing_on = data.get("standing_on", ())
+    if not standing_on:
+        return condition
+    standing = min((snapshot.condition(i) for i in standing_on), key=_deep)
+    worst = max(condition, standing, key=_deep)
+    return EdgeCondition(worst.depth_m, worst.velocity_m_s)
+
+
 def wet_length(data: dict, condition: EdgeCondition) -> float:
     """Length of this edge (or edge piece) under water, assuming water spreads evenly along it."""
     length = data["length_m"]
@@ -83,7 +103,7 @@ def risk_cost(
     model = model or DepthRelativeRisk()
 
     def cost(u, v, data: dict) -> float | None:
-        condition = snapshot.condition(source_edge_id(data))
+        condition = edge_condition(snapshot, data)
         risk = model.edge_risk(condition, profile)
         if risk is None:
             return None

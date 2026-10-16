@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from floodroute.hazard import DRY_DEPTH_M, HazardSnapshot
-from floodroute.risk.model import wet_length
+from floodroute.risk.model import edge_condition, wet_length
 from floodroute.risk.profile import TravellerProfile
 from floodroute.routing.router import Route
 
@@ -29,7 +29,10 @@ def route_metrics(
     wading = weighted = 0.0
     over = 0
     for seg in route.segments:
-        cond = snapshot.condition(seg.source_edge_id)
+        cond = edge_condition(
+            snapshot,
+            {"edge_id": seg.source_edge_id, "length_m": seg.length_m, "standing_on": seg.standing_on},
+        )
         if cond.depth_m is None:
             deepest = None
             over += 1
