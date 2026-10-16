@@ -125,3 +125,26 @@ flood levels.
 | R-D | Same height: a trip possible with a stricter limit is possible with every looser one (no wading ⇒ ankle ⇒ lower calf ⇒ mid calf) |
 | R-E | Every trip without a route within the limit offers at least one way forward: a downgrade, a refuge, being sheltered, or emergency help |
 | R-F | For a fixed traveller (adult, ankle), the number of network edges over the limit rises strictly from normal to extreme, and the share of trips with a route within the limit never rises |
+
+## Results
+
+Run with `uv run python backend/scripts/verify.py` (100 trips per level on the Southbank network);
+the full table is written to `reports/verification_results.md`.
+
+**First run: 66 of 67 checks met.** All 44 exact predictions on the test town matched, including
+the two narrow cases in D (2.8 m and 2.9 m margins) and the α switch-over between C3 and C4. On the
+Southbank network R-A to R-E held at every level, for 100 trips × 6 travellers each.
+
+**Mismatch, R-F: the prediction was wrong, not the program.** It said the number of network edges
+over the *ankle* limit (6.6 cm) rises strictly from level to level. The run gave
+(0, 0, 95, 912, 2,272): light ponding is 3–5 cm by design (its description says it only blocks
+people who will not wade at all), so for an ankle limit it adds no impassable edges, the same as
+normal conditions. The prediction contradicted the scenario's own definition.
+
+**Revised R-F**, written after the first run and labelled "(revised)" in the report:
+
+- edges over the ankle limit never fall from one level to the next;
+- edges over the no-wading limit (2 cm) rise strictly from level to level.
+
+Second run: **68 of 68 checks met**. Edges over the no-wading limit by level:
+(0, 62, 129, 965, 2,272); trips possible at the ankle limit: (100, 100, 90, 30, 14) of 100.
