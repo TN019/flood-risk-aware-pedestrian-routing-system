@@ -176,8 +176,8 @@ def test_plans_on_the_southbank_network_are_consistent():
         gpd.read_file(places, layer="buildings"), gpd.read_file(places, layer="entrances"), router.footpaths
     )
     refuges = RefugeIndex(resolver, g.graph["study_area"].buffer(g.graph["buffer_m"]))
-    severe = next(s for s in list_scenarios() if s.id == "severe-flooding")
-    snap = load_hazard(severe).snapshot(g)
+    heavy = next(s for s in list_scenarios() if s.id == "heavy-flooding")
+    snap = load_hazard(heavy).snapshot(g)
     area = g.graph["study_area"]
     minx, miny, maxx, maxy = area.bounds
     rng = random.Random(9)

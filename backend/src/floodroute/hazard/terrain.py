@@ -2,13 +2,16 @@
 
 Melbourne Water's Southbank Precinct Local Floodplain Development Plan describes two mechanisms:
 the Yarra River, driven by storm tide in Port Phillip Bay together with river flows, overtopping the
-promenade and filling low ground; and short, generally shallow local stormwater flooding. Each is
-estimated statically from a bare-earth elevation model:
+promenade and filling low ground; and short, generally shallow local stormwater flooding, made
+worse when high tailwater in the river stops the drains discharging. Each is estimated statically
+from a bare-earth elevation model:
 
-- River and tide (``river_inundation``): every ground cell lower than a water level and connected
+- River and tide (``river_inundation``): every ground cell lower than the tide level and connected
   to the river through ground lower than that level is under water ("bathtub with connectivity",
-  the usual method for regional coastal inundation mapping). Ground the river cannot reach stays
-  dry however low it is.
+  the usual method for regional coastal inundation mapping). With ``inlets``, drain inlets below
+  the tide level also let water in: a high tide backs up through the drains and surcharges around
+  the pits (City of Melbourne flood and storm emergency sub-plan), reaching low ground that higher
+  ground cuts off from the river.
 - Stormwater ponding (``depression_ponding``): rain that the drains cannot take collects in closed
   depressions of the terrain, wherever they are; the plan describes local stormwater flooding as
   shallow but widespread across streets and laneways. A depression full to its spill point is the
@@ -24,6 +27,7 @@ import heapq
 from dataclasses import dataclass
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 from affine import Affine
 from rasterio.features import geometry_mask
@@ -36,6 +40,10 @@ WATER_SURFACE_M = 0.05  # DEM cells at or below this are river or dock water sur
 PIT_WINDOW_CELLS = 5  # neighbourhood used to recognise narrow pits (about 25 m across)
 PIT_TOLERANCE_M = 0.5  # ground more than this below its neighbourhood median is treated as a pit
 GROUND_FILTER_CELLS = 3  # final median smoothing
+# Highest astronomical tide at Williamstown, m AHD (Port Phillip Bay Coastal Hazard Assessment, 2023).
+# Land the river reaches overland at this level would be flooded by ordinary tides; in Southbank such
+# cells are excavations or filled voids in the ground model, so their depth is left unknown.
+HIGHEST_TIDE_M = 0.59
 EIGHT_NEIGHBOURS = np.ones((3, 3), dtype=bool)
 
 
@@ -83,12 +91,27 @@ def walking_surface(z: np.ndarray) -> np.ndarray:
     return ndimage.median_filter(z, size=GROUND_FILTER_CELLS).astype("float32")
 
 
-def river_inundation(terrain: Terrain, level_m: float) -> np.ndarray:
-    """Depth of river water at ``level_m`` (metres AHD) on ground connected to the river."""
+def inlet_cells(terrain: Terrain, inlets: gpd.GeoDataFrame) -> np.ndarray:
+    """Grid cells holding at least one drain inlet."""
+    from rasterio.transform import rowcol
+
+    points = inlets.to_crs(terrain.crs).geometry
+    rows, cols = (np.asarray(v, dtype=int) for v in rowcol(terrain.transform, points.x, points.y))
+    shape = terrain.ground_m.shape
+    keep = (rows >= 0) & (rows < shape[0]) & (cols >= 0) & (cols < shape[1])
+    cells = np.zeros(shape, dtype=bool)
+    cells[rows[keep], cols[keep]] = True
+    return cells
+
+
+def river_inundation(terrain: Terrain, level_m: float, inlets: np.ndarray | None = None) -> np.ndarray:
+    """Depth of water at ``level_m`` (metres AHD) on ground connected to the river, overland or,
+    with ``inlets`` (cells holding a drain inlet), back up through the drains."""
     ground = terrain.ground_m
     lower = ((ground < level_m) & ~np.isnan(ground)) | terrain.water
     labels, _ = ndimage.label(lower, structure=EIGHT_NEIGHBOURS)
-    reached = np.isin(labels, np.unique(labels[terrain.water & (labels > 0)]))
+    sources = terrain.water if inlets is None else terrain.water | inlets
+    reached = np.isin(labels, np.unique(labels[sources & (labels > 0)]))
     return np.where(reached & ~terrain.water, level_m - ground, 0.0).astype("float32")
 
 
@@ -130,14 +153,17 @@ def depression_ponding(terrain: Terrain, areas: np.ndarray, fill_fraction: float
 
 def scenario_depths(
     terrain: Terrain,
-    river_level_m: float | None,
+    tide_level_m: float | None,
     ponding_fill_fraction: float,
+    inlets: np.ndarray | None = None,
 ) -> DepthGrid:
-    """River inundation and stormwater ponding together (the deeper of the two at each cell)."""
+    """Tide (overland, and through ``inlets`` if given) and stormwater ponding together: the deeper
+    of the two at each cell."""
     depth = np.zeros(terrain.ground_m.shape, dtype="float32")
-    if river_level_m is not None:
-        depth = river_inundation(terrain, river_level_m)
+    if tide_level_m is not None:
+        depth = river_inundation(terrain, tide_level_m, inlets)
     if ponding_fill_fraction > 0:
         depth = np.maximum(depth, depression_ponding(terrain, ~terrain.water, ponding_fill_fraction))
-    depth = np.where(np.isnan(terrain.ground_m), np.nan, depth).astype("float32")
+    unreliable = np.isnan(terrain.ground_m) | (river_inundation(terrain, HIGHEST_TIDE_M) > 0)
+    depth = np.where(unreliable, np.nan, depth).astype("float32")
     return DepthGrid(depth, terrain.transform, terrain.crs)

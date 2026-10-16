@@ -3,14 +3,19 @@
   "order": 4,
   "title": "Extreme flooding",
   "method": "terrain-fill",
-  "river_level_m_ahd": 2.4,
+  "level": "extreme",
+  "tide_level_m_ahd": 2.4,
+  "drain_backflow": true,
   "ponding_fill_fraction": 1.0,
-  "description": "The 1-in-100-year storm tide with 0.8 m of sea level rise by 2100 (2.4 m AHD), the basis of Melbourne Water's flood protection level for Southbank buildings, with full stormwater ponding. A static estimate, not a hydraulic model: no flow or velocity. Upstream river flows can raise Southbank levels above the bay tide level, so river depths are a lower bound.",
+  "description": "The 1-in-100-year storm tide with 0.8 m of sea level rise by 2100 (2.40 m AHD), the basis of Melbourne Water's flood protection level for Southbank buildings, with heavy rain. Typical water on flooded footpaths is above the hip. A static estimate, not a hydraulic model: no flow or velocity.",
   "sources": [
-    "Mechanism: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026).",
-    "River level: Melbourne Water 1% annual exceedance probability tide level in Port Phillip Bay, Planning for Sea Level Rise Guidelines (2017), as cited in GHD (2019) Appendix G, Fishermans Bend flood levee memo. 2100, with 0.8 m sea level rise: 2.4 m AHD.",
+    "Level: typical (median) depth on flooded footpaths above the hip; body landmarks after Drillis & Contini (1966), as used to grade flood depth by Feng, Brenner & Sester (2020).",
+    "Mechanisms: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026): river flooding from storm tide and river flows; local stormwater flooding, shallow but widespread, made worse when high tailwater stops the drains discharging.",
+    "Storm tide levels for Port Phillip Bay: GHD for Melbourne Water (2017), Fishermans Bend Baseline Drainage Plan, Table 1: 5-year 1.10, 20-year 1.25, 100-year 1.60 m AHD; 100-year in 2100 2.40 m AHD.",
     "Sea level rise allowance: Victoria Planning Provisions clause 13.01-2S, at least 0.8 m by 2100.",
-    "Stormwater ponding: closed depressions of the ground model, anywhere in the area; the plan describes local stormwater flooding as shallow but widespread across streets, laneways and building interfaces.",
+    "Drain backflow: City of Melbourne Municipal Emergency Management Plan, Flood and Storm Sub-plan (2025): a high tide reduces the drains' capacity to discharge and backflow surcharges around the drainage pits; rain over 20 mm/h for an hour or more is likely to cause flash flooding.",
+    "Stormwater ponding: closed depressions of the ground model, anywhere in the area.",
+    "Drain inlets: City of Melbourne open data, Stormwater Pits (CC BY 4.0), surface inlets only.",
     "Ground: Geoscience Australia 5 m LiDAR digital elevation model (CC BY 4.0)."
   ]
 }
