@@ -25,6 +25,7 @@ from floodroute.network import is_snappable, load_graph, to_gdfs
 from floodroute.places.refuges import RefugeIndex
 from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
+from floodroute.risk.levels import REFERENCE_HEIGHT_M, FloodLevel, level_of, typical_depth_m
 from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
 from floodroute.routing import RECOMMENDED, SAFE_SHORTEST, SHORTEST, RoutePlan, Router, RoutingError
 from floodroute.sources import geocoding as geocode
@@ -115,6 +116,20 @@ def flood_features(title: str) -> dict:
         "zones": official_extents(),
         "edges": [] if edges is None else [(r.depth_m, r.geometry.__geo_interface__) for r in edges.itertuples()],
     }
+
+
+@st.cache_resource
+def scenario_depth(title: str) -> float | None:
+    """Typical depth on the flooded footpaths of a scenario (None when dry)."""
+    _, hazard = load_hazards()[title]
+    graph = load_router().graph
+    return typical_depth_m(hazard.snapshot(graph), graph)
+
+
+def level_text(level: FloodLevel) -> str:
+    low = level.lower_m * 100
+    band = f"over {low:.0f} cm" if level.upper_m is None else f"{low:.0f}–{level.upper_m * 100:.0f} cm"
+    return f"{level.label}: water {level.body_range} ({band} for a {REFERENCE_HEIGHT_M * 100:.0f} cm adult)"
 
 
 @st.cache_resource
@@ -295,6 +310,12 @@ with st.sidebar:
     st.divider()
     scenario_title = st.selectbox("Flood scenario", list(load_hazards()))
     scenario_info, hazard = load_hazards()[scenario_title]
+    typical = scenario_depth(scenario_title)
+    if typical is not None:
+        st.markdown(
+            f"**{level_text(level_of(typical))}**  \nTypical depth on flooded footpaths here: "
+            f"**{typical * 100:.0f} cm**"
+        )
     st.caption(scenario_info.description)
     if scenario_info.params.get("sources"):
         with st.expander("Sources"):

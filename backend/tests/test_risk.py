@@ -207,16 +207,34 @@ def test_load_scenario_from_geojson(tmp_path):
 
 def test_bundled_scenarios_are_five_ordered_sourced_levels():
     from floodroute.hazard.catalog import NONE, TERRAIN_FILL, list_scenarios
+    from floodroute.risk.levels import FloodLevel
 
     scenarios = list_scenarios()
     assert [s.order for s in scenarios] == [0, 1, 2, 3, 4]
     assert scenarios[0].method == NONE
     filled = scenarios[1:]
     assert all(s.method == TERRAIN_FILL and s.params["sources"] for s in filled)
-    rivers = [s.params["river_level_m_ahd"] or 0.0 for s in filled]
+    assert [FloodLevel[s.params["level"].upper()] for s in filled] == list(FloodLevel)
+    tides = [s.params["tide_level_m_ahd"] for s in filled]
     ponding = [s.params["ponding_fill_fraction"] for s in filled]
-    assert rivers == sorted(rivers) and ponding == sorted(ponding)
-    assert len(set(zip(rivers, ponding, strict=True))) == len(filled)
+    assert tides == sorted(tides) and ponding == sorted(ponding)
+
+
+@pytest.mark.skipif(
+    not (config.PROCESSED_NETWORK_PATH.exists() and (config.PROCESSED_DIR / "scenarios").exists()),
+    reason="processed network or scenario grids not built",
+)
+def test_bundled_scenarios_have_the_typical_depth_of_their_level():
+    from floodroute.hazard.catalog import list_scenarios, load_hazard
+    from floodroute.network import load_graph
+    from floodroute.risk.levels import FloodLevel, level_of, typical_depth_m
+
+    g = load_graph(config.PROCESSED_NETWORK_PATH)
+    normal, *flooded = list_scenarios()
+    assert typical_depth_m(load_hazard(normal).snapshot(g), g) is None
+    for scenario in flooded:
+        depth = typical_depth_m(load_hazard(scenario).snapshot(g), g)
+        assert level_of(depth) is FloodLevel[scenario.params["level"].upper()], (scenario.id, depth)
 
 
 @pytest.mark.skipif(

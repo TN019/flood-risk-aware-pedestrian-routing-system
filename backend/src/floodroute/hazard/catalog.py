@@ -8,7 +8,11 @@ Definition fields: ``id``, ``order`` (0 = normal, rising with severity), ``title
 
 - ``none``: no water anywhere.
 - ``terrain-fill``: depths from ``hazard.terrain.scenario_depths`` with parameters
-  ``river_level_m_ahd`` (null for no river flooding) and ``ponding_fill_fraction``.
+  ``tide_level_m_ahd`` (null for no tide flooding), ``drain_backflow`` (the tide also enters
+  through drain inlets) and ``ponding_fill_fraction``.
+
+``level`` names the flood level (``risk.levels.FloodLevel``) the scenario stands for; its typical
+depth must fall in that level's band (checked by the tests and by ``scripts/make_scenarios.py``).
 
 ``sources`` lists where each parameter comes from.
 """

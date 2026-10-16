@@ -11,7 +11,9 @@ from floodroute.hazard.terrain import (
     WATER_SURFACE_M,
     Terrain,
     depression_ponding,
+    inlet_cells,
     river_inundation,
+    scenario_depths,
     walking_surface,
 )
 
@@ -64,6 +66,33 @@ def test_river_floods_connected_low_ground_only():
     assert (depth[:, :2] == 0).all()  # the river itself is not walking ground
 
 
+def test_drain_inlet_lets_the_tide_into_ground_cut_off_from_the_river():
+    t = terrain(river_valley())
+    inlets = np.zeros((20, 20), dtype=bool)
+    inlets[5, 13] = True  # a pit in the basin behind the ridge
+    depth = river_inundation(t, 1.8, inlets)
+    assert depth[5, 13] == pytest.approx(0.6)  # basin ground 1.2 m
+    assert (depth[:, 12:16] > 0).all()  # water spreads across the connected basin
+    assert depth[5, 2] == pytest.approx(0.8)  # river side unchanged
+
+
+def test_drain_inlet_above_the_tide_lets_nothing_in():
+    t = terrain(river_valley())
+    inlets = np.zeros((20, 20), dtype=bool)
+    inlets[5, 17] = True  # on 3.0 m ground
+    assert (river_inundation(t, 1.8, inlets)[:, 11:] == 0).all()
+
+
+def test_inlet_points_map_to_their_cells():
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    t = terrain(river_valley())
+    points = gpd.GeoDataFrame(geometry=[Point(67.5, 72.5), Point(500, 500)], crs=config.METRIC_CRS)
+    cells = inlet_cells(t, points)
+    assert cells.sum() == 1 and cells[5, 13]  # the point off the grid is ignored
+
+
 def test_river_flood_grows_with_the_level():
     t = terrain(river_valley())
     low, high = river_inundation(t, 1.6), river_inundation(t, 2.4)
@@ -96,9 +125,17 @@ def test_partly_filled_depression_rises_from_its_lowest_point():
     assert half[8, 8] == pytest.approx(0.4)
 
 
-def test_ponding_only_inside_the_overland_flow_areas():
+def test_ponding_only_inside_the_given_areas():
     t = terrain(bowl())
     assert (depression_ponding(t, np.zeros((20, 20), dtype=bool), 1.0) == 0).all()
+
+
+def test_ground_every_high_tide_would_reach_has_unknown_depth():
+    ground = river_valley()
+    ground[:, 2] = 0.3  # a strip beside the river below the highest tide: not a real walking surface
+    grid = scenario_depths(terrain(ground), 1.8, 0.0)
+    assert np.isnan(grid.depth_m[:, 2]).all()
+    assert grid.depth_m[5, 3] > 0 and not np.isnan(grid.depth_m[5, 3])
 
 
 # ------------------------------------------------------------------ depth grid on a network

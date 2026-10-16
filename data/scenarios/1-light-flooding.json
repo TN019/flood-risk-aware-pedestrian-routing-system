@@ -1,0 +1,20 @@
+{
+  "id": "light-flooding",
+  "order": 1,
+  "title": "Light flooding",
+  "method": "terrain-fill",
+  "level": "light",
+  "tide_level_m_ahd": 0.59,
+  "drain_backflow": true,
+  "ponding_fill_fraction": 0.25,
+  "description": "Heavy rain at the highest normal tide (0.59 m AHD): stormwater collects in low spots, each a quarter full, and the tide backs up through the lowest drain inlets. Typical water on flooded footpaths is up to an adult's ankle. A static estimate, not a hydraulic model: no flow or velocity.",
+  "sources": [
+    "Level: typical (median) depth on flooded footpaths up to the ankle; body landmarks after Drillis & Contini (1966), as used to grade flood depth by Feng, Brenner & Sester (2020).",
+    "Mechanisms: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026): river flooding from storm tide and river flows; local stormwater flooding, shallow but widespread, made worse when high tailwater stops the drains discharging.",
+    "Drain backflow: City of Melbourne Municipal Emergency Management Plan, Flood and Storm Sub-plan (2025): a high tide reduces the drains' capacity to discharge and backflow surcharges around the drainage pits; rain over 20 mm/h for an hour or more is likely to cause flash flooding.",
+    "Highest astronomical tide at Williamstown 0.59 m AHD: Water Technology for DEECA (2023), Port Phillip Bay Coastal Hazard Assessment, Table 2-1 (from VIC Tides 2023).",
+    "Stormwater ponding: closed depressions of the ground model, anywhere in the area.",
+    "Drain inlets: City of Melbourne open data, Stormwater Pits (CC BY 4.0), surface inlets only.",
+    "Ground: Geoscience Australia 5 m LiDAR digital elevation model (CC BY 4.0)."
+  ]
+}
