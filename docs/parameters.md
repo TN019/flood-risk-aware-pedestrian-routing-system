@@ -56,16 +56,29 @@ Basis:
 | Access points per place | at most 8 | `places.resolver.MAX_ACCESS_POINTS` | Chosen: bounds the search |
 | Refuge search | 800 m straight line, nearest 25 buildings | `places.refuges` | Chosen: about ten minutes' walk; beyond it, emergency help is offered instead |
 
+## Flood levels
+
+| Parameter | Value | Where | Basis |
+|---|---|---|---|
+| Level boundaries | ankle, knee, hip | `risk.levels.FloodLevel` | Cited: the waterlines used to grade flood severity from photos of people (Feng, Brenner & Sester, 2020). Knee also matches the 0.5 m H2 limit and children's wading limit (Smith, Davey & Cox, 2014) and Melbourne Water's 500 mm pedestrian access limit |
+| Hip height | 0.530 × height | `risk.levels.HIP_FRACTION` | Cited: Drillis & Contini (1966) |
+| Reference adult | 1.70 m: ankle 6.6, knee 48.5, hip 90.1 cm | `risk.levels.REFERENCE_HEIGHT_M` | Cited: Australian adult average 1.69 m (men 175.6, women 161.8 cm; ABS Australian Health Survey 2011–12), rounded |
+| Typical depth | length-weighted median depth on flooded footpaths in Southbank | `risk.levels.typical_depth_m` | Chosen: what most of the water on the paths is like, not set by its few deepest spots. Unknown depths are left out |
+
 ## Flood scenarios
 
 | Parameter | Value | Where | Basis |
 |---|---|---|---|
 | Ground model | 5 m cells, metres AHD | `sources.terrain` | Cited: Geoscience Australia 5 m LiDAR DEM (2025) |
-| Two flood mechanisms | river and storm tide; local stormwater | `hazard.terrain` | Cited: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026) |
-| River levels | 1.6, 1.8, 2.4 m AHD | `data/scenarios/*.json` | Cited: Melbourne Water 1% AEP tide levels for Port Phillip Bay today, 2040 and 2100 (Planning for Sea Level Rise Guidelines, 2017, as cited by GHD, 2019) |
-| Sea level rise to 2100 | 0.8 m | included in 2.4 m | Cited: Victoria Planning Provisions clause 13.01-2S |
-| Stormwater ponding fill | a quarter (light), full (levels 2–4) | `data/scenarios/*.json` | Chosen: no published depth for local ponding in Southbank. A quarter keeps light ponding shallow (14 cm at most on the network); full is the most a depression holds before it overflows |
+| Flood mechanisms | river and storm tide; drain backflow; stormwater ponding | `hazard.terrain` | Cited: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026); City of Melbourne Municipal Emergency Management Plan, Flood and Storm Sub-plan (2025) |
+| Light: highest normal tide | 0.59 m AHD | `data/scenarios/1-light-flooding.json` | Cited: highest astronomical tide at Williamstown, Port Phillip Bay Coastal Hazard Assessment (Water Technology for DEECA, 2023), Table 2-1 |
+| Moderate: 1-in-20-year storm tide | 1.25 m AHD | `data/scenarios/2-moderate-flooding.json` | Cited: GHD for Melbourne Water (2017), Fishermans Bend Baseline Drainage Plan, Table 1 |
+| Heavy: 1-in-100-year storm tide today | 1.60 m AHD | `data/scenarios/3-heavy-flooding.json` | Cited: GHD (2017) Table 1; also the major flood level at the VICSES Southbank gauge |
+| Extreme: 1-in-100-year storm tide in 2100 | 2.40 m AHD | `data/scenarios/4-extreme-flooding.json` | Cited: GHD (2017) Table 1; 0.8 m of sea level rise, Victoria Planning Provisions clause 13.01-2S |
+| Drain inlets | grated, side-entry, lane, trench and headwall pits | `sources.drainage` | Cited: City of Melbourne open data, Stormwater Pits; junctions, nodes and submerged pits are left out because they do not open to the surface |
+| Stormwater ponding fill | a quarter (light), full (moderate and above) | `data/scenarios/*.json` | Chosen: no published depth for local ponding in Southbank. A quarter keeps light flooding at ankle depth (6 cm typical; a half fill gives about 10 cm); full is the most a depression holds before it overflows |
 | River and dock surface | ground at or below 0.05 m AHD | `hazard.terrain.WATER_SURFACE_M` | Measured: the ground model flattens river and dock surfaces to 0 m AHD (17,324 of the 20,150 cells at or below this level are exactly 0) |
+| Unreliable ground | land the 0.59 m tide reaches overland | `hazard.terrain.HIGHEST_TIDE_M` | Derived: such land would flood at ordinary high tides, which Southbank's paths do not (VICSES: the promenade starts to flood at 1.1 m). These cells are excavations and filled voids in the ground model; their depth is left unknown |
 | Pits lifted | more than 0.5 m below the median of a 25 m window | `hazard.terrain` | Chosen: removes basement ramps and cuttings, which would otherwise read as metres of water beside a footpath |
 | Ground smoothing | 3 × 3 cell median | `hazard.terrain.GROUND_FILTER_CELLS` | Chosen: removes single-cell noise |
 | Sampling along an edge | every 2 m | `hazard.grid.SAMPLE_SPACING_M` | Chosen: finer than the 5 m cells, so no cell an edge crosses is skipped |

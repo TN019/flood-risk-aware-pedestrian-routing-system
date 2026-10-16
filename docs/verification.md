@@ -159,3 +159,8 @@ no-wading limit by level: (0, 145, 1,191, 1,539, 2,252); trips possible at the a
 every terrain depression** (light ponding a quarter full, levels 2–4 full): predictions unchanged,
 **68 of 68 checks met**. Edges over the no-wading limit by level: (0, 152, 1,526, 1,781, 2,341);
 trips possible at the ankle limit: (100, 97, 17, 10, 2) of 100.
+
+**Fifth run, after the levels were redefined by depth on the body and drain backflow was added**
+(light, moderate, heavy and extreme flooding; see architecture.md): predictions unchanged, **68 of
+68 checks met**. Edges over the no-wading limit by level: (0, 169, 1,165, 1,526, 2,341); trips
+possible at the ankle limit: (100, 93, 20, 17, 2) of 100.

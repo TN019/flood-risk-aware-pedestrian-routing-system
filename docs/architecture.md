@@ -7,8 +7,8 @@ Every number used below is listed with its source or reason in [parameters.md](p
 The `floodroute` package is organised bottom-up. Each layer depends only on the layers below it.
 
 ```
-sources     external data: OpenStreetMap, City of Melbourne, Nominatim place search,
-            Geoscience Australia elevation, Vicmap Planning flood overlays
+sources     external data: OpenStreetMap, City of Melbourne (incl. stormwater pits), Nominatim
+            place search, Geoscience Australia elevation, Vicmap Planning flood overlays
 network     routing graph construction, schema, storage
 hazard      flood conditions on network edges        ── HazardProvider
 risk        edge costs and impassable edges          ── EdgeCost
@@ -124,38 +124,64 @@ effect.
 cost: deepest water and where it reaches on their body, distance in water, depth-weighted
 distance in water, sections over their limit, and detour against the shortest route.
 
+### Flood levels
+
+Flood levels are defined by how deep the water is on an adult (`risk.levels`). A scenario's level
+comes from its typical depth: the median depth, weighted by length, of the water on flooded
+footpaths inside Southbank.
+
+| Level | Typical depth | Reference adult (1.70 m) |
+|---|---|---|
+| Light | up to the ankle | up to 6.6 cm |
+| Moderate | over the calf, up to the knee | 6.6–48.5 cm |
+| Heavy | over the thigh, up to the hip | 48.5–90.1 cm |
+| Extreme | above the hip | over 90.1 cm |
+
+Ankle, knee and hip are the waterlines used to grade flood severity from photographs of people
+(Feng, Brenner & Sester, 2020), placed at Drillis & Contini's proportions of stature (0.039, 0.285,
+0.530). The reference height is the Australian adult average, 1.69 m (ABS Australian Health Survey
+2011–12), rounded. The knee boundary also matches where hazard guidance draws its first limits for
+people: 0.5 m is the H2 depth limit and the most children can wade (Smith, Davey & Cox, 2014), and
+Melbourne Water's limit for safe pedestrian access in Southbank.
+
 ### Flood scenarios
 
-Each bundled scenario is a JSON definition in `data/scenarios/` (`hazard.catalog`) that names its
-method, its parameters and their sources; `scripts/make_scenarios.py` turns it into a water-depth
-grid in `data/processed/scenarios/`. `hazard.grid.GridHazard` samples a grid every 2 m along each
-edge: the edge gets its deepest sampled depth and its wet length; an edge crossing a cell without
-data gets an unknown depth; bridges are dry, since a bare-earth model shows the ground under the deck.
+Each bundled scenario is a JSON definition in `data/scenarios/` (`hazard.catalog`) that names the
+level it stands for, the event behind it, its parameters and their sources;
+`scripts/make_scenarios.py` turns it into a water-depth grid in `data/processed/scenarios/` and
+fails if the grid's typical depth falls outside the stated level. `hazard.grid.GridHazard` samples a
+grid every 2 m along each edge: the edge gets its deepest sampled depth and its wet length; an edge
+crossing a cell without data gets an unknown depth; bridges are dry, since a bare-earth model shows
+the ground under the deck.
 
-Depths follow the two flood mechanisms in Melbourne Water's Southbank Precinct Local Floodplain
-Development Plan (2026), estimated from the Geoscience Australia 5 m LiDAR elevation model
-(`hazard.terrain`):
+Each level is a published event, not a tuned water level:
 
-- **River and storm tide.** Every ground cell below the river level and connected to the river
-  through lower ground is under water; low ground the river cannot reach stays dry. Levels are
-  Melbourne Water's 1% annual exceedance probability (1-in-100-year) tide levels for Port Phillip
-  Bay: 1.6 m AHD today, 1.8 m by 2040 and 2.4 m by 2100 with 0.8 m of sea level rise (Planning for
-  Sea Level Rise Guidelines, 2017, as cited by GHD, 2019). River flows can raise Southbank levels
-  above the bay level, so these depths are a lower bound.
+| Level | Event | Tide (m AHD) | Ponding | Typical depth |
+|---|---|---|---|---|
+| 0 Normal | — | — | — | — |
+| 1 Light | heavy rain at the highest normal tide | 0.59 | a quarter full | 6 cm |
+| 2 Moderate | 1-in-20-year storm tide with heavy rain | 1.25 | full | 32 cm |
+| 3 Heavy | 1-in-100-year storm tide today, with heavy rain | 1.60 | full | 54 cm |
+| 4 Extreme | the same in 2100, with 0.8 m of sea level rise | 2.40 | full | 99 cm |
+
+Tide levels: highest astronomical tide at Williamstown from the Port Phillip Bay Coastal Hazard
+Assessment (2023); storm tides from GHD for Melbourne Water (2017), Table 1. 1.60 m is also the
+major flood level at the VICSES Southbank gauge, and the 0.8 m allowance is Victoria Planning
+Provisions clause 13.01-2S.
+
+Depths follow the flood mechanisms in Melbourne Water's Southbank Precinct Local Floodplain
+Development Plan (2026) and the City of Melbourne flood and storm emergency sub-plan (2025),
+estimated on the Geoscience Australia 5 m LiDAR elevation model (`hazard.terrain`):
+
+- **River and storm tide.** Water at the tide level reaches every ground cell below it that is
+  connected to the river through lower ground; low ground behind higher ground stays dry.
+- **Drain backflow.** A high tide stops the drains discharging and water comes back up around the
+  drainage pits. Every surface inlet (grated, side-entry and lane pits; City of Melbourne
+  stormwater pits open data) on ground below the tide level lets the tide in as well, so low
+  ground cut off from the river overland floods through the drains.
 - **Stormwater ponding.** Rain the drains cannot take collects in closed depressions of the
-  terrain, wherever they are: the plan describes local stormwater flooding as shallow but
-  widespread across streets and laneways. `ponding_fill_fraction` sets how far each depression
-  fills from its lowest point towards its spill point. The official overland-flow extents (Special
-  Building Overlay, Vicmap Planning) cover under 3% of Southbank, so they are shown on the map for
-  context rather than used to limit ponding.
-
-| Level | River (m AHD) | Ponding | Event |
-|---|---|---|---|
-| 0 Normal | — | — | no water |
-| 1 Light ponding | — | a quarter full | short heavy rain |
-| 2 Moderate flooding | 1.6 | full | 1-in-100-year storm tide today |
-| 3 Severe flooding | 1.8 | full | the same in 2040, the event Melbourne Water uses for safe pedestrian access |
-| 4 Extreme flooding | 2.4 | full | the same in 2100, the basis of the flood protection level for buildings |
+  terrain, wherever they are; `ponding_fill_fraction` sets how far each fills from its lowest point
+  towards its spill point.
 
 How a depth grid is computed, cell by cell on the 5 m grid:
 
@@ -163,30 +189,52 @@ How a depth grid is computed, cell by cell on the 5 m grid:
    elevation of the nearest bank, so paths along the water do not read the river surface. Pits more
    than 0.5 m below the median of their 25 m neighbourhood (basement ramps, road cuttings) are
    raised to 0.5 m below it. A 3 × 3 median then removes single-cell noise.
-2. **River.** Starting from the river cells, water spreads to every neighbouring cell (including
-   diagonals) whose ground is below the river level, and on from there. Depth = river level −
-   ground. Low ground behind higher ground stays dry, however low it is.
+2. **Tide.** Starting from the river cells and from the cells holding a drain inlet, water spreads
+   to every neighbouring cell (including diagonals) whose ground is below the tide level, and on
+   from there. Depth = tide level − ground.
 3. **Ponding.** For every cell, the spill elevation is the lowest level water there would have to
    rise to before it could flow, cell by cell, to the river or the edge of the grid (found by
    priority-flood depression filling). Where it is above the ground the cell lies in a closed
    depression. Each depression has a bottom (its lowest cell) and a rim (its spill elevation); its
    water level is bottom + fill fraction × (rim − bottom), and depth = water level − ground. For a
-   depression with its bottom at 1.80 m and its rim at 2.20 m AHD, light ponding (a quarter) puts
-   the water at 1.90 m, 10 cm deep at the bottom; full ponding puts it at 2.20 m, 40 cm deep.
-4. **Combined.** Each cell takes the deeper of the river and ponding depths.
-5. **On the network.** `GridHazard` reads the depth every 2 m along each edge, as described above.
+   depression with its bottom at 1.80 m and its rim at 2.20 m AHD, a quarter fill puts the water at
+   1.90 m, 10 cm deep at the bottom; a full one puts it at 2.20 m, 40 cm deep.
+4. **Combined.** Each cell takes the deeper of the tide and ponding depths.
+5. **Unreliable ground.** Land the highest astronomical tide (0.59 m AHD) reaches overland from the
+   river would be flooded by ordinary tides; in Southbank these cells are excavations and filled
+   voids in the ground model (e.g. at Freshwater Place). Their depth is left unknown in every
+   scenario, so routes avoid them as they do any water of unknown depth (17 footpath sections,
+   1.2% of the network).
+6. **On the network.** `GridHazard` reads the depth every 2 m along each edge, as described above.
 
 Which parts rest on a source and which are chosen:
 
-- From sources: the ground model, the two mechanisms, the three river levels and the 0.8 m of sea
-  level rise in the 2100 level.
-- Chosen: the quarter fill for light ponding (there is no published depth for local ponding in
-  Southbank), the pit rule, the smoothing and the 2 m sampling.
+- From sources: the ground model, the drain inlets, the mechanisms, the tide levels, the level
+  boundaries and the reference height.
+- Chosen: the quarter fill for light flooding (there is no published depth for local ponding in
+  Southbank; a half fill would give about 10 cm, above the ankle), the pit rule, the smoothing and the
+  2 m sampling.
+
+Checks against results the method was not fitted to:
+
+- VICSES's Southbank Local Flood Guide (2021) expects 300 mm or more on Whiteman, Clarendon,
+  Kings, Moray, Clarke and Catherine streets, Haig Lane and City Road at 1.2 m on the Southbank
+  gauge. At a 1.2 m tide the grids give 43–68 cm on all of them. The guide does not state the
+  gauge's datum; the comparison assumes it is close to AHD.
+- The floodplain plan describes river water filling a low area around Clarke Street between City
+  Road and Haig Lane; Clarke Street and Haig Lane are the deepest of the streets above at every
+  level (10, 73, 108 and 188 cm at levels 1–4).
 
 Limits:
 
-- A static estimate, not a hydraulic model: no flow, velocity, timing or drainage. Water fills
-  every depression even where a drain would empty it.
+- A static estimate, not a hydraulic model: no flow, velocity, timing or pipe capacity. Water fills
+  every depression even where a drain would empty it, and drain backflow reaches the tide level at
+  every inlet below it, with no head from rain in the pipes.
+- Without that head, rain-driven surcharge at a normal tide is missed. On 26 October 2025 a
+  short storm (15 mm in 15 minutes, Bureau of Meteorology) at a predicted high tide of about
+  0.42 m AHD left more than half a metre on Whiteman Street, by a resident's account; light
+  flooding leaves Whiteman Street dry (its lowest ground is 0.79 m AHD). Pit and pipe levels
+  are not published, so the head cannot be modelled yet.
 - River levels are the bay's tide levels; river flows can raise Southbank levels above them, so
   river depths are a lower bound.
 - 5 m cells cannot show kerbs and gutters, where real ponding often sits, and buildings are
@@ -196,21 +244,17 @@ Limits:
 A hydraulic model's depth grid (e.g. a TUFLOW run) can replace this estimate through the same
 `GridHazard`.
 
-As a check against a result the method was not fitted to: the plan describes river water spilling
-over the promenade and filling a low area around Clarke Street between City Road and Haig Lane; the
-grids put the deepest water on those streets (1.1 m, 1.3 m and 1.9 m on Clarke Street at levels 2–4,
-and already 10 cm of ponding there in light ponding).
-
 Share of the Southbank network under water, deepest water on it, and share of 150 random trips
-with a route within the limit of a 170 cm adult:
+with a route within the limit of a 170 cm adult (unknown-depth sections, 1.2% of the network in
+every flooded scenario, are impassable):
 
 | Level | Network wet | Deepest | No wading | Ankle | Lower calf | Mid calf |
 |---|---|---|---|---|---|---|
 | 0 Normal | 0% | — | 100% | 100% | 100% | 100% |
-| 1 Light ponding | 1.4% | 14 cm | 88% | 98% | 100% | 100% |
-| 2 Moderate flooding | 38% | 1.5 m | 13% | 17% | 25% | 27% |
-| 3 Severe flooding | 47% | 1.7 m | 11% | 13% | 19% | 24% |
-| 4 Extreme flooding | 69% | 2.3 m | 5% | 5% | 5% | 6% |
+| 1 Light | 1.4% | 14 cm | 85% | 93% | 95% | 95% |
+| 2 Moderate | 25% | 73 cm | 15% | 20% | 37% | 43% |
+| 3 Heavy | 38% | 1.1 m | 13% | 17% | 25% | 27% |
+| 4 Extreme | 68% | 1.9 m | 5% | 5% | 5% | 6% |
 
 `hazard.scenarios` (hand-drawn GeoJSON zones with a depth ramp) remains for tests and what-if
 experiments.

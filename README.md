@@ -27,7 +27,7 @@ Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 ```bash
 cd backend
 uv sync                                    # create .venv and install dependencies
-uv run python scripts/download_data.py     # fetch OSM, City of Melbourne, terrain and overlay data into data/raw
+uv run python scripts/download_data.py     # fetch OSM, City of Melbourne, terrain, overlay and drain data into data/raw
 uv run python scripts/build_network.py     # build data/processed/southbank_network.gpkg and places
 uv run python scripts/make_scenarios.py    # build the flood scenario depth grids into data/processed
 uv run pytest                              # run the test suite
@@ -51,7 +51,9 @@ Both write maps and reports to `reports/` (git-ignored).
 | Place search | OpenStreetMap Nominatim | ODbL; usage policy applies |
 | Ground elevation | Geoscience Australia, 5 m LiDAR DEM (2025) | CC BY 4.0 |
 | Flood overlays (LSIO, SBO, FO) | Vicmap Planning, Department of Transport and Planning | CC BY 4.0 |
-| Flood mechanisms and levels | Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026); Planning for Sea Level Rise Guidelines (2017) | cited, not redistributed |
+| Stormwater pits | City of Melbourne, Stormwater Pits | CC BY |
+| Flood mechanisms, tide levels and checks | Melbourne Water Southbank Local Floodplain Development Plan (2026); GHD for Melbourne Water (2017); Port Phillip Bay Coastal Hazard Assessment (2023); City of Melbourne flood and storm sub-plan (2025); VICSES Southbank Local Flood Guide (2021) | cited, not redistributed |
+| Flood level boundaries | Feng, Brenner & Sester (2020); Drillis & Contini (1966); Smith, Davey & Cox (2014); ABS Australian Health Survey 2011–12 | cited |
 
 ## Contributing
 
