@@ -125,14 +125,17 @@ Development Plan (2026), estimated from the Geoscience Australia 5 m LiDAR eleva
   Bay: 1.6 m AHD today, 1.8 m by 2040 and 2.4 m by 2100 with 0.8 m of sea level rise (Planning for
   Sea Level Rise Guidelines, 2017, as cited by GHD, 2019). River flows can raise Southbank levels
   above the bay level, so these depths are a lower bound.
-- **Stormwater ponding.** Inside the Special Building Overlay extents (overland flow, Vicmap
-  Planning), water collects in closed depressions of the terrain; `ponding_fill_fraction` sets how
-  far each depression fills from its lowest point towards its spill point.
+- **Stormwater ponding.** Rain the drains cannot take collects in closed depressions of the
+  terrain, wherever they are: the plan describes local stormwater flooding as shallow but
+  widespread across streets and laneways. `ponding_fill_fraction` sets how far each depression
+  fills from its lowest point towards its spill point. The official overland-flow extents (Special
+  Building Overlay, Vicmap Planning) cover under 3% of Southbank, so they are shown on the map for
+  context rather than used to limit ponding.
 
 | Level | River (m AHD) | Ponding | Event |
 |---|---|---|---|
 | 0 Normal | — | — | no water |
-| 1 Light ponding | — | half full | short heavy rain |
+| 1 Light ponding | — | a quarter full | short heavy rain |
 | 2 Moderate flooding | 1.6 | full | 1-in-100-year storm tide today |
 | 3 Severe flooding | 1.8 | full | the same in 2040, the event Melbourne Water uses for safe pedestrian access |
 | 4 Extreme flooding | 2.4 | full | the same in 2100, the basis of the flood protection level for buildings |
@@ -145,7 +148,8 @@ TUFLOW run) can replace it through the same `GridHazard`.
 
 As a check against a result the method was not fitted to: the plan describes river water spilling
 over the promenade and filling a low area around Clarke Street between City Road and Haig Lane; the
-grids put the deepest water on those streets (1.1 m, 1.3 m and 1.9 m on Clarke Street at levels 2–4).
+grids put the deepest water on those streets (1.1 m, 1.3 m and 1.9 m on Clarke Street at levels 2–4,
+and already 10 cm of ponding there in light ponding).
 
 Share of the Southbank network under water, deepest water on it, and share of 150 random trips
 with a route within the limit of a 170 cm adult:
@@ -153,10 +157,10 @@ with a route within the limit of a 170 cm adult:
 | Level | Network wet | Deepest | No wading | Ankle | Lower calf | Mid calf |
 |---|---|---|---|---|---|---|
 | 0 Normal | 0% | — | 100% | 100% | 100% | 100% |
-| 1 Light ponding | <1% | 19 cm | 97% | 98% | 100% | 100% |
-| 2 Moderate flooding | 33% | 1.5 m | 21% | 23% | 25% | 27% |
-| 3 Severe flooding | 43% | 1.7 m | 15% | 15% | 19% | 24% |
-| 4 Extreme flooding | 68% | 2.3 m | 5% | 5% | 5% | 6% |
+| 1 Light ponding | 1.4% | 14 cm | 88% | 98% | 100% | 100% |
+| 2 Moderate flooding | 38% | 1.5 m | 13% | 17% | 25% | 27% |
+| 3 Severe flooding | 47% | 1.7 m | 11% | 13% | 19% | 24% |
+| 4 Extreme flooding | 69% | 2.3 m | 5% | 5% | 5% | 6% |
 
 `hazard.scenarios` (hand-drawn GeoJSON zones with a depth ramp) remains for tests and what-if
 experiments.

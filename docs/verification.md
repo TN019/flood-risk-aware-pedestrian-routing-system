@@ -154,3 +154,8 @@ Second run: **68 of 68 checks met**. Edges over the no-wading limit by level:
 architecture.md): the predictions were not changed, and **68 of 68 checks met**. Edges over the
 no-wading limit by level: (0, 145, 1,191, 1,539, 2,252); trips possible at the ankle limit:
 (100, 98, 23, 12, 2) of 100.
+
+**Fourth run, after stormwater ponding was extended from the official overland-flow extents to
+every terrain depression** (light ponding a quarter full, levels 2–4 full): predictions unchanged,
+**68 of 68 checks met**. Edges over the no-wading limit by level: (0, 152, 1,526, 1,781, 2,341);
+trips possible at the ankle limit: (100, 97, 17, 10, 2) of 100.
