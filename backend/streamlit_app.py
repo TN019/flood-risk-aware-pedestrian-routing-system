@@ -1,4 +1,4 @@
-"""Interim Streamlit map UI for the routing engine, until the web frontend replaces it.
+"""Streamlit map UI for the routing engine, kept alongside the web client in frontend/.
 
 Risk-aware walking routes under flood scenarios built from official flood extents and terrain,
 for a traveller's own wading limit.

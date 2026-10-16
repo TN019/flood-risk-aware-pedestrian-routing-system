@@ -14,7 +14,7 @@ backend/                 Python package, scripts and tests (uv project)
     api/                 HTTP API for the web client (FastAPI)
   scripts/               data pipeline: download, build, validate
   tests/
-  streamlit_app.py       interim map UI, to be removed now that frontend/ covers it
+  streamlit_app.py       Streamlit map UI, kept alongside the web client
 frontend/                web client: React, TypeScript and MapLibre; phones and desktops
 data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
                          data/scenarios/ holds the flood scenario definitions (JSON)
@@ -35,7 +35,7 @@ uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
 uv run python scripts/verify.py            # cases A–F vs the predictions in docs/verification.md
-uv run streamlit run streamlit_app.py      # open the interim map UI
+uv run streamlit run streamlit_app.py      # open the Streamlit map UI
 ```
 
 The web application:
