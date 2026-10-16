@@ -29,10 +29,18 @@ NESTED = box(120, 20, 140, 40)  # a smaller building part inside the main one
 
 
 def resolver(entrances=()):
-    buildings = gdf([{"name": "Big", "geometry": BUILDING}, {"name": None, "geometry": NESTED},
-                     {"name": "Far", "geometry": box(1000, 1000, 1010, 1010)}])
-    ents = gdf([{"element": "node", "id": i, **e} for i, e in enumerate(entrances)]) if entrances else \
-        gdf([{"element": "node", "id": 0, "entrance": "yes", "geometry": Point(5000, 5000)}])
+    buildings = gdf(
+        [
+            {"name": "Big", "geometry": BUILDING},
+            {"name": None, "geometry": NESTED},
+            {"name": "Far", "geometry": box(1000, 1000, 1010, 1010)},
+        ]
+    )
+    ents = (
+        gdf([{"element": "node", "id": i, **e} for i, e in enumerate(entrances)])
+        if entrances
+        else gdf([{"element": "node", "id": 0, "entrance": "yes", "geometry": Point(5000, 5000)}])
+    )
     return pl.PlaceResolver(buildings, ents, Router(street_graph()).footpaths)
 
 
@@ -78,7 +86,7 @@ def test_outline_fallback_uses_edges_nearest_the_footpaths():
     first = place.access[0].point
     assert first.y == pytest.approx(10)  # the south wall faces the street at y=0
     pts = place.access_points
-    assert all(a.distance(b) >= pl.OUTLINE_POINT_SPACING_M for i, a in enumerate(pts) for b in pts[i + 1:])
+    assert all(a.distance(b) >= pl.OUTLINE_POINT_SPACING_M for i, a in enumerate(pts) for b in pts[i + 1 :])
 
 
 def test_footprint_selects_buildings_inside_it():

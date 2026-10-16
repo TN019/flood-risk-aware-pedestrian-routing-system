@@ -2,8 +2,8 @@ import json
 import random
 
 import networkx as nx
-import pytest
 import numpy as np
+import pytest
 import shapely
 from pyproj import Transformer
 from shapely.geometry import LineString, Point, box, mapping
@@ -11,8 +11,7 @@ from shapely.geometry import LineString, Point, box, mapping
 from floodroute import config
 from floodroute.hazard import DRY, UNKNOWN, EdgeCondition, HazardSnapshot, NoHazard
 from floodroute.hazard.scenarios import FloodScenario, FloodZone, ScenarioHazard, load_scenario
-from floodroute.risk import (BodyPart, DepthRelativeRisk, TravellerProfile, describe_depth, risk_cost,
-                             walking_cost)
+from floodroute.risk import BodyPart, DepthRelativeRisk, TravellerProfile, describe_depth, risk_cost, walking_cost
 from floodroute.risk.metrics import route_metrics
 from floodroute.routing import Router, RoutingError
 
@@ -34,14 +33,16 @@ def ladder():
 
 def flooded(depth, flooded_length=None):
     """Water on the low street's first half (e0, 150 m long)."""
-    return HazardSnapshot("test", conditions={"e0": EdgeCondition(depth, flooded_length_m=flooded_length)},
-                          default=DRY)
+    return HazardSnapshot("test", conditions={"e0": EdgeCondition(depth, flooded_length_m=flooded_length)}, default=DRY)
 
 
 # ------------------------------------------------------------------ profile
 
-@pytest.mark.parametrize("part, expected_cm", [(BodyPart.NO_WADING, 2.0), (BodyPart.ANKLE, 6.63),
-                                               (BodyPart.LOWER_CALF, 20.57), (BodyPart.MID_CALF, 27.54)])
+
+@pytest.mark.parametrize(
+    "part, expected_cm",
+    [(BodyPart.NO_WADING, 2.0), (BodyPart.ANKLE, 6.63), (BodyPart.LOWER_CALF, 20.57), (BodyPart.MID_CALF, 27.54)],
+)
 def test_body_part_limits_scale_with_height(part, expected_cm):
     assert TravellerProfile(ADULT, part).depth_limit_m * 100 == pytest.approx(expected_cm, abs=0.01)
 
@@ -49,7 +50,10 @@ def test_body_part_limits_scale_with_height(part, expected_cm):
 def test_hard_limit_and_wheelchair():
     assert TravellerProfile(2.2, BodyPart.MID_CALF).depth_limit_m == pytest.approx(0.30)  # 35.6 cm capped
     assert TravellerProfile(ADULT, BodyPart.MID_CALF, uses_wheelchair=True).depth_limit_m == pytest.approx(0.02)
-    assert TravellerProfile(1.2, BodyPart.LOWER_CALF).depth_limit_m < TravellerProfile(ADULT, BodyPart.LOWER_CALF).depth_limit_m
+    assert (
+        TravellerProfile(1.2, BodyPart.LOWER_CALF).depth_limit_m
+        < TravellerProfile(ADULT, BodyPart.LOWER_CALF).depth_limit_m
+    )
     with pytest.raises(ValueError):
         TravellerProfile(3.0)
 
@@ -63,6 +67,7 @@ def test_describe_depth():
 
 
 # ------------------------------------------------------------------ risk model
+
 
 def test_depth_relative_risk():
     model, prof = DepthRelativeRisk(), TravellerProfile(ADULT, BodyPart.LOWER_CALF)  # limit 20.57 cm
@@ -96,6 +101,7 @@ def test_no_flood_risk_cost_equals_walking_cost_exactly():
 
 # ------------------------------------------------------------------ routing (tests B, C, D, E)
 
+
 def test_shallow_water_is_crossed_when_the_detour_costs_more():
     router, prof = Router(ladder()), TravellerProfile(ADULT, BodyPart.MID_CALF)
     route = router.route(Point(0, 0), Point(300, 0), risk_cost(flooded(0.05), prof, alpha=2))
@@ -116,9 +122,14 @@ def test_unsafe_edge_is_never_used_whatever_alpha():
 
 def test_profiles_get_different_routes_in_the_same_flood():
     router, snap = Router(ladder()), flooded(0.10)
-    adult = router.route(Point(0, 0), Point(300, 0), risk_cost(snap, TravellerProfile(ADULT, BodyPart.MID_CALF), alpha=1))
-    chair = router.route(Point(0, 0), Point(300, 0),
-                         risk_cost(snap, TravellerProfile(ADULT, BodyPart.MID_CALF, uses_wheelchair=True), alpha=1))
+    adult = router.route(
+        Point(0, 0), Point(300, 0), risk_cost(snap, TravellerProfile(ADULT, BodyPart.MID_CALF), alpha=1)
+    )
+    chair = router.route(
+        Point(0, 0),
+        Point(300, 0),
+        risk_cost(snap, TravellerProfile(ADULT, BodyPart.MID_CALF, uses_wheelchair=True), alpha=1),
+    )
     assert adult.length_m == pytest.approx(300) and chair.length_m == pytest.approx(500)
 
 
@@ -152,6 +163,7 @@ def test_metrics_report_depth_against_the_body():
 
 # ------------------------------------------------------------------ scenarios
 
+
 def square_zone(depth=0.3, ramp=10):
     return FloodZone("pond", box(100, -20, 200, 20), depth, ramp)
 
@@ -175,11 +187,18 @@ def test_scenario_conditions_use_deepest_point_and_wet_length():
 
 def test_load_scenario_from_geojson(tmp_path):
     to_wgs = Transformer.from_crs(config.METRIC_CRS, config.WGS84, always_xy=True)
-    poly = shapely.transform(box(320000, 5811000, 320050, 5811050),
-                             lambda xy: np.column_stack(to_wgs.transform(xy[:, 0], xy[:, 1])))
-    doc = {"type": "FeatureCollection", "id": "x", "title": "X", "description": "d",
-           "features": [{"type": "Feature", "properties": {"name": "z", "max_depth_m": 0.2, "ramp_m": 5},
-                         "geometry": mapping(poly)}]}
+    poly = shapely.transform(
+        box(320000, 5811000, 320050, 5811050), lambda xy: np.column_stack(to_wgs.transform(xy[:, 0], xy[:, 1]))
+    )
+    doc = {
+        "type": "FeatureCollection",
+        "id": "x",
+        "title": "X",
+        "description": "d",
+        "features": [
+            {"type": "Feature", "properties": {"name": "z", "max_depth_m": 0.2, "ramp_m": 5}, "geometry": mapping(poly)}
+        ],
+    }
     path = tmp_path / "x.geojson"
     path.write_text(json.dumps(doc))
     scenario = load_scenario(path)

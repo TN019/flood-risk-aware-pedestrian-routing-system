@@ -15,8 +15,15 @@ def square():
         g.add_node(n, x=x, y=y, kind="junction", in_study_area=True)
     for i, (u, v) in enumerate((("a", "b"), ("b", "c"), ("c", "d"), ("d", "a"))):
         geom = LineString([xy[u], xy[v]])
-        g.add_edge(u, v, geometry=geom, length_m=100.0, edge_id=f"e{i}", in_study_area=True,
-                   cost_factor=4.0 if (u, v) == ("a", "b") else 1.0)
+        g.add_edge(
+            u,
+            v,
+            geometry=geom,
+            length_m=100.0,
+            edge_id=f"e{i}",
+            in_study_area=True,
+            cost_factor=4.0 if (u, v) == ("a", "b") else 1.0,
+        )
     return g
 
 

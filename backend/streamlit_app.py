@@ -47,6 +47,7 @@ st.set_page_config(page_title="Southbank Routing", page_icon="🗺️", layout="
 
 # --------------------------------------------------------------------------- data
 
+
 @st.cache_resource
 def load_router() -> Router:
     return Router(load_graph(GRAPH_PATH))
@@ -54,8 +55,11 @@ def load_router() -> Router:
 
 @st.cache_resource
 def load_places() -> pl.PlaceResolver:
-    return pl.PlaceResolver(gpd.read_file(PLACES_PATH, layer="buildings"),
-                            gpd.read_file(PLACES_PATH, layer="entrances"), load_router().footpaths)
+    return pl.PlaceResolver(
+        gpd.read_file(PLACES_PATH, layer="buildings"),
+        gpd.read_file(PLACES_PATH, layer="entrances"),
+        load_router().footpaths,
+    )
 
 
 @st.cache_resource
@@ -76,13 +80,17 @@ def flood_features(title: str) -> dict:
         return {"zones": None, "edges": []}
     graph = load_router().graph
     snapshot = hazard.snapshot(graph)
-    zones = gpd.GeoDataFrame([{"name": z.name, "max_depth_m": z.max_depth_m, "geometry": z.polygon}
-                              for z in hazard.scenario.zones], crs=config.METRIC_CRS).to_crs(config.WGS84)
+    zones = gpd.GeoDataFrame(
+        [{"name": z.name, "max_depth_m": z.max_depth_m, "geometry": z.polygon} for z in hazard.scenario.zones],
+        crs=config.METRIC_CRS,
+    ).to_crs(config.WGS84)
     by_id = {d["edge_id"]: d for *_, d in graph.edges(data=True)}
     edges = [{"depth_m": c.depth_m, "geometry": by_id[eid]["geometry"]} for eid, c in snapshot.conditions.items()]
     edges = gpd.GeoDataFrame(edges, crs=config.METRIC_CRS).to_crs(config.WGS84) if edges else None
-    return {"zones": zones.__geo_interface__,
-            "edges": [] if edges is None else [(r.depth_m, r.geometry.__geo_interface__) for r in edges.itertuples()]}
+    return {
+        "zones": zones.__geo_interface__,
+        "edges": [] if edges is None else [(r.depth_m, r.geometry.__geo_interface__) for r in edges.itertuples()],
+    }
 
 
 @st.cache_resource
@@ -109,19 +117,29 @@ def base_layers() -> dict:
 def base_map() -> folium.Map:
     layers = base_layers()
     fmap = folium.Map(location=layers["centre"], zoom_start=15, tiles="OpenStreetMap", max_zoom=20)
-    folium.GeoJson(layers["ring"], style_function=lambda _: {"color": "#777", "weight": 1.5, "dashArray": "6 6",
-                                                              "fill": False}, interactive=False).add_to(fmap)
-    folium.GeoJson(layers["avoided_roads"],
-                   style_function=lambda _: {"color": "#999", "weight": 1.5, "opacity": 0.5, "dashArray": "4 6"},
-                   interactive=False).add_to(fmap)
-    folium.GeoJson(layers["buffer_streets"],
-                   style_function=lambda _: {"color": NETWORK_COLOUR, "weight": 2, "opacity": 0.3},
-                   interactive=False).add_to(fmap)
-    folium.GeoJson(layers["area_streets"],
-                   style_function=lambda _: {"color": NETWORK_COLOUR, "weight": 2.5, "opacity": 0.8},
-                   interactive=False).add_to(fmap)
-    folium.GeoJson(layers["area"], style_function=lambda _: {"color": "#111", "weight": 3, "fill": False},
-                   interactive=False).add_to(fmap)
+    folium.GeoJson(
+        layers["ring"],
+        style_function=lambda _: {"color": "#777", "weight": 1.5, "dashArray": "6 6", "fill": False},
+        interactive=False,
+    ).add_to(fmap)
+    folium.GeoJson(
+        layers["avoided_roads"],
+        style_function=lambda _: {"color": "#999", "weight": 1.5, "opacity": 0.5, "dashArray": "4 6"},
+        interactive=False,
+    ).add_to(fmap)
+    folium.GeoJson(
+        layers["buffer_streets"],
+        style_function=lambda _: {"color": NETWORK_COLOUR, "weight": 2, "opacity": 0.3},
+        interactive=False,
+    ).add_to(fmap)
+    folium.GeoJson(
+        layers["area_streets"],
+        style_function=lambda _: {"color": NETWORK_COLOUR, "weight": 2.5, "opacity": 0.8},
+        interactive=False,
+    ).add_to(fmap)
+    folium.GeoJson(
+        layers["area"], style_function=lambda _: {"color": "#111", "weight": 3, "fill": False}, interactive=False
+    ).add_to(fmap)
     return fmap
 
 
@@ -151,8 +169,11 @@ def to_metric_geom(geom):
 
 def resolve(which: str) -> pl.Place:
     """Where routing may start/end for the chosen point: a building's entrances, or the point itself."""
-    latlon, footprint, label = (state.start, state.start_fp, state.start_label) if which == START else \
-        (state.dest, state.dest_fp, state.dest_label)
+    latlon, footprint, label = (
+        (state.start, state.start_fp, state.start_label)
+        if which == START
+        else (state.dest, state.dest_fp, state.dest_label)
+    )
     role = pl.ORIGIN if which == START else pl.DESTINATION
     return load_places().resolve(to_point(latlon), label or "chosen point", to_metric_geom(footprint), role)
 
@@ -160,9 +181,18 @@ def resolve(which: str) -> pl.Place:
 # --------------------------------------------------------------------------- state
 
 state = st.session_state
-for key, default in {"start": None, "dest": None, "start_src": None, "dest_src": None,
-                     "start_fp": None, "dest_fp": None, "start_label": None, "dest_label": None,
-                     "click_target": START, "last_click": None}.items():
+for key, default in {
+    "start": None,
+    "dest": None,
+    "start_src": None,
+    "dest_src": None,
+    "start_fp": None,
+    "dest_fp": None,
+    "start_label": None,
+    "dest_label": None,
+    "click_target": START,
+    "last_click": None,
+}.items():
     state.setdefault(key, default)
 
 
@@ -177,8 +207,7 @@ def set_point(which: str, latlon: tuple[float, float], source: str, footprint=No
 
 
 def search_box(which: str) -> None:
-    query = st.text_input(f"Search {which.lower()}", key=f"q_{which}",
-                          placeholder="e.g. Eureka Tower, 1 City Road")
+    query = st.text_input(f"Search {which.lower()}", key=f"q_{which}", placeholder="e.g. Eureka Tower, 1 City Road")
     if not query:
         return
     try:
@@ -190,8 +219,13 @@ def search_box(which: str) -> None:
         st.caption("No match inside Southbank.")
         return
     labels = [p.label for p in places]
-    choice = st.selectbox("Matches", range(len(places)), format_func=lambda i: labels[i][:80],
-                          key=f"pick_{which}", label_visibility="collapsed")
+    choice = st.selectbox(
+        "Matches",
+        range(len(places)),
+        format_func=lambda i: labels[i][:80],
+        key=f"pick_{which}",
+        label_visibility="collapsed",
+    )
     if st.button(f"Use as {which.lower()}", key=f"use_{which}", use_container_width=True):
         hit = places[choice]
         set_point(which, (hit.lat, hit.lon), "search", hit.footprint, hit.label.split(",")[0])
@@ -202,8 +236,10 @@ def search_box(which: str) -> None:
 
 with st.sidebar:
     st.header("Southbank Routing")
-    st.caption("Shortest walking route on the OpenStreetMap walking network (indoor corridors excluded; "
-               "routes prefer sidewalks over walking along roads). Flood conditions are not applied yet.")
+    st.caption(
+        "Shortest walking route on the OpenStreetMap walking network (indoor corridors excluded; "
+        "routes prefer sidewalks over walking along roads). Flood conditions are not applied yet."
+    )
 
     mode = st.radio("Start from", [CHOOSE, CURRENT], horizontal=True)
     gps_ok = False
@@ -219,11 +255,15 @@ with st.sidebar:
                     set_point(START, gps, "current location")
             else:
                 km = load_router().study_area.distance(to_point(gps)) / 1000
-                st.warning(f"Your location is {km:.1f} km outside Southbank. "
-                           "Click the map to set a simulated current location instead.")
+                st.warning(
+                    f"Your location is {km:.1f} km outside Southbank. "
+                    "Click the map to set a simulated current location instead."
+                )
         else:
-            st.warning("Location unavailable (permission denied or not supported). "
-                       "Click the map to set a simulated current location instead.")
+            st.warning(
+                "Location unavailable (permission denied or not supported). "
+                "Click the map to set a simulated current location instead."
+            )
     if mode == CHOOSE:
         search_box(START)
     search_box(DEST)
@@ -234,15 +274,19 @@ with st.sidebar:
     if isinstance(hazard, ScenarioHazard):
         st.caption(hazard.scenario.description)
     height_cm = st.number_input("Your height (cm)", min_value=60, max_value=230, value=170, step=1)
-    part = st.selectbox("Deepest water you will walk through", list(BodyPart), index=1,
-                        format_func=lambda b: b.label)
+    part = st.selectbox("Deepest water you will walk through", list(BodyPart), index=1, format_func=lambda b: b.label)
     wheelchair = st.checkbox("I use a wheelchair or mobility aid")
     profile = TravellerProfile(height_cm / 100, part, uses_wheelchair=wheelchair)
-    st.caption(f"Your limit: **{profile.depth_limit_m * 100:.0f} cm** "
-               f"(never more than {HARD_LIMIT_M * 100:.0f} cm)")
+    st.caption(f"Your limit: **{profile.depth_limit_m * 100:.0f} cm** (never more than {HARD_LIMIT_M * 100:.0f} cm)")
     with st.expander("Routing settings"):
-        alpha = st.slider("Risk weight α", 0.0, 10.0, DEFAULT_ALPHA, 0.5,
-                          help="Extra metres worth walking to avoid one metre of water at your limit.")
+        alpha = st.slider(
+            "Risk weight α",
+            0.0,
+            10.0,
+            DEFAULT_ALPHA,
+            0.5,
+            help="Extra metres worth walking to avoid one metre of water at your limit.",
+        )
 
     st.divider()
     options = [DEST] if gps_ok else [START, DEST]
@@ -273,83 +317,136 @@ if state.start and state.dest:
         ends = {START: resolve(START), DEST: resolve(DEST)}
         try:
             shortest = router.route(ends[START].access_points, ends[DEST].access_points)
-            route = router.route(ends[START].access_points, ends[DEST].access_points,
-                                 risk_cost(snapshot, profile, alpha=alpha))
+            route = router.route(
+                ends[START].access_points, ends[DEST].access_points, risk_cost(snapshot, profile, alpha=alpha)
+            )
         except RoutingError:
-            error = (f"No route keeps you within your limit ({profile.depth_limit_m * 100:.0f} cm) "
-                     "in this scenario.") if shortest is not None else "No route connects these points."
+            error = (
+                (f"No route keeps you within your limit ({profile.depth_limit_m * 100:.0f} cm) in this scenario.")
+                if shortest is not None
+                else "No route connects these points."
+            )
 
 overlay = folium.FeatureGroup(name="route")
 flood = flood_features(scenario_title)
 if flood["zones"]:
-    folium.GeoJson(flood["zones"], style_function=lambda f: {
-        "color": WATER_COLOUR, "weight": 1, "fillColor": WATER_COLOUR,
-        "fillOpacity": min(0.5, 0.15 + f["properties"]["max_depth_m"])},
-        tooltip=folium.GeoJsonTooltip(["name", "max_depth_m"], aliases=["Flood zone", "Max depth (m)"])).add_to(overlay)
+    folium.GeoJson(
+        flood["zones"],
+        style_function=lambda f: {
+            "color": WATER_COLOUR,
+            "weight": 1,
+            "fillColor": WATER_COLOUR,
+            "fillOpacity": min(0.5, 0.15 + f["properties"]["max_depth_m"]),
+        },
+        tooltip=folium.GeoJsonTooltip(["name", "max_depth_m"], aliases=["Flood zone", "Max depth (m)"]),
+    ).add_to(overlay)
 for depth, geom in flood["edges"]:  # wet footpaths: red where deeper than this traveller's limit
     over = depth > profile.depth_limit_m
-    folium.GeoJson(geom, style_function=lambda _, o=over: {"color": OVER_LIMIT_COLOUR if o else WATER_COLOUR,
-                                                           "weight": 5, "opacity": 0.9,
-                                                           "dashArray": "6 4" if o else None},
-                   tooltip=f"{depth * 100:.0f} cm · {profile.describe_depth(depth)}"
-                           + (" · over your limit" if over else "")).add_to(overlay)
+    folium.GeoJson(
+        geom,
+        style_function=lambda _, o=over: {
+            "color": OVER_LIMIT_COLOUR if o else WATER_COLOUR,
+            "weight": 5,
+            "opacity": 0.9,
+            "dashArray": "6 4" if o else None,
+        },
+        tooltip=f"{depth * 100:.0f} cm · {profile.describe_depth(depth)}" + (" · over your limit" if over else ""),
+    ).add_to(overlay)
 for which, place in ends.items():  # the building a start/destination resolved to, and its usable doors
     colour = START_COLOUR if which == START else DEST_COLOUR
     if place.building is not None:
-        folium.GeoJson(gpd.GeoSeries([place.building], crs=config.METRIC_CRS).to_crs(config.WGS84).__geo_interface__,
-                       style_function=lambda _, c=colour: {"color": c, "weight": 2, "fillOpacity": 0.12},
-                       tooltip=place.label).add_to(overlay)
+        folium.GeoJson(
+            gpd.GeoSeries([place.building], crs=config.METRIC_CRS).to_crs(config.WGS84).__geo_interface__,
+            style_function=lambda _, c=colour: {"color": c, "weight": 2, "fillOpacity": 0.12},
+            tooltip=place.label,
+        ).add_to(overlay)
         for a in place.access:
-            folium.CircleMarker(to_latlon(a.point), radius=4, color=colour, fill=True, fill_opacity=0.6,
-                                tooltip=f"{place.label}: {a.label}").add_to(overlay)
+            folium.CircleMarker(
+                to_latlon(a.point),
+                radius=4,
+                color=colour,
+                fill=True,
+                fill_opacity=0.6,
+                tooltip=f"{place.label}: {a.label}",
+            ).add_to(overlay)
 if shortest is not None and (route is None or not shortest.geometry.equals(route.geometry)):
-    folium.PolyLine([to_latlon(Point(c)) for c in shortest.geometry.coords], color=SHORTEST_COLOUR, weight=4,
-                    opacity=0.8, dash_array="8 6", tooltip=f"Shortest, ignoring flooding: {shortest.length_m:.0f} m"
-                    ).add_to(overlay)
+    folium.PolyLine(
+        [to_latlon(Point(c)) for c in shortest.geometry.coords],
+        color=SHORTEST_COLOUR,
+        weight=4,
+        opacity=0.8,
+        dash_array="8 6",
+        tooltip=f"Shortest, ignoring flooding: {shortest.length_m:.0f} m",
+    ).add_to(overlay)
 if route is not None:
-    folium.PolyLine([to_latlon(Point(c)) for c in route.geometry.coords], color=ROUTE_COLOUR, weight=7,
-                    opacity=0.9, tooltip=f"Recommended: {route.length_m:.0f} m").add_to(overlay)
+    folium.PolyLine(
+        [to_latlon(Point(c)) for c in route.geometry.coords],
+        color=ROUTE_COLOUR,
+        weight=7,
+        opacity=0.9,
+        tooltip=f"Recommended: {route.length_m:.0f} m",
+    ).add_to(overlay)
     for snap in (route.origin, route.destination):  # short walk between the door/point and the footpath
-        folium.PolyLine([to_latlon(snap.point), to_latlon(snap.snapped)], color=ROUTE_COLOUR, weight=3,
-                        dash_array="4 6").add_to(overlay)
+        folium.PolyLine(
+            [to_latlon(snap.point), to_latlon(snap.snapped)], color=ROUTE_COLOUR, weight=3, dash_array="4 6"
+        ).add_to(overlay)
 for which, colour in ((START, START_COLOUR), (DEST, DEST_COLOUR)):
     latlon = state.start if which == START else state.dest
     if route is not None:  # mark the door actually used rather than the middle of the building
         latlon = to_latlon((route.origin if which == START else route.destination).point)
     if latlon:
-        folium.Marker(latlon, tooltip=which, icon=folium.Icon(color=colour, icon="flag" if which == DEST else "user",
-                                                              prefix="fa")).add_to(overlay)
+        folium.Marker(
+            latlon, tooltip=which, icon=folium.Icon(color=colour, icon="flag" if which == DEST else "user", prefix="fa")
+        ).add_to(overlay)
 
 if error:
     st.error(error)
 elif route is not None:
     m = route_metrics(route, snapshot, profile, reference_length_m=shortest.length_m)
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Walking distance", f"{m.length_m:,.0f} m",
-              f"+{m.detour_ratio:.0%} vs shortest" if m.detour_ratio and m.detour_ratio > 0.005 else None,
-              delta_color="off")
+    c1.metric(
+        "Walking distance",
+        f"{m.length_m:,.0f} m",
+        f"+{m.detour_ratio:.0%} vs shortest" if m.detour_ratio and m.detour_ratio > 0.005 else None,
+        delta_color="off",
+    )
     c2.metric("Estimated time", f"{m.travel_time_s / 60:.0f} min")
-    c3.metric("Deepest water", "none" if not m.max_depth_m or m.max_depth_m <= 0.02 else f"{m.max_depth_m * 100:.0f} cm",
-              m.max_depth_label if m.max_depth_m and m.max_depth_m > 0.02 else None, delta_color="off")
+    c3.metric(
+        "Deepest water",
+        "none" if not m.max_depth_m or m.max_depth_m <= 0.02 else f"{m.max_depth_m * 100:.0f} cm",
+        m.max_depth_label if m.max_depth_m and m.max_depth_m > 0.02 else None,
+        delta_color="off",
+    )
     c4.metric("Distance in water", f"{m.wading_length_m:,.0f} m")
     if shortest is not None and not shortest.geometry.equals(route.geometry):
         s = route_metrics(shortest, snapshot, profile)
-        st.caption(f"Grey dashed line: shortest route ignoring flooding, {s.length_m:,.0f} m, "
-                   f"{s.wading_length_m:,.0f} m in water, deepest {s.max_depth_label}"
-                   + (f", **{s.segments_over_limit} section(s) over your limit**" if s.segments_over_limit else "") + ".")
+        st.caption(
+            f"Grey dashed line: shortest route ignoring flooding, {s.length_m:,.0f} m, "
+            f"{s.wading_length_m:,.0f} m in water, deepest {s.max_depth_label}"
+            + (f", **{s.segments_over_limit} section(s) over your limit**" if s.segments_over_limit else "")
+            + "."
+        )
+
     def describe(place: pl.Place, used) -> str:
         if place.method == "point":
             return "**selected point**"
         return f"**{place.label}** ({place.access_label(used)})"
 
-    st.caption(f"From {describe(ends[START], route.origin.point)} → "
-               f"{describe(ends[DEST], route.destination.point)}")
+    st.caption(f"From {describe(ends[START], route.origin.point)} → {describe(ends[DEST], route.destination.point)}")
 else:
-    st.info(f"Set a start and a destination: search in the sidebar or click the map "
-            f"(the next click sets the **{state.click_target.lower()}**).")
+    st.info(
+        f"Set a start and a destination: search in the sidebar or click the map "
+        f"(the next click sets the **{state.click_target.lower()}**)."
+    )
 
-out = st_folium(base_map(), key="map", height=640, use_container_width=True,
-                feature_group_to_add=overlay, returned_objects=["last_clicked"])
+out = st_folium(
+    base_map(),
+    key="map",
+    height=640,
+    use_container_width=True,
+    feature_group_to_add=overlay,
+    returned_objects=["last_clicked"],
+)
 
 click = out.get("last_clicked") if out else None
 if click and click != state.last_click:

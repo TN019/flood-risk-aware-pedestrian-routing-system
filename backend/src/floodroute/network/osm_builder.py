@@ -31,8 +31,18 @@ from shapely.ops import substring
 from floodroute.network.schema import JUNCTION
 
 CARRIAGEWAYS = {
-    "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link",
-    "tertiary", "tertiary_link", "residential", "unclassified", "service", "road",
+    "trunk",
+    "trunk_link",
+    "primary",
+    "primary_link",
+    "secondary",
+    "secondary_link",
+    "tertiary",
+    "tertiary_link",
+    "residential",
+    "unclassified",
+    "service",
+    "road",
 }
 SIDEWALK_MATCH_M = 20.0  # a sidewalk within this distance runs "alongside" the carriageway
 SIDEWALK_COVER_SHARE = 0.8  # share of carriageway length that must have a sidewalk alongside
@@ -76,13 +86,16 @@ def joined(value) -> str | None:
 
 
 def _is_indoor(data: dict) -> bool:
-    return "corridor" in tag_values(data.get("highway")) or any(
-        v != "no" for v in tag_values(data.get("indoor")))
+    return "corridor" in tag_values(data.get("highway")) or any(v != "no" for v in tag_values(data.get("indoor")))
 
 
-def build_graph_from_osm(osm: nx.MultiDiGraph, crs: str, study_area: BaseGeometry | None = None,
-                         buffer_m: float = 0.0, keep_all_components: bool = False
-                         ) -> tuple[nx.Graph, OsmBuildReport]:
+def build_graph_from_osm(
+    osm: nx.MultiDiGraph,
+    crs: str,
+    study_area: BaseGeometry | None = None,
+    buffer_m: float = 0.0,
+    keep_all_components: bool = False,
+) -> tuple[nx.Graph, OsmBuildReport]:
     """Build the routing graph from an *unsimplified* osmnx walk graph (any CRS)."""
     report = OsmBuildReport(input_nodes=osm.number_of_nodes(), input_edges=osm.number_of_edges())
     g = ox.project_graph(osm, to_crs=crs)
@@ -101,15 +114,17 @@ def build_graph_from_osm(osm: nx.MultiDiGraph, crs: str, study_area: BaseGeometr
         drop.append((u, v, k))
     g.remove_edges_from(drop)
 
-    sidewalks = [d["geometry"] for *_, d in g.edges(keys=True, data=True)
-                 if "sidewalk" in tag_values(d.get("footway"))]
+    sidewalks = [d["geometry"] for *_, d in g.edges(keys=True, data=True) if "sidewalk" in tag_values(d.get("footway"))]
     near_sidewalk = gpd.GeoSeries(sidewalks).union_all().buffer(SIDEWALK_MATCH_M) if sidewalks else None
     for *_, d in g.edges(keys=True, data=True):
         d["is_carriageway"] = bool(set(tag_values(d.get("highway"))) & CARRIAGEWAYS)
         geom = d["geometry"]
         d["has_sidewalk_alongside"] = bool(
-            d["is_carriageway"] and near_sidewalk is not None and geom.length > 0
-            and geom.intersection(near_sidewalk).length / geom.length >= SIDEWALK_COVER_SHARE)
+            d["is_carriageway"]
+            and near_sidewalk is not None
+            and geom.length > 0
+            and geom.intersection(near_sidewalk).length / geom.length >= SIDEWALK_COVER_SHARE
+        )
 
     if study_area is not None:
         keep_zone = study_area.buffer(buffer_m)
@@ -131,8 +146,14 @@ def build_graph_from_osm(osm: nx.MultiDiGraph, crs: str, study_area: BaseGeometr
         for n in (u, v):
             if n not in graph:
                 nd = und.nodes[n]
-                graph.add_node(n, x=nd["x"], y=nd["y"], kind=JUNCTION,
-                               osm_highway=joined(nd.get("highway")), crossing=joined(nd.get("crossing")))
+                graph.add_node(
+                    n,
+                    x=nd["x"],
+                    y=nd["y"],
+                    kind=JUNCTION,
+                    osm_highway=joined(nd.get("highway")),
+                    crossing=joined(nd.get("crossing")),
+                )
         attrs = _edge_attrs(d)
         geom = _oriented(attrs["geometry"], und.nodes[u])
         if graph.has_edge(u, v):
@@ -151,22 +172,21 @@ def build_graph_from_osm(osm: nx.MultiDiGraph, crs: str, study_area: BaseGeometr
         report.nodes_dropped += len(comp)
         graph.remove_nodes_from(comp)
 
-    for i, (u, v, d) in enumerate(graph.edges(data=True)):
+    for i, (_, _, d) in enumerate(graph.edges(data=True)):
         d["edge_id"] = f"e{i}"
         d["length_m"] = d["geometry"].length
         d["in_study_area"] = study_area is None or d["geometry"].intersects(study_area)
     for _, d in graph.nodes(data=True):
         d["in_study_area"] = study_area is None or study_area.covers(Point(d["x"], d["y"]))
     report.nodes, report.edges = graph.number_of_nodes(), graph.number_of_edges()
-    report.carriageway_with_sidewalk_penalised = sum(
-        1 for *_, d in graph.edges(data=True) if d["cost_factor"] > 1)
+    report.carriageway_with_sidewalk_penalised = sum(1 for *_, d in graph.edges(data=True) if d["cost_factor"] > 1)
     report.crossings = sum(1 for *_, d in graph.edges(data=True) if d["is_crossing"])
     report.steps = sum(1 for *_, d in graph.edges(data=True) if d["is_steps"])
     return graph, report
 
 
 def _fill_geometry(g: nx.MultiDiGraph) -> None:
-    for u, v, k, d in g.edges(keys=True, data=True):
+    for u, v, _k, d in g.edges(keys=True, data=True):
         if "geometry" not in d:
             d["geometry"] = LineString([(g.nodes[u]["x"], g.nodes[u]["y"]), (g.nodes[v]["x"], g.nodes[v]["y"])])
 
@@ -190,8 +210,9 @@ def _edge_attrs(d: dict) -> dict:
         "is_bridge": any(v not in ("no",) for v in tag_values(d.get("bridge"))),
         "is_tunnel": any(v not in ("no",) for v in tag_values(d.get("tunnel"))),
         "is_carriageway": any(v is True or v == "True" for v in _as_list(d.get("is_carriageway"))),
-        "cost_factor": CARRIAGEWAY_PENALTY if any(
-            v is True or v == "True" for v in _as_list(d.get("has_sidewalk_alongside"))) else 1.0,
+        "cost_factor": CARRIAGEWAY_PENALTY
+        if any(v is True or v == "True" for v in _as_list(d.get("has_sidewalk_alongside")))
+        else 1.0,
     }
 
 

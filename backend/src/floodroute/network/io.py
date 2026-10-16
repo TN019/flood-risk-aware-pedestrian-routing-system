@@ -13,9 +13,12 @@ def to_gdfs(graph: nx.Graph) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     crs = graph.graph["crs"]
     nodes = gpd.GeoDataFrame(
         [{"node_id": n, **d, "geometry": Point(d["x"], d["y"])} for n, d in graph.nodes(data=True)],
-        geometry="geometry", crs=crs)
+        geometry="geometry",
+        crs=crs,
+    )
     edges = gpd.GeoDataFrame(
-        [{"u": u, "v": v, **d} for u, v, d in graph.edges(data=True)], geometry="geometry", crs=crs)
+        [{"u": u, "v": v, **d} for u, v, d in graph.edges(data=True)], geometry="geometry", crs=crs
+    )
     return nodes, edges
 
 
@@ -26,8 +29,9 @@ def save_graph(graph: nx.Graph, path: Path) -> None:
     nodes.to_file(path, layer="nodes", driver="GPKG")
     edges.to_file(path, layer="edges", driver="GPKG")
     if graph.graph.get("study_area") is not None:
-        gpd.GeoDataFrame({"buffer_m": [graph.graph["buffer_m"]]}, geometry=[graph.graph["study_area"]],
-                         crs=graph.graph["crs"]).to_file(path, layer="study_area", driver="GPKG")
+        gpd.GeoDataFrame(
+            {"buffer_m": [graph.graph["buffer_m"]]}, geometry=[graph.graph["study_area"]], crs=graph.graph["crs"]
+        ).to_file(path, layer="study_area", driver="GPKG")
 
 
 def load_graph(path: Path) -> nx.Graph:
@@ -41,7 +45,7 @@ def load_graph(path: Path) -> nx.Graph:
     graph = nx.Graph(crs=str(nodes.crs), study_area=study_area, buffer_m=buffer_m)
     for row in nodes.drop(columns="geometry").to_dict("records"):
         graph.add_node(int(row.pop("node_id")), **{k: _plain(v) for k, v in row.items()})
-    for row, geom in zip(edges.drop(columns="geometry").to_dict("records"), edges.geometry):
+    for row, geom in zip(edges.drop(columns="geometry").to_dict("records"), edges.geometry, strict=True):
         u, v = int(row.pop("u")), int(row.pop("v"))
         graph.add_edge(u, v, geometry=geom, **{k: _plain(v) for k, v in row.items()})
     return graph

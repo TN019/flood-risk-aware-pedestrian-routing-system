@@ -64,8 +64,9 @@ class PlaceResolver:
 
     # ------------------------------------------------------------------ public
 
-    def resolve(self, point: Point, label: str, footprint: BaseGeometry | None = None,
-                role: str = DESTINATION) -> Place:
+    def resolve(
+        self, point: Point, label: str, footprint: BaseGeometry | None = None, role: str = DESTINATION
+    ) -> Place:
         building, name = self.building_at(point, footprint)
         if building is None:
             return Place(label, point, (AccessPoint(point, "chosen point"),), None, "point")
@@ -78,12 +79,17 @@ class PlaceResolver:
             return Place(label, point, tuple(access), building, "outline")
         return Place(label, point, (AccessPoint(point, "chosen point"),), building, "point")
 
-    def building_at(self, point: Point, footprint: BaseGeometry | None = None) -> tuple[BaseGeometry | None, str | None]:
+    def building_at(
+        self, point: Point, footprint: BaseGeometry | None = None
+    ) -> tuple[BaseGeometry | None, str | None]:
         """The building (or union of buildings) a place refers to, and its name if known."""
         if footprint is not None and footprint.area > 0:
-            idx = [i for i in self._b_tree.query(footprint)
-                   if self.buildings.geometry[i].intersection(footprint).area
-                   >= FOOTPRINT_SHARE * self.buildings.geometry[i].area]
+            idx = [
+                i
+                for i in self._b_tree.query(footprint)
+                if self.buildings.geometry[i].intersection(footprint).area
+                >= FOOTPRINT_SHARE * self.buildings.geometry[i].area
+            ]
             if idx:
                 return unary_union([self.buildings.geometry[i] for i in idx]), None
             return footprint, None
@@ -104,7 +110,7 @@ class PlaceResolver:
                 continue
             if _tag(row, "entrance") in excluded or _tag(row, "access") in PRIVATE_ACCESS:
                 continue
-            if row.get("indoor_only") == True:  # noqa: E712 - numpy bool from file; only reachable indoors
+            if row.get("indoor_only") == True:  # noqa: E712 - numpy bool or NaN read from file
                 continue
             level = _tag(row, "level")
             if level not in (None, "0"):  # upper floors / basements are not reachable from the street
@@ -113,7 +119,7 @@ class PlaceResolver:
             name = _tag(row, "name")
             label = "main entrance" if kind == "main" else "entrance"
             out.append(AccessPoint(row.geometry, f"{label} ({name})" if name else label))
-        return out[:MAX_ACCESS_POINTS * 2]
+        return out[: MAX_ACCESS_POINTS * 2]
 
     def outline_points(self, building: BaseGeometry) -> list[AccessPoint]:
         """Points on the building outline nearest to the surrounding footpaths."""
@@ -142,12 +148,13 @@ def mark_indoor_entrances(entrances: gpd.GeoDataFrame, raw_walk_graph) -> gpd.Ge
     from floodroute.network.osm_builder import _is_indoor  # osmnx is only needed at build time
 
     flags = []
-    for element, osm_id in zip(entrances["element"], entrances["id"]):
+    for element, osm_id in zip(entrances["element"], entrances["id"], strict=True):
         n = int(osm_id)
         if element != "node" or n not in raw_walk_graph:
             flags.append(False)
             continue
-        ways = [d for _, _, d in raw_walk_graph.edges(n, data=True)] + \
-               [d for _, _, d in raw_walk_graph.in_edges(n, data=True)]
+        ways = [d for _, _, d in raw_walk_graph.edges(n, data=True)] + [
+            d for _, _, d in raw_walk_graph.in_edges(n, data=True)
+        ]
         flags.append(bool(ways) and all(_is_indoor(d) for d in ways))
     return entrances.assign(indoor_only=flags)

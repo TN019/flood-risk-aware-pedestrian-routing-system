@@ -12,8 +12,12 @@ def grid_graph(study_area=None, points=(), extra_lines=()):
     """A 2x2-block grid, 100 m blocks, nodes at (0..200, 0..200)."""
     lines = list(extra_lines)
     for k in (0, 100, 200):
-        lines += [LineString([(0, k), (100, k)]), LineString([(100, k), (200, k)]),
-                  LineString([(k, 0), (k, 100)]), LineString([(k, 100), (k, 200)])]
+        lines += [
+            LineString([(0, k), (100, k)]),
+            LineString([(100, k), (200, k)]),
+            LineString([(k, 0), (k, 100)]),
+            LineString([(k, 100), (k, 200)]),
+        ]
     rows = [{"objectid": str(i), "neworkid": None, "geometry": g} for i, g in enumerate(lines)]
     rows += [{"objectid": f"p{i}", "neworkid": pid, "geometry": Point(xy)} for i, (pid, xy) in enumerate(points)]
     raw = gpd.GeoDataFrame(rows, geometry="geometry", crs=CRS)
@@ -74,10 +78,15 @@ def test_point_beside_a_bridge_can_join_the_path_underneath():
     # Ground path y=0 from x=0..200. A bridge deck at y=10 crosses over it, only reachable from
     # far away via ramps at x=-300 and x=500. A point at (100, 6) is nearest to the bridge.
     ground = [LineString([(0, 0), (100, 0)]), LineString([(100, 0), (200, 0)])]
-    bridge = [LineString([(-300, 10), (500, 10)]),
-              LineString([(-300, 10), (-300, -400)]), LineString([(-300, -400), (0, -400)]),
-              LineString([(0, -400), (0, 0)]), LineString([(500, 10), (500, -400)]),
-              LineString([(500, -400), (200, -400)]), LineString([(200, -400), (200, 0)])]
+    bridge = [
+        LineString([(-300, 10), (500, 10)]),
+        LineString([(-300, 10), (-300, -400)]),
+        LineString([(-300, -400), (0, -400)]),
+        LineString([(0, -400), (0, 0)]),
+        LineString([(500, 10), (500, -400)]),
+        LineString([(500, -400), (200, -400)]),
+        LineString([(200, -400), (200, 0)]),
+    ]
     rows = [{"objectid": str(i), "neworkid": None, "geometry": g} for i, g in enumerate(ground + bridge)]
     graph, _ = com_builder.build_graph(gpd.GeoDataFrame(rows, geometry="geometry", crs=CRS))
     router = Router(graph)
@@ -90,8 +99,10 @@ def test_carriageway_penalty_prefers_sidewalk():
     # Two parallel ways between the same corners: a 100 m carriageway and a 110 m sidewalk.
     road = LineString([(0, 0), (100, 0)])
     sidewalk = LineString([(0, 0), (0, 5), (100, 5), (100, 0)])
-    rows = [{"objectid": "r", "neworkid": None, "geometry": road},
-            {"objectid": "s", "neworkid": None, "geometry": sidewalk}]
+    rows = [
+        {"objectid": "r", "neworkid": None, "geometry": road},
+        {"objectid": "s", "neworkid": None, "geometry": sidewalk},
+    ]
     graph, _ = com_builder.build_graph(gpd.GeoDataFrame(rows, geometry="geometry", crs=CRS))
     for *_, d in graph.edges(data=True):
         d["cost_factor"] = 3.0 if d["objectid"] == "r" else 1.0

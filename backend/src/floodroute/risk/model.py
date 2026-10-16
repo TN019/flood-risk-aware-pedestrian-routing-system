@@ -74,8 +74,9 @@ def wet_length(data: dict, condition: EdgeCondition) -> float:
     return min(length, condition.flooded_length_m * length / parent_length)
 
 
-def risk_cost(snapshot: HazardSnapshot, profile: TravellerProfile, model: RiskModel | None = None,
-              alpha: float = DEFAULT_ALPHA) -> EdgeCost:
+def risk_cost(
+    snapshot: HazardSnapshot, profile: TravellerProfile, model: RiskModel | None = None, alpha: float = DEFAULT_ALPHA
+) -> EdgeCost:
     """Routing cost for ``profile`` under the conditions in ``snapshot``."""
     if alpha < 0:
         raise ValueError("alpha must be >= 0")

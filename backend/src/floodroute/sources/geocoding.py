@@ -14,7 +14,9 @@ from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-USER_AGENT = "flood-risk-aware-pedestrian-routing/0.1 (+https://github.com/TN019/flood-risk-aware-pedestrian-routing-system)"
+USER_AGENT = (
+    "flood-risk-aware-pedestrian-routing/0.1 (+https://github.com/TN019/flood-risk-aware-pedestrian-routing-system)"
+)
 
 
 @dataclass(frozen=True)
@@ -33,8 +35,15 @@ def search(query: str, viewbox: tuple[float, float, float, float], limit: int = 
     west, south, east, north = viewbox
     resp = requests.get(
         NOMINATIM_URL,
-        params={"q": query, "format": "jsonv2", "limit": limit, "countrycodes": "au", "polygon_geojson": 1,
-                "viewbox": f"{west},{north},{east},{south}", "bounded": 1},
+        params={
+            "q": query,
+            "format": "jsonv2",
+            "limit": limit,
+            "countrycodes": "au",
+            "polygon_geojson": 1,
+            "viewbox": f"{west},{north},{east},{south}",
+            "bounded": 1,
+        },
         headers={"User-Agent": USER_AGENT},
         timeout=10,
     )

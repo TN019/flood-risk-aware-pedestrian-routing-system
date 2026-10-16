@@ -18,7 +18,7 @@ def osm_graph(nodes: dict, ways: list) -> nx.MultiDiGraph:
         g.add_node(n, x=x, y=y)
     for path, tags in ways:
         osmid = next(_way_ids)
-        for u, v in zip(path, path[1:]):
+        for u, v in itertools.pairwise(path):
             length = Point(nodes[u]).distance(Point(nodes[v]))
             g.add_edge(u, v, osmid=osmid, length=length, reversed=False, **tags)
             g.add_edge(v, u, osmid=osmid, length=length, reversed=True, **tags)
@@ -32,11 +32,13 @@ def build(nodes, ways, **kw):
 
 def test_indoor_private_and_sidepath_ways_are_excluded():
     nodes = {1: (0, 0), 2: (100, 0), 3: (200, 0), 4: (300, 0), 5: (400, 0), 6: (500, 0)}
-    ways = [([1, 2], {"highway": "footway"}),
-            ([2, 3], {"highway": "corridor"}),
-            ([3, 4], {"highway": "footway", "indoor": "yes"}),
-            ([4, 5], {"highway": "service", "foot": "private"}),
-            ([5, 6], {"highway": "primary", "foot": "use_sidepath"})]
+    ways = [
+        ([1, 2], {"highway": "footway"}),
+        ([2, 3], {"highway": "corridor"}),
+        ([3, 4], {"highway": "footway", "indoor": "yes"}),
+        ([4, 5], {"highway": "service", "foot": "private"}),
+        ([5, 6], {"highway": "primary", "foot": "use_sidepath"}),
+    ]
     graph, report = build(nodes, ways, keep_all_components=True)
     assert (report.indoor_removed, report.private_removed, report.use_sidepath_removed) == (4, 2, 2)  # directed
     assert {frozenset((u, v)) for u, v in graph.edges()} == {frozenset((1, 2))}
@@ -62,12 +64,13 @@ def test_degree_two_chains_are_simplified_but_tag_changes_are_kept():
 def test_carriageway_with_sidewalks_is_kept_but_penalised():
     # A road 1-2-3 with sidewalks on both sides that only touch the road at the corner nodes 1 and 3,
     # like many OSM sidewalks. Removing the road would disconnect the two sidewalks.
-    nodes = {1: (0, 0), 2: (100, 0), 3: (200, 0), 11: (0, 8), 12: (200, 8), 21: (0, -8), 22: (200, -8),
-             30: (200, 100)}
-    ways = [([1, 2, 3], {"highway": "primary"}),
-            ([1, 11, 12, 3], {"highway": "footway", "footway": "sidewalk"}),
-            ([1, 21, 22, 3], {"highway": "footway", "footway": "sidewalk"}),
-            ([3, 30], {"highway": "footway"})]
+    nodes = {1: (0, 0), 2: (100, 0), 3: (200, 0), 11: (0, 8), 12: (200, 8), 21: (0, -8), 22: (200, -8), 30: (200, 100)}
+    ways = [
+        ([1, 2, 3], {"highway": "primary"}),
+        ([1, 11, 12, 3], {"highway": "footway", "footway": "sidewalk"}),
+        ([1, 21, 22, 3], {"highway": "footway", "footway": "sidewalk"}),
+        ([3, 30], {"highway": "footway"}),
+    ]
     graph, report = build(nodes, ways)
     assert nx.is_connected(graph)
     road = [d for *_, d in graph.edges(data=True) if d["highway"] == "primary"]
@@ -91,9 +94,12 @@ def test_carriageway_without_sidewalk_is_not_penalised():
 def test_study_area_clip_and_flags():
     # Study area x <= 150, buffer reaches x <= 350. Names differ so simplification keeps the ways apart.
     nodes = {1: (0, 0), 2: (100, 0), 3: (300, 0), 4: (1000, 0), 5: (2000, 0), 6: (2100, 0)}
-    ways = [([1, 2], {"highway": "footway", "name": "A"}), ([2, 3], {"highway": "footway", "name": "B"}),
-            ([3, 4], {"highway": "footway", "name": "C"}),  # starts inside the buffer: kept whole
-            ([5, 6], {"highway": "footway", "name": "D"})]  # entirely outside: removed (both directions)
+    ways = [
+        ([1, 2], {"highway": "footway", "name": "A"}),
+        ([2, 3], {"highway": "footway", "name": "B"}),
+        ([3, 4], {"highway": "footway", "name": "C"}),  # starts inside the buffer: kept whole
+        ([5, 6], {"highway": "footway", "name": "D"}),
+    ]  # entirely outside: removed (both directions)
     graph, report = build(nodes, ways, study_area=box(-10, -10, 150, 10), buffer_m=200)
     assert report.outside_area_removed == 2
     flags = sorted((round(d["length_m"]), d["in_study_area"]) for *_, d in graph.edges(data=True))

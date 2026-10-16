@@ -59,11 +59,11 @@ class BuildReport:
 
 
 def node_key(xy) -> tuple[float, float]:
-    return (round(xy[0] / NODE_PRECISION_M) * NODE_PRECISION_M,
-            round(xy[1] / NODE_PRECISION_M) * NODE_PRECISION_M)
+    return (round(xy[0] / NODE_PRECISION_M) * NODE_PRECISION_M, round(xy[1] / NODE_PRECISION_M) * NODE_PRECISION_M)
 
 
 # ---------------------------------------------------------------------------- cleaning
+
 
 def clean_lines(lines: gpd.GeoDataFrame, report: BuildReport) -> gpd.GeoDataFrame:
     """Drop duplicates and self-loops, then split lines at T-junctions."""
@@ -86,13 +86,15 @@ def split_at_tjunctions(lines: gpd.GeoDataFrame, report: BuildReport) -> gpd.Geo
         p = Point(xy)
         for j in tree.query(p.buffer(TJUNCTION_TOL_M)):
             ln = geoms[j]
-            if (p.distance(ln) < TJUNCTION_TOL_M
-                    and p.distance(Point(ln.coords[0])) > TJUNCTION_TOL_M
-                    and p.distance(Point(ln.coords[-1])) > TJUNCTION_TOL_M):
+            if (
+                p.distance(ln) < TJUNCTION_TOL_M
+                and p.distance(Point(ln.coords[0])) > TJUNCTION_TOL_M
+                and p.distance(Point(ln.coords[-1])) > TJUNCTION_TOL_M
+            ):
                 cuts[j].append((ln.project(p), tuple(xy)))
 
     rows = []
-    for j, (oid, ln) in enumerate(zip(lines.objectid, geoms)):
+    for j, (oid, ln) in enumerate(zip(lines.objectid, geoms, strict=True)):
         if j not in cuts:
             rows.append((oid, ln))
             continue
@@ -109,8 +111,10 @@ def split_at_tjunctions(lines: gpd.GeoDataFrame, report: BuildReport) -> gpd.Geo
 
 # ---------------------------------------------------------------------------- graph
 
-def build_graph(raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None,
-                buffer_m: float = 0.0) -> tuple[nx.Graph, BuildReport]:
+
+def build_graph(
+    raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None, buffer_m: float = 0.0
+) -> tuple[nx.Graph, BuildReport]:
     """Build the routing graph from a raw CoM export (LineStrings + parcel Points), metric CRS.
 
     With ``study_area``, lines that do not touch ``study_area`` buffered by ``buffer_m`` are
@@ -128,7 +132,7 @@ def build_graph(raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None,
     lines = clean_lines(lines, report)
 
     # Parcel id per node location. A few Points do not sit on the network; they are ignored.
-    parcel_at = {node_key(p.coords[0]): str(pid) for p, pid in zip(points.geometry, points.neworkid)}
+    parcel_at = {node_key(p.coords[0]): str(pid) for p, pid in zip(points.geometry, points.neworkid, strict=True)}
 
     node_ids: dict[tuple, int] = {}
     nodes: dict[int, dict] = {}
@@ -149,7 +153,7 @@ def build_graph(raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None,
     # Every line touching a parcel gets its own stub node at the parcel end.
     links_per_parcel = collections.Counter()
     edges = []
-    for oid, geom in zip(lines.objectid, lines.geometry):
+    for oid, geom in zip(lines.objectid, lines.geometry, strict=True):
         ends = []
         for xy in (geom.coords[0], geom.coords[-1]):
             pid = parcel_at.get(node_key(xy))
@@ -158,8 +162,15 @@ def build_graph(raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None,
             else:
                 ends.append(parcel_stub(xy, pid))
                 links_per_parcel[pid] += 1
-        edges.append({"u": ends[0], "v": ends[1], "geometry": geom, "objectid": str(oid),
-                      "is_parcel_link": any(nodes[n]["kind"] == PARCEL_ACCESS for n in ends)})
+        edges.append(
+            {
+                "u": ends[0],
+                "v": ends[1],
+                "geometry": geom,
+                "objectid": str(oid),
+                "is_parcel_link": any(nodes[n]["kind"] == PARCEL_ACCESS for n in ends),
+            }
+        )
     report.parcel_hubs_split = sum(1 for c in links_per_parcel.values() if c >= 2)
 
     graph = nx.Graph(crs=str(lines.crs), study_area=study_area, buffer_m=buffer_m)
@@ -173,8 +184,10 @@ def build_graph(raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None,
             report.parallel_edges_split += 1
             mid = geom.interpolate(0.5, normalized=True)
             m = junction((mid.x, mid.y))
-            for a, b, part in ((u, m, substring(geom, 0, 0.5, normalized=True)),
-                               (m, v, substring(geom, 0.5, 1, normalized=True))):
+            for a, b, part in (
+                (u, m, substring(geom, 0, 0.5, normalized=True)),
+                (m, v, substring(geom, 0.5, 1, normalized=True)),
+            ):
                 graph.add_edge(a, b, **{**e, "geometry": part})
             graph.nodes[m].update(nodes[m])
             continue
@@ -187,7 +200,7 @@ def build_graph(raw: gpd.GeoDataFrame, study_area: BaseGeometry | None = None,
         graph.remove_nodes_from(comp)
     graph = nx.convert_node_labels_to_integers(graph, ordering="sorted")
 
-    for i, (u, v, data) in enumerate(graph.edges(data=True)):
+    for i, (_, _, data) in enumerate(graph.edges(data=True)):
         data["edge_id"] = f"e{i}"
         data["length_m"] = data["geometry"].length
         data["cost_factor"] = 1.0

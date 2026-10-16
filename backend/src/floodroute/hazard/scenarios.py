@@ -64,10 +64,17 @@ def load_scenario(path: Path, crs: str = config.METRIC_CRS) -> FloodScenario:
     zones = []
     for f in doc["features"]:
         props = f["properties"]
-        zones.append(FloodZone(props["name"], shapely.transform(shape(f["geometry"]), project),
-                               float(props["max_depth_m"]), float(props.get("ramp_m", 0.0))))
-    return FloodScenario(doc.get("id", Path(path).stem), doc.get("title", Path(path).stem),
-                         doc.get("description", ""), tuple(zones))
+        zones.append(
+            FloodZone(
+                props["name"],
+                shapely.transform(shape(f["geometry"]), project),
+                float(props["max_depth_m"]),
+                float(props.get("ramp_m", 0.0)),
+            )
+        )
+    return FloodScenario(
+        doc.get("id", Path(path).stem), doc.get("title", Path(path).stem), doc.get("description", ""), tuple(zones)
+    )
 
 
 def list_scenarios(directory: Path = config.SCENARIO_DIR) -> list[Path]:
@@ -112,7 +119,6 @@ class ScenarioHazard:
                     cond = edge_condition(self.scenario, edges[i]["geometry"], self._flooded)
                     if cond is not DRY:
                         conditions[edges[i]["edge_id"]] = cond
-            self._cache[key] = HazardSnapshot(source=f"scenario:{self.scenario.id}", conditions=conditions,
-                                              default=DRY)
+            self._cache[key] = HazardSnapshot(source=f"scenario:{self.scenario.id}", conditions=conditions, default=DRY)
         snap = self._cache[key]
         return HazardSnapshot(snap.source, at, snap.conditions, snap.default)

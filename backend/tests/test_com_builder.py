@@ -15,14 +15,18 @@ def raw(lines, points=()):
 
 
 def node_at(graph, xy):
-    return next(n for n, d in graph.nodes(data=True)
-                if d["kind"] == JUNCTION and abs(d["x"] - xy[0]) < 1e-6 and abs(d["y"] - xy[1]) < 1e-6)
+    return next(
+        n
+        for n, d in graph.nodes(data=True)
+        if d["kind"] == JUNCTION and abs(d["x"] - xy[0]) < 1e-6 and abs(d["y"] - xy[1]) < 1e-6
+    )
 
 
 def test_lines_connect_only_at_shared_endpoints():
     # Two lines crossing in an X (e.g. a bridge over a path) must not create a junction.
-    graph, report = com_builder.build_graph(raw([LineString([(0, 0), (10, 0)]), LineString([(5, -5), (5, 5)]),
-                                        LineString([(10, 0), (10, 10)])]))
+    graph, report = com_builder.build_graph(
+        raw([LineString([(0, 0), (10, 0)]), LineString([(5, -5), (5, 5)]), LineString([(10, 0), (10, 10)])])
+    )
     assert report.components_dropped == 1  # the crossing line is its own component
     assert graph.number_of_edges() == 2
 

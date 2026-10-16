@@ -22,8 +22,9 @@ class RouteMetrics:
     detour_ratio: float | None  # length / reference length - 1 (e.g. vs the plain shortest route)
 
 
-def route_metrics(route: Route, snapshot: HazardSnapshot, profile: TravellerProfile,
-                  reference_length_m: float | None = None) -> RouteMetrics:
+def route_metrics(
+    route: Route, snapshot: HazardSnapshot, profile: TravellerProfile, reference_length_m: float | None = None
+) -> RouteMetrics:
     deepest: float | None = 0.0
     wading = weighted = 0.0
     over = 0

@@ -57,14 +57,13 @@ class Issues:
 
 
 def node_key(xy) -> tuple[float, float]:
-    return (round(xy[0] / NODE_PRECISION_M) * NODE_PRECISION_M,
-            round(xy[1] / NODE_PRECISION_M) * NODE_PRECISION_M)
+    return (round(xy[0] / NODE_PRECISION_M) * NODE_PRECISION_M, round(xy[1] / NODE_PRECISION_M) * NODE_PRECISION_M)
 
 
 def build_endpoint_graph(lines: gpd.GeoDataFrame) -> nx.MultiGraph:
     """Connect lines only where their endpoints coincide (no implicit intersections)."""
     graph = nx.MultiGraph()
-    for idx, geom in zip(lines.index, lines.geometry):
+    for idx, geom in zip(lines.index, lines.geometry, strict=True):
         u, v = node_key(geom.coords[0]), node_key(geom.coords[-1])
         graph.add_edge(u, v, line=idx, length=geom.length)
     return graph
@@ -122,12 +121,12 @@ def main() -> None:
     giant = comps[0]
     for comp in comps[1:]:
         comp_lines = [lines.geometry[d["line"]] for _, _, d in graph.subgraph(comp).edges(data=True)]
-        geom = comp_lines[0] if len(comp_lines) == 1 else LineString(
-            [c for ln in comp_lines for c in ln.coords])
+        geom = comp_lines[0] if len(comp_lines) == 1 else LineString([c for ln in comp_lines for c in ln.coords])
         issues.add("disconnected_component", geom, nodes=len(comp))
 
-    parallel = [(u, v) for u, v in {(u, v) for u, v, _ in graph.edges(keys=True)}
-                if u != v and graph.number_of_edges(u, v) > 1]
+    parallel = [
+        (u, v) for u, v in {(u, v) for u, v, _ in graph.edges(keys=True)} if u != v and graph.number_of_edges(u, v) > 1
+    ]
     for u, v in parallel:
         issues.add("parallel_edges", LineString([u, v]), count=graph.number_of_edges(u, v))
 
@@ -136,7 +135,7 @@ def main() -> None:
     pt_on_node = pt_dist < 0.01
     pt_node_deg = [degree[tuple(node_xy[node_tree.nearest(p)])] for p in points.geometry]
     deg_on_node = collections.Counter(np.array(pt_node_deg)[pt_on_node])
-    for geom, d in zip(points.geometry[~pt_on_node], pt_dist[~pt_on_node]):
+    for geom, d in zip(points.geometry[~pt_on_node], pt_dist[~pt_on_node], strict=True):
         issues.add("point_off_network", geom, dist_m=round(float(d), 1))
     point_node_keys = {node_key(p.coords[0]) for p in points.geometry[pt_on_node]}
 
@@ -144,8 +143,9 @@ def main() -> None:
     # Points mark property parcels; lines touching them link a parcel into the street network.
     # A parcel point with several links lets a route pass *through* the parcel.
     clean = lines[~dup_mask]
-    is_link = np.array([node_key(g.coords[0]) in point_node_keys or node_key(g.coords[-1]) in point_node_keys
-                        for g in clean.geometry])
+    is_link = np.array(
+        [node_key(g.coords[0]) in point_node_keys or node_key(g.coords[-1]) in point_node_keys for g in clean.geometry]
+    )
     hubs = [k for k in point_node_keys if degree.get(k, 0) >= 2]
     for k in hubs:
         issues.add("parcel_hub", Point(k), degree=degree[k])
@@ -164,7 +164,7 @@ def main() -> None:
             dangle_counts["ends at a property-link point"] += 1
         else:
             dangle_counts["other (review)"] += 1
-            (_, _, data), = graph.edges(key, data=True)
+            ((_, _, data),) = graph.edges(key, data=True)
             issues.add("dangle_unexplained", p, edge_length_m=round(data["length"], 1))
 
     # ------------------------------------------------------------------ OSM
@@ -208,9 +208,11 @@ def main() -> None:
     for p in node_pts:
         for j in line_tree.query(p.buffer(TJUNCTION_TOL_M)):
             ln = geoms[j]
-            if (p.distance(ln) < TJUNCTION_TOL_M
-                    and p.distance(Point(ln.coords[0])) > TJUNCTION_TOL_M
-                    and p.distance(Point(ln.coords[-1])) > TJUNCTION_TOL_M):
+            if (
+                p.distance(ln) < TJUNCTION_TOL_M
+                and p.distance(Point(ln.coords[0])) > TJUNCTION_TOL_M
+                and p.distance(Point(ln.coords[-1])) > TJUNCTION_TOL_M
+            ):
                 tj += 1
                 issues.add("missing_split", p)
 
@@ -232,19 +234,28 @@ def main() -> None:
     osm_cov = osm_cov_len.sum() / osm_len
 
     osm_walkable = osm_walkable.assign(uncovered_m=osm_walkable.length - osm_cov_len)
-    uncovered_by_type = (osm_walkable.assign(hw=osm_walkable.highway.apply(lambda h: as_list(h)[0]))
-                         .groupby("hw")["uncovered_m"].sum().sort_values(ascending=False))
+    uncovered_by_type = (
+        osm_walkable.assign(hw=osm_walkable.highway.apply(lambda h: as_list(h)[0]))
+        .groupby("hw")["uncovered_m"]
+        .sum()
+        .sort_values(ascending=False)
+    )
     for _, r in osm_walkable[osm_walkable.uncovered_m > 20].iterrows():
-        issues.add("osm_path_missing_in_com", r.geometry.difference(com_union_buf),
-                   highway=as_list(r.highway)[0], name=", ".join(map(str, as_list(r.get("name")))),
-                   missing_m=round(r.uncovered_m, 1))
+        issues.add(
+            "osm_path_missing_in_com",
+            r.geometry.difference(com_union_buf),
+            highway=as_list(r.highway)[0],
+            name=", ".join(map(str, as_list(r.get("name")))),
+            missing_m=round(r.uncovered_m, 1),
+        )
 
     # OSM signalised/zebra crossing nodes inside the extent
     xings = osm_nodes[(osm_nodes.highway == "crossing") & osm_nodes.within(clip)]
     x_dist = np.array([p.distance(node_pts[node_tree.nearest(p)]) for p in xings.geometry])
     # a crossing is "represented" if CoM has a line passing close by, not necessarily a node
     x_line_dist = np.array([p.distance(geoms[line_tree.nearest(p)]) for p in xings.geometry])
-    for p, d in zip(xings.geometry[x_line_dist > CROSSING_MATCH_M], x_line_dist[x_line_dist > CROSSING_MATCH_M]):
+    far = x_line_dist > CROSSING_MATCH_M
+    for p, d in zip(xings.geometry[far], x_line_dist[far], strict=True):
         issues.add("osm_crossing_not_in_com", p, nearest_com_line_m=round(float(d), 1))
 
     # River crossings: which CoM lines span water, which OSM bridge they sit on, are both ends connected?
@@ -260,12 +271,12 @@ def main() -> None:
         mid = r.geometry.intersection(water).centroid
         names = sorted({wb_labels[h] for h in wb_tree.query(mid.buffer(25))} - {"(unnamed)"})
         degs = (degree[node_key(r.geometry.coords[0])], degree[node_key(r.geometry.coords[-1])])
-        crossing_rows.append((r.objectid, ", ".join(names) or "(unnamed / none)",
-                              round(over[_]), min(degs) >= 2))
+        crossing_rows.append((r.objectid, ", ".join(names) or "(unnamed / none)", round(over[_]), min(degs) >= 2))
         if min(degs) < 2:
             issues.add("river_line_dead_end", r.geometry, objectid=r.objectid)
-    river_df = pd.DataFrame(crossing_rows, columns=["objectid", "osm_bridge_nearby", "over_water_m",
-                                                    "both_ends_connected"])
+    river_df = pd.DataFrame(
+        crossing_rows, columns=["objectid", "osm_bridge_nearby", "over_water_m", "both_ends_connected"]
+    )
     named_water_bridges = sorted(set(wb_labels) - {"(unnamed)"})
     covered_names = {n.strip() for s in river_df.osm_bridge_nearby for n in s.split(",")}
     uncovered_bridges = [n for n in named_water_bridges if n not in covered_names]
@@ -296,8 +307,13 @@ def main() -> None:
         ratio = d_com / d_osm
         ratios.append(ratio)
         if ratio > OD_RATIO_FLAG or ratio < 1 / OD_RATIO_FLAG:
-            issues.add("od_distance_mismatch", LineString([a, b]), com_m=round(d_com), osm_m=round(d_osm),
-                       ratio=round(ratio, 2))
+            issues.add(
+                "od_distance_mismatch",
+                LineString([a, b]),
+                com_m=round(d_com),
+                osm_m=round(d_osm),
+                ratio=round(ratio, 2),
+            )
     ratios = np.array(ratios)
 
     # Effect of forbidding through-parcel travel (remove parcel hubs)
@@ -310,8 +326,10 @@ def main() -> None:
         a, b = rng.sample(candidates, 2)
         if Point(a).distance(Point(b)) < 200:
             continue
-        hub_ratios.append(nx.shortest_path_length(g_nohub, a, b, weight="length")
-                          / nx.shortest_path_length(g_sub, a, b, weight="length"))
+        hub_ratios.append(
+            nx.shortest_path_length(g_nohub, a, b, weight="length")
+            / nx.shortest_path_length(g_sub, a, b, weight="length")
+        )
     hub_ratios = np.array(hub_ratios)
 
     # ------------------------------------------------------------------ Report
@@ -335,7 +353,7 @@ def main() -> None:
         "",
         "## 2. Topology (connect only at shared endpoints)",
         f"- Nodes {graph.number_of_nodes()}, edges {graph.number_of_edges()}.",
-        f"- Endpoints coincide exactly: snapping tolerance makes no difference up to 0.5 m.",
+        "- Endpoints coincide exactly: snapping tolerance makes no difference up to 0.5 m.",
         f"- Connected components: {len(comps)}; largest holds {len(giant)} nodes "
         f"({len(giant) / graph.number_of_nodes():.1%}). Others: {[len(c) for c in comps[1:]]}.",
         "- Dead ends (degree-1 nodes):",
@@ -373,8 +391,10 @@ def main() -> None:
         "",
         "| CoM objectid | OSM bridge within 25 m | Over water (m) | Both ends connected |",
         "|---|---|---|---|",
-        *[f"| {r.objectid} | {r.osm_bridge_nearby} | {r.over_water_m} | {'yes' if r.both_ends_connected else 'NO'} |"
-          for r in river_df.sort_values("osm_bridge_nearby").itertuples()],
+        *[
+            f"| {r.objectid} | {r.osm_bridge_nearby} | {r.over_water_m} | {'yes' if r.both_ends_connected else 'NO'} |"
+            for r in river_df.sort_values("osm_bridge_nearby").itertuples()
+        ],
         "",
         "### Shortest-path distance, CoM vs OSM",
         f"- {len(ratios)} random OD pairs (≥200 m apart, inside the extent minus 150 m).",
@@ -420,40 +440,60 @@ STYLE = {
 
 def write_map(clean, is_link, osm_walkable, issues_gdf) -> None:
     centre = config.SOUTHBANK_BBOX
-    fmap = folium.Map(location=[(centre.south + centre.north) / 2, (centre.west + centre.east) / 2],
-                      zoom_start=16, tiles="OpenStreetMap", max_zoom=21)
+    fmap = folium.Map(
+        location=[(centre.south + centre.north) / 2, (centre.west + centre.east) / 2],
+        zoom_start=16,
+        tiles="OpenStreetMap",
+        max_zoom=21,
+    )
 
-    folium.GeoJson(osm_walkable[["geometry"]].to_crs(config.WGS84), name="OSM walk network",
-                   style_function=lambda _: {"color": "#2ca02c", "weight": 1, "opacity": 0.5},
-                   show=False).add_to(fmap)
-    folium.GeoJson(clean.loc[~is_link, ["objectid", "geometry"]].to_crs(config.WGS84),
-                   name="CoM street/path lines",
-                   style_function=lambda _: {"color": "#1f4e79", "weight": 2, "opacity": 0.8},
-                   tooltip=folium.GeoJsonTooltip(["objectid"])).add_to(fmap)
-    folium.GeoJson(clean.loc[is_link, ["objectid", "geometry"]].to_crs(config.WGS84),
-                   name="CoM parcel-link lines",
-                   style_function=lambda _: {"color": "#e6550d", "weight": 1.5, "opacity": 0.8,
-                                             "dashArray": "4 4"},
-                   tooltip=folium.GeoJsonTooltip(["objectid"])).add_to(fmap)
+    folium.GeoJson(
+        osm_walkable[["geometry"]].to_crs(config.WGS84),
+        name="OSM walk network",
+        style_function=lambda _: {"color": "#2ca02c", "weight": 1, "opacity": 0.5},
+        show=False,
+    ).add_to(fmap)
+    folium.GeoJson(
+        clean.loc[~is_link, ["objectid", "geometry"]].to_crs(config.WGS84),
+        name="CoM street/path lines",
+        style_function=lambda _: {"color": "#1f4e79", "weight": 2, "opacity": 0.8},
+        tooltip=folium.GeoJsonTooltip(["objectid"]),
+    ).add_to(fmap)
+    folium.GeoJson(
+        clean.loc[is_link, ["objectid", "geometry"]].to_crs(config.WGS84),
+        name="CoM parcel-link lines",
+        style_function=lambda _: {"color": "#e6550d", "weight": 1.5, "opacity": 0.8, "dashArray": "4 4"},
+        tooltip=folium.GeoJsonTooltip(["objectid"]),
+    ).add_to(fmap)
 
     wgs = issues_gdf.to_crs(config.WGS84)
     for kind, (colour, label) in STYLE.items():
         sub = wgs[wgs.kind == kind]
         if sub.empty:
             continue
-        layer = folium.FeatureGroup(name=f"{label} ({len(sub)})",
-                                    show=kind not in {"crossing_grade_separated", "crossing_parcel_link",
-                                                      "od_distance_mismatch", "osm_path_missing_in_com"})
+        layer = folium.FeatureGroup(
+            name=f"{label} ({len(sub)})",
+            show=kind
+            not in {
+                "crossing_grade_separated",
+                "crossing_parcel_link",
+                "od_distance_mismatch",
+                "osm_path_missing_in_com",
+            },
+        )
         props = [c for c in sub.columns if c not in ("geometry",) and sub[c].notna().any()]
         for _, r in sub.iterrows():
             tip = "<br>".join(f"{c}: {r[c]}" for c in props if pd.notna(r[c]))
             if r.geometry.geom_type == "Point":
-                folium.CircleMarker([r.geometry.y, r.geometry.x], radius=6, color=colour,
-                                    fill=True, fill_opacity=0.8, tooltip=tip).add_to(layer)
+                folium.CircleMarker(
+                    [r.geometry.y, r.geometry.x], radius=6, color=colour, fill=True, fill_opacity=0.8, tooltip=tip
+                ).add_to(layer)
             else:
-                folium.GeoJson(r.geometry.__geo_interface__, tooltip=tip,
-                               style_function=lambda _, c=colour: {"color": c, "weight": 5,
-                                                                   "opacity": 0.8}).add_to(layer)
+                folium.GeoJson(
+                    r.geometry.__geo_interface__,
+                    tooltip=tip,
+                    style_function=lambda _, c=colour: {"color": c, "weight": 5, "opacity": 0.8},
+                ).add_to(layer)
         layer.add_to(fmap)
     folium.LayerControl(collapsed=False).add_to(fmap)
     fmap.save(REPORT_DIR / "network_validation_map.html")

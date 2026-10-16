@@ -26,8 +26,9 @@ class BodyPart(Enum):
 
     @property
     def label(self) -> str:
-        return {"NO_WADING": "no wading", "ANKLE": "ankle", "LOWER_CALF": "lower calf",
-                "MID_CALF": "mid calf"}[self.name]
+        return {"NO_WADING": "no wading", "ANKLE": "ankle", "LOWER_CALF": "lower calf", "MID_CALF": "mid calf"}[
+            self.name
+        ]
 
 
 # Body landmarks used to describe a depth, as fractions of standing height.

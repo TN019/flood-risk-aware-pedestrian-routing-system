@@ -1,3 +1,4 @@
+import itertools
 import random
 
 import networkx as nx
@@ -18,7 +19,7 @@ def graph(edges):
 
 
 def path_cost(g, path, cost):
-    return sum(cost(u, v, g.edges[u, v]) for u, v in zip(path, path[1:]))
+    return sum(cost(u, v, g.edges[u, v]) for u, v in itertools.pairwise(path))
 
 
 def test_picks_the_cheaper_of_two_routes():
@@ -92,7 +93,9 @@ def test_matches_networkx_on_random_graphs(seed):
             continue
         result = ours.search(g, s, t, cost)
         assert result.path[0] == s and result.path[-1] == t
-        assert all(g.has_edge(a, b) and cost(a, b, g.edges[a, b]) is not None for a, b in zip(result.path, result.path[1:]))
+        assert all(
+            g.has_edge(a, b) and cost(a, b, g.edges[a, b]) is not None for a, b in itertools.pairwise(result.path)
+        )
         assert path_cost(g, result.path, cost) == pytest.approx(result.cost)
         assert result.cost == pytest.approx(expected)
 

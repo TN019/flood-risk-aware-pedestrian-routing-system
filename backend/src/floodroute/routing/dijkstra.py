@@ -56,8 +56,7 @@ class Dijkstra:
                 continue  # stale entry: u was already reached more cheaply
             settled.add(u)
             if u == target:
-                return SearchResult(_walk_back(parent, target), dist, len(settled), pushed,
-                                    time.perf_counter() - start)
+                return SearchResult(_walk_back(parent, target), dist, len(settled), pushed, time.perf_counter() - start)
             for v, data in graph.adj[u].items():
                 if v in settled:
                     continue

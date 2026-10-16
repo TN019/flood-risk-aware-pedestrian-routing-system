@@ -11,6 +11,7 @@ both can be swapped (e.g. a flood-risk cost, or A*) without touching snapping or
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -76,8 +77,7 @@ class Route:
 class Router:
     """Shortest-path routing between arbitrary points inside the study area."""
 
-    def __init__(self, graph: nx.Graph, max_snap_m: float = MAX_SNAP_DISTANCE_M,
-                 path_finder: PathFinder | None = None):
+    def __init__(self, graph: nx.Graph, max_snap_m: float = MAX_SNAP_DISTANCE_M, path_finder: PathFinder | None = None):
         self.graph = graph
         self.study_area: BaseGeometry | None = graph.graph.get("study_area")
         self.max_snap_m = max_snap_m
@@ -92,8 +92,9 @@ class Router:
             raise RoutingError("This point is outside Southbank. Please choose a point inside the boundary.")
         nearest = self._geoms[self._tree.nearest(point)].distance(point)
         if nearest > self.max_snap_m:
-            raise RoutingError(f"This point is {nearest:.0f} m from the nearest footpath "
-                               f"(limit {self.max_snap_m:.0f} m).")
+            raise RoutingError(
+                f"This point is {nearest:.0f} m from the nearest footpath (limit {self.max_snap_m:.0f} m)."
+            )
         snaps = []
         for i in self._tree.query(point.buffer(nearest + SNAP_SLACK_M)):
             geom = self._geoms[i]
@@ -122,8 +123,9 @@ class Router:
             raise first_error or RoutingError("No usable point to route from.")
         return snaps
 
-    def route(self, origin: Point | Sequence[Point], destination: Point | Sequence[Point],
-              cost: EdgeCost = walking_cost) -> Route:
+    def route(
+        self, origin: Point | Sequence[Point], destination: Point | Sequence[Point], cost: EdgeCost = walking_cost
+    ) -> Route:
         """Route between two places, each given as one point or several access points (e.g. a
         building's entrances); the cheapest combination under ``cost`` is used."""
         ends = {ORIGIN: _as_points(origin), DESTINATION: _as_points(destination)}
@@ -136,9 +138,17 @@ class Router:
                 access = splitter.split(snap, f"{name}_{i}")
                 # The access leg inherits the conditions of the edge it joins.
                 joined = self.graph.edges[snap.edge]
-                graph.add_edge(name, access, geometry=LineString([snap.point, snap.snapped]),
-                               length_m=snap.distance_m, cost_factor=1.0, edge_id=ACCESS_EDGE, snap=snap,
-                               parent_edge_id=joined["edge_id"], parent_length_m=joined["length_m"])
+                graph.add_edge(
+                    name,
+                    access,
+                    geometry=LineString([snap.point, snap.snapped]),
+                    length_m=snap.distance_m,
+                    cost_factor=1.0,
+                    edge_id=ACCESS_EDGE,
+                    snap=snap,
+                    parent_edge_id=joined["edge_id"],
+                    parent_length_m=joined["length_m"],
+                )
         try:
             nodes = self.path_finder.find_path(graph, ORIGIN, DESTINATION, cost)
         except NoPathError:
@@ -148,12 +158,18 @@ class Router:
         d_snap = graph.edges[nodes[-2], nodes[-1]]["snap"]
         coords: list = [o_snap.snapped.coords[0]]
         edge_ids, segments, length = [], [], 0.0
-        for a, b in zip(nodes, nodes[1:]):
+        for a, b in itertools.pairwise(nodes):
             data = graph.edges[a, b]
             length += data["length_m"]
             is_access = data["edge_id"] == ACCESS_EDGE
-            segments.append(RouteSegment(data.get("parent_edge_id") or data["edge_id"], data["length_m"],
-                                         data.get("parent_length_m") or data["length_m"], is_access))
+            segments.append(
+                RouteSegment(
+                    data.get("parent_edge_id") or data["edge_id"],
+                    data["length_m"],
+                    data.get("parent_length_m") or data["length_m"],
+                    is_access,
+                )
+            )
             if is_access:
                 continue
             coords.extend(_oriented(data["geometry"], _node_point(graph, a)).coords[1:])
@@ -201,11 +217,16 @@ class _EdgeSplitter:
         t = geom.project(snap.snapped)
         graph.remove_edge(a, b)
         graph.add_node(name, x=snap.snapped.x, y=snap.snapped.y, kind=VIRTUAL, in_study_area=True)
-        parent = {"parent_edge_id": data.get("parent_edge_id") or data["edge_id"],
-                  "parent_length_m": data.get("parent_length_m") or data["length_m"]}
+        parent = {
+            "parent_edge_id": data.get("parent_edge_id") or data["edge_id"],
+            "parent_length_m": data.get("parent_length_m") or data["length_m"],
+        }
         for x, y, part, tag in ((a, name, _piece(geom, 0, t), "a"), (name, b, _piece(geom, t, geom.length), "b")):
-            graph.add_edge(x, y, **{**data, **parent, "geometry": part, "length_m": part.length,
-                                    "edge_id": f"{data['edge_id']}{tag}"})
+            graph.add_edge(
+                x,
+                y,
+                **{**data, **parent, "geometry": part, "length_m": part.length, "edge_id": f"{data['edge_id']}{tag}"},
+            )
         pieces.remove((a, b))
         pieces.extend([(a, name), (name, b)])
         return name

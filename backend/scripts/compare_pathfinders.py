@@ -17,6 +17,7 @@ Run:  uv run python scripts/compare_pathfinders.py [--pairs 1000] [--routes 300]
 from __future__ import annotations
 
 import argparse
+import itertools
 import random
 import statistics
 import time
@@ -32,13 +33,13 @@ TOLERANCE = 1e-6  # metres of cost
 
 
 def path_cost(graph, path) -> float:
-    return sum(walking_cost(u, v, graph.edges[u, v]) for u, v in zip(path, path[1:]))
+    return sum(walking_cost(u, v, graph.edges[u, v]) for u, v in itertools.pairwise(path))
 
 
-def timed(fn):
+def timed(fn, *args):
     start = time.perf_counter()
     try:
-        out = fn()
+        out = fn(*args)
     except (NoPathError, RoutingError):
         out = None
     return out, (time.perf_counter() - start) * 1000
@@ -52,12 +53,20 @@ def ms_summary(values: list[float]) -> str:
 def node_pairs(graph, n: int, rng: random.Random) -> dict:
     nodes = list(graph.nodes)
     ours, ref = Dijkstra(), NetworkXDijkstra()
-    stats = {"pairs": n, "cost_match": 0, "same_path": 0, "both_none": 0, "mismatch": [],
-             "ours_ms": [], "ref_ms": [], "settled": []}
+    stats = {
+        "pairs": n,
+        "cost_match": 0,
+        "same_path": 0,
+        "both_none": 0,
+        "mismatch": [],
+        "ours_ms": [],
+        "ref_ms": [],
+        "settled": [],
+    }
     for _ in range(n):
         s, t = rng.sample(nodes, 2)
-        result, ours_ms = timed(lambda: ours.search(graph, s, t, walking_cost))
-        ref_path, ref_ms = timed(lambda: ref.find_path(graph, s, t, walking_cost))
+        result, ours_ms = timed(ours.search, graph, s, t, walking_cost)
+        ref_path, ref_ms = timed(ref.find_path, graph, s, t, walking_cost)
         stats["ours_ms"].append(ours_ms)
         stats["ref_ms"].append(ref_ms)
         if result is None and ref_path is None:
@@ -86,8 +95,8 @@ def end_to_end(graph, n: int, rng: random.Random) -> dict:
         if not (area.contains(a) and area.contains(b)):
             continue
         stats["routes"] += 1
-        r1, _ = timed(lambda: ours.route(a, b))
-        r2, _ = timed(lambda: ref.route(a, b))
+        r1, _ = timed(ours.route, a, b)
+        r2, _ = timed(ref.route, a, b)
         if r1 is None and r2 is None:
             stats["errors_both"] += 1
             stats["length_match"] += 1

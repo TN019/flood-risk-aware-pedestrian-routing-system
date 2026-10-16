@@ -19,8 +19,20 @@ OVERPASS_ENDPOINTS = (
 # Extra OSM tags kept on ways/nodes: needed to drop indoor corridors and to find carriageways
 # that duplicate separately mapped sidewalks, and useful for accessibility (steps, incline, kerbs).
 OSM_EXTRA_WAY_TAGS = (
-    "footway", "sidewalk", "sidewalk:both", "sidewalk:left", "sidewalk:right", "foot",
-    "indoor", "level", "layer", "covered", "surface", "incline", "wheelchair", "crossing",
+    "footway",
+    "sidewalk",
+    "sidewalk:both",
+    "sidewalk:left",
+    "sidewalk:right",
+    "foot",
+    "indoor",
+    "level",
+    "layer",
+    "covered",
+    "surface",
+    "incline",
+    "wheelchair",
+    "crossing",
 )
 OSM_EXTRA_NODE_TAGS = ("crossing", "entrance", "kerb", "wheelchair", "barrier")
 BUILDING_TAGS = ("name", "building", "addr:housenumber", "addr:street", "level", "layer")
@@ -43,7 +55,7 @@ def _with_endpoints(fetch):
         ox.settings.overpass_url = endpoint
         try:
             return fetch(ox)
-        except Exception as exc:  # noqa: BLE001 - try the next mirror
+        except Exception as exc:  # any failure: try the next mirror
             print(f"Overpass endpoint failed ({endpoint}): {type(exc).__name__}")
             last_error = exc
     raise RuntimeError("All Overpass endpoints failed") from last_error
@@ -57,8 +69,9 @@ def download_walk_network(bbox: BBox = SOUTHBANK_BBOX, out_path: Path = config.O
     ox = _osmnx()
     ox.settings.useful_tags_way = list(dict.fromkeys([*ox.settings.useful_tags_way, *OSM_EXTRA_WAY_TAGS]))
     ox.settings.useful_tags_node = list(dict.fromkeys([*ox.settings.useful_tags_node, *OSM_EXTRA_NODE_TAGS]))
-    graph = _with_endpoints(lambda ox: ox.graph_from_bbox(bbox.as_osmnx, network_type="walk",
-                                                          simplify=False, retain_all=True))
+    graph = _with_endpoints(
+        lambda ox: ox.graph_from_bbox(bbox.as_osmnx, network_type="walk", simplify=False, retain_all=True)
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     ox.save_graphml(graph, out_path)
     return out_path
@@ -80,16 +93,29 @@ def _download_features(path: Path, bbox: BBox, tags: dict, keep: tuple, geom_typ
 
 def download_buildings(bbox: BBox = SOUTHBANK_BBOX) -> tuple[Path, Path]:
     """Building footprints and entrance nodes."""
-    return (_download_features(config.OSM_BUILDINGS_PATH, bbox, {"building": True}, BUILDING_TAGS,
-                               ("Polygon", "MultiPolygon")),
-            _download_features(config.OSM_ENTRANCES_PATH, bbox, {"entrance": True}, ENTRANCE_TAGS, ("Point",)))
+    return (
+        _download_features(
+            config.OSM_BUILDINGS_PATH, bbox, {"building": True}, BUILDING_TAGS, ("Polygon", "MultiPolygon")
+        ),
+        _download_features(config.OSM_ENTRANCES_PATH, bbox, {"entrance": True}, ENTRANCE_TAGS, ("Point",)),
+    )
 
 
 def download_water_and_bridges(bbox: BBox = SOUTHBANK_BBOX) -> tuple[Path, Path]:
     """Water polygons and all bridge ways (any highway/railway); used to validate network topology."""
-    return (_download_features(config.OSM_WATER_PATH, bbox,
-                               {"natural": "water", "water": "river", "waterway": "riverbank"},
-                               ("name", "natural", "water"), ("Polygon", "MultiPolygon")),
-            _download_features(config.OSM_BRIDGES_PATH, bbox, {"bridge": True},
-                               ("name", "bridge", "bridge:name", "highway", "railway", "layer"),
-                               ("LineString", "MultiLineString", "Polygon", "MultiPolygon")))
+    return (
+        _download_features(
+            config.OSM_WATER_PATH,
+            bbox,
+            {"natural": "water", "water": "river", "waterway": "riverbank"},
+            ("name", "natural", "water"),
+            ("Polygon", "MultiPolygon"),
+        ),
+        _download_features(
+            config.OSM_BRIDGES_PATH,
+            bbox,
+            {"bridge": True},
+            ("name", "bridge", "bridge:name", "highway", "railway", "layer"),
+            ("LineString", "MultiLineString", "Polygon", "MultiPolygon"),
+        ),
+    )
