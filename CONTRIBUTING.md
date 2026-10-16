@@ -11,12 +11,14 @@ Requires Python 3.12 and [uv](https://docs.astral.sh/uv/). All backend commands 
 ```bash
 cd backend
 uv sync                                    # .venv with runtime, dev and tool dependencies
-uv run python scripts/download_data.py     # raw OSM and City of Melbourne data into data/raw
+uv run python scripts/download_data.py     # raw OSM, City of Melbourne, terrain and overlay data into data/raw
 uv run python scripts/build_network.py     # processed network and places into data/processed
+uv run python scripts/make_scenarios.py    # flood scenario depth grids into data/processed/scenarios
 ```
 
-Downloads use public Overpass and City of Melbourne endpoints; if an Overpass mirror is busy the
-script tries the next one. Raw and processed data are not committed (see `.gitignore`).
+Downloads use public Overpass, City of Melbourne, Geoscience Australia and Vicmap endpoints; if an
+Overpass mirror is busy the script tries the next one. Raw and processed data are not committed
+(see `.gitignore`).
 
 Read [docs/architecture.md](docs/architecture.md) before larger changes: it describes the layers
 and the interfaces new code should plug into.

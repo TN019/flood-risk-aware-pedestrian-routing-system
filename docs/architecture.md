@@ -39,7 +39,7 @@ network beyond it so detours and river crossings work; start and end points must
 
 | Interface | Module | Current implementation | Planned |
 |---|---|---|---|
-| `HazardProvider.snapshot(graph, at)` → `HazardSnapshot` | `hazard` | `NoHazard`; `ScenarioHazard` (synthetic scenarios in `data/scenarios/`) | real-time sensors, model forecasts per time horizon |
+| `HazardProvider.snapshot(graph, at)` → `HazardSnapshot` | `hazard` | `NoHazard`; `GridHazard` (depth grids of the scenarios in `data/scenarios/`); `ScenarioHazard` (hand-drawn zones) | real-time sensors, model forecasts per time horizon |
 | `RiskModel.edge_risk(condition, profile)` → risk or `None` | `risk.model` | `DepthRelativeRisk` (depth ÷ the traveller's limit) | flow velocity (depth × velocity against stability limits), probabilistic models |
 | `EdgeCost(u, v, data)` → cost or `None` | `risk` | `walking_cost`; `risk_cost(snapshot, profile, alpha)` | time-dependent costs |
 | `PathFinder.find_path(graph, source, target, cost)` | `routing.pathfinding` | `Dijkstra` (in-house, default); `NetworkXDijkstra` (reference) | A*, time-dependent search |
@@ -107,24 +107,59 @@ effect.
 cost: deepest water and where it reaches on their body, distance in water, depth-weighted
 distance in water, sections over their limit, and detour against the shortest route.
 
-### Synthetic scenarios
+### Flood scenarios
 
-`hazard.scenarios` reads GeoJSON flood zones (`name`, `max_depth_m`, `ramp_m`); depth rises from
-0 at a zone's edge to its maximum `ramp_m` inside it. Each edge gets its deepest sampled depth
-and its wet length. Edges outside every zone are dry. Scenarios live in `data/scenarios/`.
+Each bundled scenario is a JSON definition in `data/scenarios/` (`hazard.catalog`) that names its
+method, its parameters and their sources; `scripts/make_scenarios.py` turns it into a water-depth
+grid in `data/processed/scenarios/`. `hazard.grid.GridHazard` samples a grid every 2 m along each
+edge: the edge gets its deepest sampled depth and its wet length; an edge crossing a cell without
+data gets an unknown depth; bridges are dry, since a bare-earth model shows the ground under the deck.
 
-`scripts/make_scenarios.py` generates five escalating levels of one illustrative storm; corridors
-follow OSM ways by name and the riverfront follows the OSM river polygon. They are synthetic, not
-the output of a flood model. Share of the Southbank network under water, and share of 150 random
-trips with a route within the limit of a 170 cm adult:
+Depths follow the two flood mechanisms in Melbourne Water's Southbank Precinct Local Floodplain
+Development Plan (2026), estimated from the Geoscience Australia 5 m LiDAR elevation model
+(`hazard.terrain`):
+
+- **River and storm tide.** Every ground cell below the river level and connected to the river
+  through lower ground is under water; low ground the river cannot reach stays dry. Levels are
+  Melbourne Water's 1% annual exceedance probability (1-in-100-year) tide levels for Port Phillip
+  Bay: 1.6 m AHD today, 1.8 m by 2040 and 2.4 m by 2100 with 0.8 m of sea level rise (Planning for
+  Sea Level Rise Guidelines, 2017, as cited by GHD, 2019). River flows can raise Southbank levels
+  above the bay level, so these depths are a lower bound.
+- **Stormwater ponding.** Inside the Special Building Overlay extents (overland flow, Vicmap
+  Planning), water collects in closed depressions of the terrain; `ponding_fill_fraction` sets how
+  far each depression fills from its lowest point towards its spill point.
+
+| Level | River (m AHD) | Ponding | Event |
+|---|---|---|---|
+| 0 Normal | — | — | no water |
+| 1 Light ponding | — | half full | short heavy rain |
+| 2 Moderate flooding | 1.6 | full | 1-in-100-year storm tide today |
+| 3 Severe flooding | 1.8 | full | the same in 2040, the event Melbourne Water uses for safe pedestrian access |
+| 4 Extreme flooding | 2.4 | full | the same in 2100, the basis of the flood protection level for buildings |
+
+Before filling, the ground is adjusted to the walking surface: river cells take the bank's
+elevation, and pits more than 0.5 m below their 25 m neighbourhood (basement ramps, cuttings) are
+raised, which can hide water in a genuine pedestrian underpass. This is a static estimate, not a
+hydraulic model: no flow, velocity, timing or drainage. A hydraulic model's depth grid (e.g. a
+TUFLOW run) can replace it through the same `GridHazard`.
+
+As a check against a result the method was not fitted to: the plan describes river water spilling
+over the promenade and filling a low area around Clarke Street between City Road and Haig Lane; the
+grids put the deepest water on those streets (1.1 m, 1.3 m and 1.9 m on Clarke Street at levels 2–4).
+
+Share of the Southbank network under water, deepest water on it, and share of 150 random trips
+with a route within the limit of a 170 cm adult:
 
 | Level | Network wet | Deepest | No wading | Ankle | Lower calf | Mid calf |
 |---|---|---|---|---|---|---|
 | 0 Normal | 0% | — | 100% | 100% | 100% | 100% |
-| 1 Light ponding | 3% | 5 cm | 96% | 100% | 100% | 100% |
-| 2 Moderate flooding | 7% | 25 cm | 92% | 92% | 98% | 100% |
-| 3 Severe flooding | 36% | 45 cm | 15% | 16% | 64% | 73% |
-| 4 Extreme flooding | 65% | 1 m | 5% | 5% | 8% | 8% |
+| 1 Light ponding | <1% | 19 cm | 97% | 98% | 100% | 100% |
+| 2 Moderate flooding | 33% | 1.5 m | 21% | 23% | 25% | 27% |
+| 3 Severe flooding | 43% | 1.7 m | 15% | 15% | 19% | 24% |
+| 4 Extreme flooding | 68% | 2.3 m | 5% | 5% | 5% | 6% |
+
+`hazard.scenarios` (hand-drawn GeoJSON zones with a depth ramp) remains for tests and what-if
+experiments.
 
 ## Planning a walk
 

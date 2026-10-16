@@ -2,7 +2,7 @@
 
 Walking routes for Southbank, Melbourne that minimise exposure to flood hazards instead of only
 distance. The routing engine works on a real pedestrian network; flood conditions come from
-interchangeable sources (synthetic scenarios today, sensors and forecasts later). Each traveller
+interchangeable sources (scenarios built from published flood levels and terrain today, sensors and forecasts later). Each traveller
 sets the deepest water they accept as a body part, converted to a depth from their height; deeper
 water is never routed through, and shallower water costs more the closer it is to that limit.
 
@@ -16,7 +16,7 @@ backend/                 Python package, scripts and tests (uv project)
   streamlit_app.py       interim map UI, to be replaced by frontend/
 frontend/                web client (planned)
 data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
-                         data/scenarios/ holds synthetic flood scenarios (GeoJSON)
+                         data/scenarios/ holds the flood scenario definitions (JSON)
 docs/                    architecture and design notes
 ```
 
@@ -27,9 +27,9 @@ Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 ```bash
 cd backend
 uv sync                                    # create .venv and install dependencies
-uv run python scripts/download_data.py     # fetch OSM and City of Melbourne data into data/raw
+uv run python scripts/download_data.py     # fetch OSM, City of Melbourne, terrain and overlay data into data/raw
 uv run python scripts/build_network.py     # build data/processed/southbank_network.gpkg and places
-uv run python scripts/make_scenarios.py    # regenerate the synthetic flood scenarios (already committed)
+uv run python scripts/make_scenarios.py    # build the flood scenario depth grids into data/processed
 uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
@@ -49,6 +49,9 @@ Both write maps and reports to `reports/` (git-ignored).
 | Southbank boundary (study area) | City of Melbourne, CLUE small areas | CC BY |
 | Pedestrian network (alternative source) | City of Melbourne, Pedestrian Network | CC BY |
 | Place search | OpenStreetMap Nominatim | ODbL; usage policy applies |
+| Ground elevation | Geoscience Australia, 5 m LiDAR DEM (2025) | CC BY 4.0 |
+| Flood overlays (LSIO, SBO, FO) | Vicmap Planning, Department of Transport and Planning | CC BY 4.0 |
+| Flood mechanisms and levels | Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026); Planning for Sea Level Rise Guidelines (2017) | cited, not redistributed |
 
 ## Contributing
 

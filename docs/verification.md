@@ -6,7 +6,8 @@ set of test cases (A–F). The predictions are derived by hand from the rules in
 compares its results with these predictions; see `reports/verification_results.md`.
 
 Verification asks whether the program follows its rules. It does not show that the rules are the
-right ones for real pedestrians (validation), and the flood conditions here are synthetic.
+right ones for real pedestrians (validation), and the flood conditions are static estimates, not
+hydraulic model results.
 
 ## Rules used in the derivations
 
@@ -148,3 +149,8 @@ normal conditions. The prediction contradicted the scenario's own definition.
 
 Second run: **68 of 68 checks met**. Edges over the no-wading limit by level:
 (0, 62, 129, 965, 2,272); trips possible at the ankle limit: (100, 100, 90, 30, 14) of 100.
+
+**Third run, after the scenarios were rebuilt from published flood levels and terrain** (see
+architecture.md): the predictions were not changed, and **68 of 68 checks met**. Edges over the
+no-wading limit by level: (0, 145, 1,191, 1,539, 2,252); trips possible at the ankle limit:
+(100, 98, 23, 12, 2) of 100.
