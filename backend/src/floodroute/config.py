@@ -52,6 +52,8 @@ OSM_ENTRANCES_PATH = RAW_DIR / "osm_entrances_southbank.geojson"
 OSM_WATER_PATH = RAW_DIR / "osm_water_southbank.geojson"
 OSM_BRIDGES_PATH = RAW_DIR / "osm_bridges_southbank.geojson"
 COM_NETWORK_PATH = RAW_DIR / "com_pedestrian_network_southbank.geojson"
+DEM_PATH = RAW_DIR / "dem_5m_southbank.tif"
+FLOOD_OVERLAYS_PATH = RAW_DIR / "flood_overlays_southbank.geojson"
 
 # Processed outputs (built by scripts/build_network.py)
 PROCESSED_NETWORK_PATH = PROCESSED_DIR / "southbank_network.gpkg"

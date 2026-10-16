@@ -1,8 +1,0 @@
-{
- "type": "FeatureCollection",
- "id": "normal",
- "order": 0,
- "title": "Normal conditions",
- "description": "No standing water. Routes should match the plain shortest walking routes.",
- "features": []
-}
