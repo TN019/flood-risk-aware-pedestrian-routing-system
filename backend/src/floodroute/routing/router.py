@@ -29,6 +29,7 @@ from floodroute.routing.pathfinding import NoPathError, PathFinder
 WALKING_SPEED_M_S = 1.3  # typical adult walking speed
 MAX_SNAP_DISTANCE_M = 100.0  # a point further than this from any footpath is rejected
 SNAP_SLACK_M = 15.0  # also consider footpaths up to this much further away than the nearest
+STANDING_TOLERANCE_M = 1.0  # footpaths this close to the nearest one also count as "standing on"
 MAX_SNAP_CANDIDATES = 6
 
 ORIGIN = "origin"
@@ -57,6 +58,7 @@ class RouteSegment:
     length_m: float
     source_length_m: float  # length of that whole network edge
     is_access: bool = False
+    standing_on: tuple[str, ...] = ()  # access legs: footpaths where the traveller starts or ends
 
 
 @dataclass(frozen=True)
@@ -111,33 +113,46 @@ class Router:
         """Geometries of the edges points can snap to."""
         return self._geoms
 
-    def _candidates_for(self, points: Sequence[Point]) -> list[Snap]:
-        """Snap candidates for every access point; points that cannot snap are skipped."""
+    def _candidates_for(self, points: Sequence[Point]) -> list[tuple[Snap, tuple[str, ...]]]:
+        """Snap candidates for every access point, each with the ids of the footpaths the traveller
+        stands on there (all those within ``STANDING_TOLERANCE_M`` of the nearest, e.g. at a
+        corner); points that cannot snap are skipped."""
         snaps, first_error = [], None
         for p in points:
             try:
-                snaps.extend(self.snap_candidates(p))
+                candidates = self.snap_candidates(p)
             except RoutingError as exc:
                 first_error = first_error or exc
+                continue
+            closest = candidates[0].distance_m + STANDING_TOLERANCE_M
+            standing = tuple(self.graph.edges[s.edge]["edge_id"] for s in candidates if s.distance_m <= closest)
+            snaps.extend((s, standing) for s in candidates)
         if not snaps:
             raise first_error or RoutingError("No usable point to route from.")
         return snaps
 
     def route(
-        self, origin: Point | Sequence[Point], destination: Point | Sequence[Point], cost: EdgeCost = walking_cost
+        self,
+        origin: Point | Sequence[Point],
+        destination: Point | Sequence[Point],
+        cost: EdgeCost = walking_cost,
+        path_finder: PathFinder | None = None,
     ) -> Route:
         """Route between two places, each given as one point or several access points (e.g. a
-        building's entrances); the cheapest combination under ``cost`` is used."""
+        building's entrances); the cheapest combination under ``cost`` is used. ``path_finder``
+        overrides the router's default search for this call."""
         ends = {ORIGIN: _as_points(origin), DESTINATION: _as_points(destination)}
         candidates = {name: self._candidates_for(points) for name, points in ends.items()}
         graph = self.graph.copy()
         splitter = _EdgeSplitter(graph)
         for name, points in ends.items():
             graph.add_node(name, x=points[0].x, y=points[0].y, kind=VIRTUAL, in_study_area=True)
-            for i, snap in enumerate(candidates[name]):
+            for i, (snap, standing) in enumerate(candidates[name]):
                 access = splitter.split(snap, f"{name}_{i}")
-                # The access leg inherits the conditions of the edge it joins.
+                # The access leg inherits the conditions of the edge it joins and, when that is not
+                # one the traveller stands on, of the water where they stand.
                 joined = self.graph.edges[snap.edge]
+                also = () if joined["edge_id"] in standing else standing
                 graph.add_edge(
                     name,
                     access,
@@ -148,9 +163,10 @@ class Router:
                     snap=snap,
                     parent_edge_id=joined["edge_id"],
                     parent_length_m=joined["length_m"],
+                    standing_on=also,
                 )
         try:
-            nodes = self.path_finder.find_path(graph, ORIGIN, DESTINATION, cost)
+            nodes = (path_finder or self.path_finder).find_path(graph, ORIGIN, DESTINATION, cost)
         except NoPathError:
             raise RoutingError("No route connects these two points.") from None
 
@@ -168,6 +184,7 @@ class Router:
                     data["length_m"],
                     data.get("parent_length_m") or data["length_m"],
                     is_access,
+                    tuple(data.get("standing_on", ())),
                 )
             )
             if is_access:
