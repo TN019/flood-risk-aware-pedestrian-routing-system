@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import { ConditionsPanel } from "./components/ConditionsPanel";
-import { COLOURS, MapView } from "./components/MapView";
+import { MapLegend } from "./components/MapLegend";
+import { MapView } from "./components/MapView";
 import { PlaceSearch } from "./components/PlaceSearch";
 import { TravellerPanel } from "./components/TravellerPanel";
 import { TripResults } from "./components/TripResults";
 import { contains } from "./format";
+import { defaultChoice } from "./guidance";
+import type { RouteKind } from "./routeStyles";
 import type {
   Area,
   ChosenPoint,
@@ -42,6 +45,8 @@ export default function App() {
   const [planning, setPlanning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [sosSentAt, setSosSentAt] = useState<number | null>(null);
+  const [selected, setSelected] = useState<RouteKind | null>(null);
+  const [focus, setFocus] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const shownEnds = useRef("");
@@ -90,6 +95,7 @@ export default function App() {
         .trip(start, destination, scenarioId, traveller, controller.signal)
         .then((t) => {
           setTrip(t);
+          setSelected(defaultChoice(t));
           setTripError(null);
           const ends = `${start.lat},${start.lon};${destination.lat},${destination.lon}`;
           if (ends !== shownEnds.current) {
@@ -261,6 +267,11 @@ export default function App() {
             sosSentAt={sosSentAt}
             onSos={setSosSentAt}
             onUseLimit={(part) => setTraveller((t) => ({ ...t, wading: part }))}
+            selected={selected}
+            onSelect={(kind) => {
+              setSelected(kind);
+              if (kind) setFocus((f) => f + 1);
+            }}
           />
         )}
 
@@ -290,18 +301,10 @@ export default function App() {
           start={start}
           destination={destination}
           onMapClick={onMapClick}
+          selected={selected}
+          focus={focus}
         />
-        <div className="map-legend" aria-label="Legend">
-          <span>
-            <i style={{ background: COLOURS.water }} /> Water within your limit
-          </span>
-          <span>
-            <i className="dashed" style={{ color: COLOURS.overLimit }} /> Over your limit
-          </span>
-          <span>
-            <i style={{ background: COLOURS.recommended }} /> Recommended
-          </span>
-        </div>
+        <MapLegend trip={trip} selected={selected} hasWater={!!scenarioId && (water[scenarioId]?.features.length ?? 0) > 0} />
         <div className="click-target" role="status">
           Next click sets the <strong>{clickTarget}</strong>
         </div>

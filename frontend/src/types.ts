@@ -124,7 +124,7 @@ export type AlertLevelKey = "ok" | "over_limit" | "deep" | "very_deep" | "critic
 export interface TripPlan {
   start: PlaceJson;
   destination: PlaceJson;
-  traveller: { depth_limit_m: number; limit_label: string; height_m: number };
+  traveller: { depth_limit_m: number; limit_label: string; height_m: number; hard_limit_m: number };
   origin: {
     level: AlertLevelKey;
     level_rank: number;
@@ -147,6 +147,13 @@ export interface TripPlan {
     entrance_label: string;
     within_limit: boolean;
     building: Geometry;
+    route: RouteJson;
+  } | null;
+  least_water: {
+    required_depth_m: number | null;
+    required_label: string;
+    beyond_hard_limit: boolean;
+    deepest_point: LatLon;
     route: RouteJson;
   } | null;
   emergency: {

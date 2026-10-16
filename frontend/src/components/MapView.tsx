@@ -1,8 +1,10 @@
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike, type MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { cm, describeDepth, groupRoutes } from "../format";
-import type { Area, ChosenPoint, FeatureCollection, Options, RouteJson, TripPlan } from "../types";
+import { cm, describeDepth } from "../format";
+import { route as routeOf } from "../guidance";
+import { DRAW_ORDER, ROUTE_STYLES, type RouteKind } from "../routeStyles";
+import type { Area, ChosenPoint, FeatureCollection, Options, TripPlan } from "../types";
 
 // Free vector basemap built from OpenStreetMap data (no key needed).
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
@@ -35,17 +37,13 @@ export const COLOURS = {
   path: "#4a6f94",
   water: "#1f78b4",
   overLimit: "#d62728",
-  shortest: "#555555",
-  safe_shortest: "#e6550d",
-  recommended: "#7b2cbf",
-  downgrade: "#b07cd8",
-  refuge: "#2ca02c",
+  refuge: ROUTE_STYLES.refuge.colour,
+  deepest: "#b2182b",
   start: "#1a9850",
   destination: "#d73027",
 };
 
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
-const RANK = { shortest: 0, safe_shortest: 1, recommended: 2 } as const;
 
 interface Props {
   area: Area | null;
@@ -57,27 +55,34 @@ interface Props {
   trip: TripPlan | null;
   start: ChosenPoint | null;
   destination: ChosenPoint | null;
+  selected: RouteKind | null; // highlighted; the others are dimmed
+  focus: number; // bumped when the traveller picks a route: bring it into view
   onMapClick: (lat: number, lon: number) => void;
 }
 
-function line(route: RouteJson, kind: string): GeoJSON.Feature {
-  return { type: "Feature", properties: { kind }, geometry: route.geometry };
-}
-
-function routeFeatures(trip: TripPlan | null): FeatureCollection {
+/** Every route of the plan, drawn once per distinct line. Where several follow the same line, it is
+ * drawn as the selected one, or else as the most important (latest in DRAW_ORDER). */
+function routeFeatures(trip: TripPlan | null, selected: RouteKind | null): FeatureCollection {
   if (!trip) return EMPTY;
-  const features: GeoJSON.Feature[] = [];
-  if (trip.refuge) features.push(line(trip.refuge.route, "refuge"));
-  if (trip.downgrade) features.push(line(trip.downgrade.route, "downgrade"));
-  if (trip.routes) {
-    const groups = groupRoutes(trip.routes.options)
-      .map((g) => ({ ...g, kind: g.kinds.reduce((a, b) => (RANK[b] > RANK[a] ? b : a)) }))
-      .sort((a, b) => RANK[a.kind] - RANK[b.kind]);
-    for (const g of groups) features.push(line(g.option.route!, g.kind));
-    const recommended = trip.routes.options.find((o) => o.kind === "recommended")?.route;
-    for (const leg of recommended?.access_legs ?? []) {
-      features.push({ type: "Feature", properties: { kind: "leg" }, geometry: leg });
-    }
+  const groups: { kinds: RouteKind[]; geometry: GeoJSON.Geometry; key: string }[] = [];
+  for (const kind of DRAW_ORDER) {
+    const r = routeOf(trip, kind);
+    if (!r) continue;
+    const key = JSON.stringify(r.geometry);
+    const group = groups.find((g) => g.key === key);
+    if (group) group.kinds.push(kind);
+    else groups.push({ kinds: [kind], geometry: r.geometry, key });
+  }
+  const features: GeoJSON.Feature[] = groups.map((g) => {
+    const isSelected = selected !== null && g.kinds.includes(selected);
+    const kind = isSelected ? selected : g.kinds[g.kinds.length - 1];
+    return { type: "Feature", properties: { kind, selected: isSelected, dim: selected !== null && !isSelected }, geometry: g.geometry };
+  });
+  // Selected (or else recommended) route last, so it is drawn above the others in its layer.
+  features.sort((a, b) => Number(a.properties!.selected) - Number(b.properties!.selected));
+  const legsOf = routeOf(trip, selected ?? "recommended");
+  for (const leg of legsOf?.access_legs ?? []) {
+    features.push({ type: "Feature", properties: { kind: "leg", selected: true, dim: false }, geometry: leg });
   }
   return { type: "FeatureCollection", features };
 }
@@ -102,6 +107,15 @@ function placeFeatures(trip: TripPlan | null): FeatureCollection {
   }
   if (trip.refuge) {
     features.push({ type: "Feature", properties: { role: "refuge", label: `Shelter: ${trip.refuge.name}` }, geometry: trip.refuge.building });
+  }
+  const least = trip.least_water;
+  if (least) {
+    const depth = least.required_depth_m === null ? "unknown depth" : `${cm(least.required_depth_m)} (${least.required_label})`;
+    features.push({
+      type: "Feature",
+      properties: { role: "deepest", label: `Deepest point on the least-water route: ${depth}` },
+      geometry: { type: "Point", coordinates: [least.deepest_point.lon, least.deepest_point.lat] },
+    });
   }
   return { type: "FeatureCollection", features };
 }
@@ -138,7 +152,7 @@ function sync(m: maplibregl.Map, p: Props, parts: Part[], fitted: { current: boo
         m.setFilter("water-over", [">", depth, p.depthLimitM]);
         m.setFilter("water-ok", ["<=", depth, p.depthLimitM]);
       } else if (part === "trip") {
-        source("routes")?.setData(routeFeatures(p.trip));
+        source("routes")?.setData(routeFeatures(p.trip, p.selected));
         source("places")?.setData(placeFeatures(p.trip));
       }
     }
@@ -277,32 +291,69 @@ export function MapView(props: Props) {
           "line-width": 2,
         },
       });
-      const routeLayer = (kind: string, paint: maplibregl.LineLayerSpecification["paint"]) =>
+      const lineLayout: maplibregl.LineLayerSpecification["layout"] = { "line-cap": "round", "line-join": "round" };
+      const isRoute: maplibregl.FilterSpecification = ["!=", ["get", "kind"], "leg"];
+      // A white outline keeps every route readable above the water lines.
+      m.addLayer({
+        id: "route-casing",
+        type: "line",
+        source: "routes",
+        filter: isRoute,
+        layout: lineLayout,
+        paint: { "line-color": "#fff", "line-width": 11, "line-opacity": ["case", ["get", "dim"], 0.35, 0.85] },
+      });
+      for (const kind of DRAW_ORDER) {
+        const style = ROUTE_STYLES[kind];
         m.addLayer({
           id: `route-${kind}`,
           type: "line",
           source: "routes",
           filter: ["==", ["get", "kind"], kind],
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint,
+          layout: lineLayout,
+          paint: {
+            "line-color": style.colour,
+            "line-width": style.map.width,
+            "line-opacity": ["case", ["get", "dim"], 0.3, 0.95],
+            ...(style.map.dash ? { "line-dasharray": style.map.dash } : {}),
+          },
         });
-      routeLayer("refuge", { "line-color": COLOURS.refuge, "line-width": 6, "line-opacity": 0.9 });
-      routeLayer("shortest", { "line-color": COLOURS.shortest, "line-width": 4, "line-dasharray": [2, 1.5], "line-opacity": 0.9 });
-      routeLayer("safe_shortest", { "line-color": COLOURS.safe_shortest, "line-width": 5, "line-dasharray": [0.1, 1.6], "line-opacity": 0.95 });
-      routeLayer("downgrade", { "line-color": COLOURS.downgrade, "line-width": 5, "line-dasharray": [2, 1.2], "line-opacity": 0.95 });
-      routeLayer("recommended", { "line-color": COLOURS.recommended, "line-width": 7, "line-opacity": 0.9 });
-      routeLayer("leg", { "line-color": COLOURS.recommended, "line-width": 3, "line-dasharray": [1, 1.5] });
+      }
+      // The selected route again, solid and on top of everything else.
+      const colourByKind: maplibregl.ExpressionSpecification = [
+        "match",
+        ["get", "kind"],
+        ...DRAW_ORDER.flatMap((k) => [k, ROUTE_STYLES[k].colour]),
+        ROUTE_STYLES.recommended.colour,
+      ] as unknown as maplibregl.ExpressionSpecification;
+      const selectedRoute: maplibregl.FilterSpecification = ["all", ["==", ["get", "selected"], true], isRoute];
+      m.addLayer({ id: "route-selected-casing", type: "line", source: "routes", filter: selectedRoute, layout: lineLayout, paint: { "line-color": "#fff", "line-width": 13 } });
+      m.addLayer({ id: "route-selected", type: "line", source: "routes", filter: selectedRoute, layout: lineLayout, paint: { "line-color": colourByKind, "line-width": 8 } });
+      m.addLayer({
+        id: "route-leg",
+        type: "line",
+        source: "routes",
+        filter: ["==", ["get", "kind"], "leg"],
+        layout: lineLayout,
+        paint: { "line-color": "#333", "line-width": 3, "line-dasharray": [1, 1.5] },
+      });
       m.addLayer({
         id: "place-doors",
         type: "circle",
         source: "places",
-        filter: ["==", ["geometry-type"], "Point"],
+        filter: ["all", ["==", ["geometry-type"], "Point"], ["!=", ["get", "role"], "deepest"]],
         paint: {
           "circle-radius": 4,
           "circle-color": ["match", ["get", "role"], "start", COLOURS.start, COLOURS.destination],
           "circle-stroke-color": "#fff",
           "circle-stroke-width": 1.5,
         },
+      });
+      m.addLayer({
+        id: "deepest-point",
+        type: "circle",
+        source: "places",
+        filter: ["==", ["get", "role"], "deepest"],
+        paint: { "circle-radius": 8, "circle-color": COLOURS.deepest, "circle-stroke-color": "#fff", "circle-stroke-width": 3 },
       });
       sync(m, latest.current, ALL_PARTS, fitted);
       setStyleVersion((v) => v + 1);
@@ -333,6 +384,11 @@ export function MapView(props: Props) {
         popup.remove();
       });
     }
+    m.on("mousemove", "deepest-point", (e) => {
+      const label = e.features?.[0]?.properties?.label;
+      if (typeof label === "string") popup.setLngLat(e.lngLat).setText(label).addTo(m);
+    });
+    m.on("mouseleave", "deepest-point", () => popup.remove());
     // Browsers may clear a WebGL canvas while the page is hidden or its container is resized;
     // redraw when it is shown again or changes size, so the map never stays blank.
     const redraw = () => {
@@ -381,7 +437,25 @@ export function MapView(props: Props) {
 
   useEffect(() => {
     if (styleVersion && map.current) sync(map.current, props, ["trip"], fitted);
-  }, [styleVersion, props.trip]);
+  }, [styleVersion, props.trip, props.selected]);
+
+  // Bring the route the traveller picked into view.
+  useEffect(() => {
+    const m = map.current;
+    const r = props.trip && props.selected ? routeOf(props.trip, props.selected) : null;
+    if (!props.focus || !m || !r || r.geometry.type !== "LineString") return;
+    const coords = r.geometry.coordinates;
+    const lons = coords.map((c) => c[0]);
+    const lats = coords.map((c) => c[1]);
+    m.fitBounds(
+      [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)],
+      ],
+      // Extra room at the bottom for the legend.
+      { padding: { top: 60, right: 60, bottom: 150, left: 60 }, maxZoom: 17, duration: 500 },
+    );
+  }, [props.focus]);
 
   // Start and destination markers sit on the door actually used once a route exists.
   useEffect(() => {
