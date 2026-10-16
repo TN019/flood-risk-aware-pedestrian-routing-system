@@ -17,7 +17,7 @@ backend/                 Python package, scripts and tests (uv project)
 frontend/                web client (planned)
 data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
                          data/scenarios/ holds the flood scenario definitions (JSON)
-docs/                    architecture and design notes
+docs/                    architecture, parameters and their basis, verification
 ```
 
 ## Getting started
