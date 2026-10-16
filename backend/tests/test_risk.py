@@ -205,27 +205,32 @@ def test_load_scenario_from_geojson(tmp_path):
     assert scenario.id == "x" and scenario.zones[0].polygon.area == pytest.approx(2500, rel=1e-3)
 
 
-def test_bundled_scenarios_are_five_ordered_levels():
-    from floodroute.hazard.scenarios import list_scenarios
+def test_bundled_scenarios_are_five_ordered_sourced_levels():
+    from floodroute.hazard.catalog import NONE, TERRAIN_FILL, list_scenarios
 
-    scenarios = [load_scenario(p) for p in list_scenarios()]
+    scenarios = list_scenarios()
     assert [s.order for s in scenarios] == [0, 1, 2, 3, 4]
-    assert scenarios[0].zones == ()  # normal: no water
-    for s in scenarios[1:]:
-        assert s.zones and all(0 < z.max_depth_m < 2 for z in s.zones)
-    deepest = [max((z.max_depth_m for z in s.zones), default=0) for s in scenarios]
-    assert deepest == sorted(deepest)
+    assert scenarios[0].method == NONE
+    filled = scenarios[1:]
+    assert all(s.method == TERRAIN_FILL and s.params["sources"] for s in filled)
+    rivers = [s.params["river_level_m_ahd"] or 0.0 for s in filled]
+    ponding = [s.params["ponding_fill_fraction"] for s in filled]
+    assert rivers == sorted(rivers) and ponding == sorted(ponding)
+    assert len(set(zip(rivers, ponding, strict=True))) == len(filled)
 
 
-@pytest.mark.skipif(not config.PROCESSED_NETWORK_PATH.exists(), reason="processed network not built")
+@pytest.mark.skipif(
+    not (config.PROCESSED_NETWORK_PATH.exists() and (config.PROCESSED_DIR / "scenarios").exists()),
+    reason="processed network or scenario grids not built",
+)
 def test_scenarios_flood_more_of_the_network_as_they_escalate():
-    from floodroute.hazard.scenarios import list_scenarios
+    from floodroute.hazard.catalog import list_scenarios, load_hazard
     from floodroute.network import load_graph
 
     g = load_graph(config.PROCESSED_NETWORK_PATH)
     wet = []
-    for path in list_scenarios():
-        snap = ScenarioHazard(load_scenario(path)).snapshot(g)
+    for scenario in list_scenarios():
+        snap = load_hazard(scenario).snapshot(g)
         wet.append(sum(1 for c in snap.conditions.values() if c.depth_m and c.depth_m > 0.02))
     assert wet[0] == 0
     assert wet == sorted(wet) and len(set(wet)) == len(wet)

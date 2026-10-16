@@ -166,7 +166,7 @@ def test_a_corner_beside_a_flooded_street_is_not_deep_water():
 def test_plans_on_the_southbank_network_are_consistent():
     import random
 
-    from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
+    from floodroute.hazard.catalog import list_scenarios, load_hazard
     from floodroute.network import load_graph
 
     g = load_graph(config.PROCESSED_NETWORK_PATH)
@@ -176,8 +176,8 @@ def test_plans_on_the_southbank_network_are_consistent():
         gpd.read_file(places, layer="buildings"), gpd.read_file(places, layer="entrances"), router.footpaths
     )
     refuges = RefugeIndex(resolver, g.graph["study_area"].buffer(g.graph["buffer_m"]))
-    severe = next(p for p in list_scenarios() if "severe" in p.name)
-    snap = ScenarioHazard(load_scenario(severe)).snapshot(g)
+    severe = next(s for s in list_scenarios() if s.id == "severe-flooding")
+    snap = load_hazard(severe).snapshot(g)
     area = g.graph["study_area"]
     minx, miny, maxx, maxy = area.bounds
     rng = random.Random(9)

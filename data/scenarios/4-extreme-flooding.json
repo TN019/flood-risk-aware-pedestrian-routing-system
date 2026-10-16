@@ -1,0 +1,16 @@
+{
+  "id": "extreme-flooding",
+  "order": 4,
+  "title": "Extreme flooding",
+  "method": "terrain-fill",
+  "river_level_m_ahd": 2.4,
+  "ponding_fill_fraction": 1.0,
+  "description": "The 1-in-100-year storm tide with 0.8 m of sea level rise by 2100 (2.4 m AHD), the basis of Melbourne Water's flood protection level for Southbank buildings, with full stormwater ponding. A static estimate, not a hydraulic model: no flow or velocity. Upstream river flows can raise Southbank levels above the bay tide level, so river depths are a lower bound.",
+  "sources": [
+    "Mechanism: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026).",
+    "River level: Melbourne Water 1% annual exceedance probability tide level in Port Phillip Bay, Planning for Sea Level Rise Guidelines (2017), as cited in GHD (2019) Appendix G, Fishermans Bend flood levee memo. 2100, with 0.8 m sea level rise: 2.4 m AHD.",
+    "Sea level rise allowance: Victoria Planning Provisions clause 13.01-2S, at least 0.8 m by 2100.",
+    "Stormwater ponding: closed terrain depressions inside the Special Building Overlay (overland flow) extents, Vicmap Planning (CC BY 4.0).",
+    "Ground: Geoscience Australia 5 m LiDAR digital elevation model (CC BY 4.0)."
+  ]
+}

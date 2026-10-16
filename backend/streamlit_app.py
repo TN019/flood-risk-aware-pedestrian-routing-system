@@ -1,6 +1,7 @@
 """Interim Streamlit map UI for the routing engine, until the web frontend replaces it.
 
-Risk-aware walking routes under synthetic flood scenarios, for a traveller's own wading limit.
+Risk-aware walking routes under flood scenarios built from official flood extents and terrain,
+for a traveller's own wading limit.
 
 Run (from backend/):  uv run streamlit run streamlit_app.py
 """
@@ -19,7 +20,7 @@ from streamlit_js_eval import get_geolocation
 
 from floodroute import config
 from floodroute import places as pl
-from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
+from floodroute.hazard.catalog import NONE, list_scenarios, load_hazard
 from floodroute.network import is_snappable, load_graph, to_gdfs
 from floodroute.places.refuges import RefugeIndex
 from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
@@ -79,31 +80,39 @@ def load_refuges() -> RefugeIndex:
 
 @st.cache_resource
 def load_hazards() -> dict:
-    """Scenario title -> hazard provider, from normal conditions to the most severe."""
-    hazards = {}
-    for path in list_scenarios():
-        scenario = load_scenario(path)
-        hazards[scenario.title] = ScenarioHazard(scenario)
-    return hazards
+    """Scenario title -> (definition, hazard provider), from normal conditions to the most severe."""
+    return {info.title: (info, load_hazard(info)) for info in list_scenarios()}
+
+
+@st.cache_resource
+def official_extents() -> dict | None:
+    """The official flood overlays near Southbank (LSIO / SBO), for context on the map."""
+    if not config.FLOOD_OVERLAYS_PATH.exists():
+        return None
+    graph = load_router().graph
+    near = graph.graph["study_area"].buffer(graph.graph["buffer_m"])
+    overlays = gpd.read_file(config.FLOOD_OVERLAYS_PATH).to_crs(config.METRIC_CRS)
+    overlays = overlays[overlays.intersects(near)][["zone_code", "zone_description", "geometry"]]
+    return overlays.to_crs(config.WGS84).__geo_interface__
 
 
 @st.cache_resource
 def flood_features(title: str) -> dict:
-    """Zones and wet edges of a scenario, as WGS84 GeoJSON with depths."""
-    hazard = load_hazards()[title]
-    if not hazard.scenario.zones:
+    """Official extents and wet edges of a scenario, as WGS84 GeoJSON with depths."""
+    info, hazard = load_hazards()[title]
+    if info.method == NONE:
         return {"zones": None, "edges": []}
     graph = load_router().graph
     snapshot = hazard.snapshot(graph)
-    zones = gpd.GeoDataFrame(
-        [{"name": z.name, "max_depth_m": z.max_depth_m, "geometry": z.polygon} for z in hazard.scenario.zones],
-        crs=config.METRIC_CRS,
-    ).to_crs(config.WGS84)
     by_id = {d["edge_id"]: d for *_, d in graph.edges(data=True)}
-    edges = [{"depth_m": c.depth_m, "geometry": by_id[eid]["geometry"]} for eid, c in snapshot.conditions.items()]
+    edges = [
+        {"depth_m": c.depth_m, "geometry": by_id[eid]["geometry"]}
+        for eid, c in snapshot.conditions.items()
+        if c.depth_m is not None
+    ]
     edges = gpd.GeoDataFrame(edges, crs=config.METRIC_CRS).to_crs(config.WGS84) if edges else None
     return {
-        "zones": zones.__geo_interface__,
+        "zones": official_extents(),
         "edges": [] if edges is None else [(r.depth_m, r.geometry.__geo_interface__) for r in edges.itertuples()],
     }
 
@@ -285,9 +294,11 @@ with st.sidebar:
 
     st.divider()
     scenario_title = st.selectbox("Flood scenario", list(load_hazards()))
-    hazard = load_hazards()[scenario_title]
-    if isinstance(hazard, ScenarioHazard):
-        st.caption(hazard.scenario.description)
+    scenario_info, hazard = load_hazards()[scenario_title]
+    st.caption(scenario_info.description)
+    if scenario_info.params.get("sources"):
+        with st.expander("Sources"):
+            st.markdown("\n".join(f"- {source}" for source in scenario_info.params["sources"]))
     height_cm = st.number_input("Your height (cm)", min_value=60, max_value=230, value=170, step=1)
     if "next_wading_part" in state:  # set by "use this limit"; widgets may only change before they render
         state.wading_part = state.pop("next_wading_part")
@@ -367,10 +378,11 @@ if flood["zones"]:
         style_function=lambda f: {
             "color": WATER_COLOUR,
             "weight": 1,
+            "dashArray": "4 4",
             "fillColor": WATER_COLOUR,
-            "fillOpacity": min(0.5, 0.15 + f["properties"]["max_depth_m"]),
+            "fillOpacity": 0.08,
         },
-        tooltip=folium.GeoJsonTooltip(["name", "max_depth_m"], aliases=["Flood zone", "Max depth (m)"]),
+        tooltip=folium.GeoJsonTooltip(["zone_code", "zone_description"], aliases=["Overlay", "Official extent"]),
     ).add_to(overlay)
 for depth, geom in flood["edges"]:  # wet footpaths: red where deeper than this traveller's limit
     over = depth > profile.depth_limit_m

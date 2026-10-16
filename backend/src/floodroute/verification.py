@@ -305,7 +305,7 @@ def route_cost(route: Route, graph: nx.Graph, cost: Callable) -> float | None:
 
 
 def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
-    from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
+    from floodroute.hazard.catalog import list_scenarios, load_hazard
     from floodroute.network import load_graph
 
     g = load_graph(config.PROCESSED_NETWORK_PATH)
@@ -335,9 +335,8 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
 
     checks: list[Check] = []
     blocked_by_level, blocked_no_wading, feasible_by_level = [], [], []
-    for path in list_scenarios():
-        scenario = load_scenario(path)
-        snap = ScenarioHazard(scenario).snapshot(g)
+    for scenario in list_scenarios():
+        snap = load_hazard(scenario).snapshot(g)
         level = f"{scenario.order} {scenario.title}"
         same, over, cost_bad, monotone_bad, no_way_forward = 0, 0, 0, 0, 0
         feasible_ankle = 0
