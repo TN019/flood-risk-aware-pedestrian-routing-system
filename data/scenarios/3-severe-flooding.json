@@ -9,7 +9,7 @@
   "sources": [
     "Mechanism: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026). Safe pedestrian access is assessed for the 1% AEP flood with a 2040 planning horizon.",
     "River level: Melbourne Water 1% annual exceedance probability tide level in Port Phillip Bay, Planning for Sea Level Rise Guidelines (2017), as cited in GHD (2019) Appendix G, Fishermans Bend flood levee memo. 2040: 1.8 m AHD.",
-    "Stormwater ponding: closed terrain depressions inside the Special Building Overlay (overland flow) extents, Vicmap Planning (CC BY 4.0).",
+    "Stormwater ponding: closed depressions of the ground model, anywhere in the area; the plan describes local stormwater flooding as shallow but widespread across streets, laneways and building interfaces.",
     "Ground: Geoscience Australia 5 m LiDAR digital elevation model (CC BY 4.0)."
   ]
 }
