@@ -6,6 +6,8 @@
    (``risk.alerts``). Starting inside a building counts as sheltered.
 2. **Three routes** to the destination (``routing.planning``).
 3. When no route stays within their limit, or they are already in water over it:
+   - **Least water**: the route whose deepest point is shallowest (minimax search), how deep that
+     point is and where, so the traveller can see why no route fits their limit.
    - **Downgrade**: the shallowest body-part limit that would make the trip possible (never above
      50 cm, never for wheelchair users), found with a minimax search, and the route under it.
    - **Refuge**: a nearby building to shelter in. From dry ground the route stays within the
@@ -18,6 +20,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -28,7 +31,7 @@ from floodroute.places import Place
 from floodroute.places.refuges import Refuge, RefugeIndex
 from floodroute.risk import DEFAULT_ALPHA, HARD_LIMIT_M, BodyPart, TravellerProfile, risk_cost, walking_cost
 from floodroute.risk.alerts import AlertLevel, alert_level
-from floodroute.risk.model import source_edge_id
+from floodroute.risk.model import edge_condition, source_edge_id
 from floodroute.routing import Route, RouteMetrics, RouteOption, RoutePlan, Router, RoutingError, plan_routes
 from floodroute.routing.metrics import route_metrics
 from floodroute.routing.minimax import MinimaxPathFinder, snapshot_depth
@@ -43,6 +46,16 @@ class OriginStatus:
     depth_m: float | None
     depth_label: str
     sheltered: bool  # starting inside a building
+
+
+@dataclass(frozen=True)
+class LeastWater:
+    """The way to the destination that faces the least water: the shallowest possible deepest point."""
+
+    required_depth_m: float | None  # None when every way crosses water of unknown depth
+    route: Route
+    metrics: RouteMetrics
+    deepest_at: Point  # metric CRS: where that deepest point is
 
 
 @dataclass(frozen=True)
@@ -85,6 +98,7 @@ class TripPlan:
     downgrade: Downgrade | None
     refuge: RefugeRoute | None
     emergency: Emergency | None
+    least_water: LeastWater | None = None  # only when no route stays within the limit
 
     @property
     def has_safe_route(self) -> bool:
@@ -108,29 +122,61 @@ def origin_status(router: Router, origin: Place, snapshot: HazardSnapshot, profi
     return OriginStatus(alert_level(depth, profile), depth, profile.describe_depth(depth), sheltered=False)
 
 
-def find_downgrade(
+def find_least_water(
     router: Router,
     origin: Place,
     destination: Place,
     snapshot: HazardSnapshot,
     profile: TravellerProfile,
-) -> Downgrade | None:
-    if profile.uses_wheelchair:
-        return None
+) -> LeastWater | None:
     finder = MinimaxPathFinder(snapshot_depth(snapshot))
     try:
         route = router.route(origin.access_points, destination.access_points, walking_cost, path_finder=finder)
     except RoutingError:
         return None
     required = finder.last_bottleneck_m
+    if required is not None and math.isinf(required):
+        required = None
+    metrics = route_metrics(route, snapshot, profile)
+    return LeastWater(required, route, metrics, _deepest_point(router, route, snapshot))
+
+
+def _deepest_point(router: Router, route: Route, snapshot: HazardSnapshot) -> Point:
+    """Middle of the route's deepest piece (unknown depth counts as deepest); for an access leg, the
+    end of the route it belongs to."""
+    deepest, where = -1.0, route.origin.point
+    last = len(route.segments) - 1
+    geometry = None
+    for i, seg in enumerate(route.segments):
+        data = {"edge_id": seg.source_edge_id, "length_m": seg.length_m, "standing_on": seg.standing_on}
+        depth = edge_condition(snapshot, data).depth_m
+        depth = math.inf if depth is None else depth
+        if depth <= deepest:
+            continue
+        deepest = depth
+        if seg.is_access:
+            where = route.destination.point if i == last and i > 0 else route.origin.point
+            continue
+        if geometry is None:
+            geometry = {d["edge_id"]: d["geometry"] for *_, d in router.graph.edges(data=True)}
+        line = geometry.get(seg.source_edge_id)
+        where = line.interpolate(0.5, normalized=True) if line is not None else where
+    return where
+
+
+def find_downgrade(least: LeastWater | None, profile: TravellerProfile, snapshot: HazardSnapshot) -> Downgrade | None:
+    """The smallest looser body part that makes the trip possible, with the least-water route."""
+    if profile.uses_wheelchair or least is None:
+        return None
+    required = least.required_depth_m
     if required is None or required > HARD_LIMIT_M:
         return None
     for part in BodyPart:
         candidate = TravellerProfile(profile.height_m, part, walking_speed_m_s=profile.walking_speed_m_s)
         if candidate.depth_limit_m > profile.depth_limit_m and candidate.depth_limit_m >= required:
             # The least water that has to be faced, then the shortest way: matches ``required``.
-            metrics = route_metrics(route, snapshot, candidate)
-            return Downgrade(part, candidate.depth_limit_m, required, RouteOption("downgrade", route, metrics))
+            metrics = route_metrics(least.route, snapshot, candidate)
+            return Downgrade(part, candidate.depth_limit_m, required, RouteOption("downgrade", least.route, metrics))
     return None
 
 
@@ -185,9 +231,12 @@ def plan_trip(
         routes = None
     safe = routes is not None and routes.recommended.found
 
+    least = None
+    if routes is not None and not safe:
+        least = find_least_water(router, origin, destination, snapshot, profile)
     downgrade = None
-    if routes is not None and not safe and status.level <= AlertLevel.OVER_LIMIT:
-        downgrade = find_downgrade(router, origin, destination, snapshot, profile)
+    if status.level <= AlertLevel.OVER_LIMIT:
+        downgrade = find_downgrade(least, profile, snapshot)
 
     refuge = None
     if (not safe or status.level >= AlertLevel.OVER_LIMIT) and not status.sheltered:
@@ -207,4 +256,4 @@ def plan_trip(
             now or datetime.now(UTC),
         )
         emergency = Emergency(advice, sos)
-    return TripPlan(status, routes, downgrade, refuge, emergency)
+    return TripPlan(status, routes, downgrade, refuge, emergency, least)

@@ -58,6 +58,7 @@ def town_service() -> Service:
     scenarios = [
         Scenario(ScenarioInfo("dry", 0, "Dry", "No water", "none"), NoHazard()),
         Scenario(ScenarioInfo("wet", 1, "Wet", "Bottom street flooded", "test"), StaticHazard(e0=0.5)),
+        Scenario(ScenarioInfo("both", 2, "Both", "Both streets flooded", "test"), StaticHazard(e0=0.5, e3=0.4)),
     ]
     return Service(router, resolver, RefugeIndex(resolver), scenarios)
 
@@ -87,7 +88,7 @@ def test_options_list_every_choice(client):
 
 
 def test_scenarios_report_their_level_and_water(client):
-    dry, wet = client.get("/api/scenarios").json()
+    dry, wet, _ = client.get("/api/scenarios").json()
     assert dry["level"] is None and dry["typical_depth_m"] is None
     assert wet["level"]["key"] == "heavy" and wet["typical_depth_m"] == pytest.approx(0.5)
     water = client.get("/api/scenarios/wet/water").json()
@@ -122,6 +123,18 @@ def test_flooded_street_is_avoided_and_shown_on_the_shortest_route(client):
     assert options["shortest"]["route"]["metrics"]["max_depth_m"] == pytest.approx(0.5)
     assert options["recommended"]["route"]["metrics"]["length_m"] == pytest.approx(510, abs=1)
     assert options["recommended"]["route"]["metrics"]["max_depth_m"] == 0
+    assert j["least_water"] is None  # a route fits
+
+
+def test_no_route_reports_the_least_water_and_where_it_is(client):
+    # Ankle limit, and both streets flooded: e0 at 50 cm (bottom), e3 at 40 cm (top).
+    j = trip(client, scenario="both").json()
+    assert not j["has_safe_route"]
+    least = j["least_water"]
+    assert least["required_depth_m"] == pytest.approx(0.40) and not least["beyond_hard_limit"]
+    assert least["route"]["metrics"]["max_depth_m"] == pytest.approx(0.40)
+    assert least["deepest_point"] == pytest.approx(at(150, 100), abs=1e-5)  # middle of the top street
+    assert j["downgrade"]["body_part"] == "knee"
     assert j["traveller"]["depth_limit_m"] == pytest.approx(0.0663)
 
 

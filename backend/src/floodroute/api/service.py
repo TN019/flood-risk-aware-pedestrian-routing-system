@@ -315,6 +315,16 @@ class Service:
                 "building": self.to_wgs(r.refuge.building),
                 "route": self._route_json(r.route, r.metrics, start, None),
             }
+        least = None
+        if trip.least_water is not None:
+            lw = trip.least_water
+            least = {
+                "required_depth_m": lw.required_depth_m,
+                "required_label": profile.describe_depth(lw.required_depth_m),
+                "beyond_hard_limit": lw.required_depth_m is None or lw.required_depth_m > HARD_LIMIT_M,
+                "deepest_point": self.latlon(lw.deepest_at),
+                "route": self._route_json(lw.route, lw.metrics, start, end),
+            }
         emergency = None
         if trip.emergency is not None:
             sos = trip.emergency.sos
@@ -337,6 +347,7 @@ class Service:
                 "depth_limit_m": profile.depth_limit_m,
                 "limit_label": profile.describe_depth(profile.depth_limit_m),
                 "height_m": profile.height_m,
+                "hard_limit_m": HARD_LIMIT_M,
             },
             "origin": {
                 "level": o.level.name.lower(),
@@ -351,6 +362,7 @@ class Service:
             "downgrade": downgrade,
             "refuge": refuge,
             "emergency": emergency,
+            "least_water": least,
         }
 
     def _place_json(self, place: Place) -> dict:

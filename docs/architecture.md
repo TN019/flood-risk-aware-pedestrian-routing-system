@@ -34,13 +34,32 @@ refuges and scenarios once and answers in WGS84 GeoJSON; `api.app` maps it onto 
 | `GET /api/scenarios/{id}/water` | wet and unknown-depth edges of a scenario |
 | `GET /api/search?q=` | place search inside the routable area (Nominatim, cached, one request a second) |
 | `POST /api/traveller` | a traveller's depth limit and what their preference means in metres |
-| `POST /api/trip` | the whole trip plan: where they stand, three routes, downgrade, refuge, emergency |
+| `POST /api/trip` | the whole trip plan: where they stand, three routes, least water, downgrade, refuge, emergency |
 
 Start and destination must lie inside the study area; requests that cannot be answered as asked
 return 422 with a message for the user. The web client (`frontend/`, React, TypeScript and
 MapLibre on an OpenStreetMap basemap) keeps no routing rules of its own: it shows what the API
 returns, with the map and a side panel on desktops and the map above a sliding sheet on phones.
 Sending an SOS is simulated in the client, with a short window to undo it.
+
+The results open with a **next step** card that turns the plan into one instruction
+(`frontend/src/guidance.ts`, unit-tested):
+
+| Situation | Next step | Highlighted on the map |
+|---|---|---|
+| a route fits and it is the shortest way | go, with distance, time and deepest water | recommended |
+| a route fits, but it detours | take the recommended route, and what the detour avoids | recommended |
+| no route fits; a higher limit or a shelter (or staying inside) would work | the two choices side by side | neither until one is picked |
+| no route fits; only a higher limit works | accept deeper water, with a button to use that limit | the higher-limit route |
+| no route fits; only a shelter is reachable | go to the shelter and wait (folded under "if you cannot wait" when the start is critical) | the shelter route |
+| no route fits and the traveller is indoors | stay inside | the least-water route |
+| no route and no shelter | call for help; stay on high ground | the least-water route |
+
+Whenever no route fits, the card says why: the least water any way to the destination has to
+cross, against the traveller's limit or the 50 cm hard limit, with that point marked on the map.
+Picking a choice, or a row under "Compare routes", highlights its route, dims the others and zooms
+to it; every route has a white outline so it stays readable above the water. The legend lists only
+what is on the map, and starts folded on phones.
 
 ## Routing graph
 
@@ -324,8 +343,12 @@ the cheapest path that never goes deeper. Two phases are needed: a single search
 against brute-force enumeration of every path on small random graphs. Unknown depth counts as
 infinitely deep, used only when nothing else connects.
 
-**Downgrade.** When the destination is out of reach within the limit, the safest-path search gives
-the least water that has to be faced; the smallest body part covering it (never above 50 cm, never
+**Least water.** When the destination is out of reach within the limit, the safest-path search gives
+the way that faces the least water (`trip.find_least_water`): how deep its deepest point is, where
+that point is, and the route. It is reported whatever the depth, so the traveller can see why no
+route fits.
+
+**Downgrade.** From the least water, the smallest body part covering it (never above 50 cm, never
 for wheelchair users) is offered with that route.
 
 **Refuges.** In this version every building with a way in counts as a sheltered refuge

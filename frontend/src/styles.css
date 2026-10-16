@@ -360,7 +360,7 @@ select {
   font-weight: 600;
 }
 
-.summary .metrics {
+.metrics {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
@@ -421,6 +421,166 @@ select {
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------------------ next step */
+
+.next {
+  border-width: 2px;
+  gap: 12px;
+}
+
+.next h2 {
+  font-size: 1.1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.next-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.next-go,
+.next-shelter {
+  border-color: #8fcf8f;
+}
+
+.next-detour {
+  border-color: #c9b3e6;
+}
+
+.next-choose,
+.next-downgrade {
+  border-color: var(--warn-line);
+  background: #fffaf0;
+}
+
+.next-stay {
+  border-color: var(--info-line);
+  background: var(--info-bg);
+}
+
+.next-help,
+.next-unreachable {
+  border-color: var(--red-line);
+  background: var(--red-bg);
+}
+
+.why {
+  font-size: 0.92rem;
+}
+
+.choices-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.choice-on {
+  border: 2px solid var(--accent);
+  padding: 9px;
+}
+
+.choice-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.choice-main:disabled {
+  cursor: default;
+}
+
+.choice-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+}
+
+.choice-body {
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.choice-hint {
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
+.fold summary {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.compare-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px;
+  margin: -6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.compare-row:disabled {
+  cursor: default;
+}
+
+.compare-on {
+  border-color: var(--accent);
+  background: #f7f1fd;
+}
+
+.tag-unsafe {
+  margin-left: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.legend-on {
+  font-weight: 700;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px !important;
+  height: 12px !important;
+  margin: 0 8px;
+  border-radius: 50% !important;
+  background: #b2182b;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #b2182b;
 }
 
 /* ------------------------------------------------------------------ conditions */
@@ -643,6 +803,22 @@ input[type="range"] {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
+.map-legend summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.map-legend[open] summary {
+  display: none;
+}
+
+/* <details> cannot be a flex container in every browser, so the entries get their own. */
+.legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .map-legend span {
   display: flex;
   align-items: center;
@@ -803,5 +979,14 @@ input[type="range"] {
 
   .levels {
     grid-template-columns: repeat(5, 1fr);
+  }
+
+  .choices-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .map-legend[open] summary {
+    display: list-item;
+    margin-bottom: 4px;
   }
 }

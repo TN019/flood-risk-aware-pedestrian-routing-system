@@ -208,3 +208,26 @@ def test_plans_on_the_southbank_network_are_consistent():
         if plan.downgrade is not None:
             assert plan.downgrade.depth_limit_m >= plan.downgrade.required_depth_m
             assert plan.downgrade.required_depth_m <= HARD_LIMIT_M
+
+
+# ------------------------------------------------------------------ least water
+
+
+def test_least_water_shows_why_no_route_fits_and_where():
+    plan = trip(snapshot(e1=0.40, e4=0.40), TravellerProfile(ADULT, BodyPart.ANKLE))
+    least = plan.least_water
+    assert not plan.has_safe_route
+    assert least.required_depth_m == pytest.approx(0.40)
+    assert least.metrics.max_depth_m == pytest.approx(0.40)
+    assert least.deepest_at.equals(Point(225, 0))  # middle of e1, the first 40 cm piece on the way
+    assert plan.downgrade.body_part == BodyPart.KNEE  # derived from the same route
+
+
+def test_least_water_is_reported_beyond_the_hard_limit_without_a_downgrade():
+    plan = trip(snapshot(e1=0.55, e4=0.55), TravellerProfile(ADULT, BodyPart.MID_CALF))
+    assert plan.least_water.required_depth_m == pytest.approx(0.55)
+    assert plan.downgrade is None
+
+
+def test_no_least_water_when_a_route_fits():
+    assert trip(snapshot(), TravellerProfile(ADULT, BodyPart.ANKLE)).least_water is None
