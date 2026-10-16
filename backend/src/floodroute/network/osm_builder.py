@@ -14,8 +14,7 @@ Rules:
   so "has a sidewalk alongside" is decided geometrically.
 - Topology comes from OSM node ids: ways connect only where they share a node, so bridges
   and underpasses never join the paths they cross.
-- The result is a simple undirected ``nx.Graph`` with the same node/edge schema as the CoM
-  builder (``graph_builder``), so persistence, routing and the app work unchanged.
+- The result is a simple undirected ``nx.Graph`` following ``floodroute.network.schema``.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ from shapely.geometry import LineString, Point
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import substring
 
-import graph_builder as gb
+from floodroute.network.schema import JUNCTION
 
 CARRIAGEWAYS = {
     "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link",
@@ -132,7 +131,7 @@ def build_graph_from_osm(osm: nx.MultiDiGraph, crs: str, study_area: BaseGeometr
         for n in (u, v):
             if n not in graph:
                 nd = und.nodes[n]
-                graph.add_node(n, x=nd["x"], y=nd["y"], kind=gb.JUNCTION, parcel_id=None,
+                graph.add_node(n, x=nd["x"], y=nd["y"], kind=JUNCTION,
                                osm_highway=joined(nd.get("highway")), crossing=joined(nd.get("crossing")))
         attrs = _edge_attrs(d)
         geom = _oriented(attrs["geometry"], und.nodes[u])
@@ -140,7 +139,7 @@ def build_graph_from_osm(osm: nx.MultiDiGraph, crs: str, study_area: BaseGeometr
             report.parallel_edges_split += 1
             mid = geom.interpolate(0.5, normalized=True)
             m, next_mid = next_mid, next_mid - 1
-            graph.add_node(m, x=mid.x, y=mid.y, kind=gb.JUNCTION, parcel_id=None, osm_highway=None, crossing=None)
+            graph.add_node(m, x=mid.x, y=mid.y, kind=JUNCTION, osm_highway=None, crossing=None)
             graph.add_edge(u, m, **{**attrs, "geometry": substring(geom, 0, 0.5, normalized=True)})
             graph.add_edge(m, v, **{**attrs, "geometry": substring(geom, 0.5, 1, normalized=True)})
         else:
@@ -193,8 +192,6 @@ def _edge_attrs(d: dict) -> dict:
         "is_carriageway": any(v is True or v == "True" for v in _as_list(d.get("is_carriageway"))),
         "cost_factor": CARRIAGEWAY_PENALTY if any(
             v is True or v == "True" for v in _as_list(d.get("has_sidewalk_alongside"))) else 1.0,
-        "is_parcel_link": False,
-        "objectid": None,
     }
 
 

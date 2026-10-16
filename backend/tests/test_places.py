@@ -3,8 +3,8 @@ import networkx as nx
 import pytest
 from shapely.geometry import LineString, Point, box
 
-import places as pl
-from routing import Router
+from floodroute.places import resolver as pl
+from floodroute.routing import Router
 
 CRS = "EPSG:7855"
 

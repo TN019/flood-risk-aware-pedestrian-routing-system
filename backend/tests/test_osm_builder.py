@@ -4,8 +4,8 @@ import networkx as nx
 import pytest
 from shapely.geometry import Point, box
 
-import osm_graph_builder as ob
-from routing import Router
+from floodroute.network import osm_builder as ob
+from floodroute.routing import Router
 
 CRS = "EPSG:7855"
 _way_ids = itertools.count(1)

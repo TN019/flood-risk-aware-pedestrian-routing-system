@@ -1,12 +1,11 @@
-"""Southbank pedestrian routing web app (shortest path; flood conditions not applied yet).
+"""Interim Streamlit map UI for the routing engine, until the web frontend replaces it.
 
-Run:  uv run streamlit run app.py
+Shortest walking route; flood conditions are not applied yet.
+
+Run (from backend/):  uv run streamlit run streamlit_app.py
 """
 
 from __future__ import annotations
-
-import sys
-from pathlib import Path
 
 import folium
 import geopandas as gpd
@@ -16,15 +15,14 @@ from shapely.geometry import Point
 from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
-import geocode  # noqa: E402
-import graph_builder as gb  # noqa: E402
-import network_loader as nl  # noqa: E402
-import places as pl  # noqa: E402
-from routing import Router, RoutingError  # noqa: E402
+from floodroute import config
+from floodroute import places as pl
+from floodroute.network import is_snappable, load_graph, to_gdfs
+from floodroute.routing import Router, RoutingError
+from floodroute.sources import geocoding as geocode
 
-GRAPH_PATH = nl.PROJECT_ROOT / "data" / "processed" / "southbank_network.gpkg"
-PLACES_PATH = nl.PROJECT_ROOT / "data" / "processed" / "southbank_places.gpkg"
+GRAPH_PATH = config.PROCESSED_NETWORK_PATH
+PLACES_PATH = config.PROCESSED_PLACES_PATH
 START, DEST = "Start", "Destination"
 CHOOSE, CURRENT = "A point I choose", "My current location"
 
@@ -33,8 +31,8 @@ ROUTE_COLOUR = "#7b2cbf"
 START_COLOUR = "green"
 DEST_COLOUR = "red"
 
-to_metric = Transformer.from_crs(nl.WGS84, nl.METRIC_CRS, always_xy=True)
-to_wgs = Transformer.from_crs(nl.METRIC_CRS, nl.WGS84, always_xy=True)
+to_metric = Transformer.from_crs(config.WGS84, config.METRIC_CRS, always_xy=True)
+to_wgs = Transformer.from_crs(config.METRIC_CRS, config.WGS84, always_xy=True)
 
 st.set_page_config(page_title="Southbank Routing", page_icon="🗺️", layout="wide")
 
@@ -43,7 +41,7 @@ st.set_page_config(page_title="Southbank Routing", page_icon="🗺️", layout="
 
 @st.cache_resource
 def load_router() -> Router:
-    return Router(gb.load_graph(GRAPH_PATH))
+    return Router(load_graph(GRAPH_PATH))
 
 
 @st.cache_resource
@@ -56,16 +54,17 @@ def load_places() -> pl.PlaceResolver:
 def base_layers() -> dict:
     """GeoJSON for the static layers, computed once. The folium Map itself must be rebuilt each run."""
     graph = load_router().graph
-    _, edges = gb.to_gdfs(graph)
+    _, edges = to_gdfs(graph)
     edges["avoided"] = edges["cost_factor"].fillna(1) > 1 if "cost_factor" in edges else False
-    streets = edges.loc[~edges.is_parcel_link, ["in_study_area", "avoided", "geometry"]].to_crs(nl.WGS84)
+    streets = edges[[is_snappable(d) for *_, d in graph.edges(data=True)]]
+    streets = streets[["in_study_area", "avoided", "geometry"]].to_crs(config.WGS84)
     paths, roads = streets[~streets.avoided], streets[streets.avoided]
     area = gpd.GeoSeries([graph.graph["study_area"]], crs=graph.graph["crs"])
-    west, south, east, north = area.to_crs(nl.WGS84).total_bounds
+    west, south, east, north = area.to_crs(config.WGS84).total_bounds
     return {
         "centre": [(south + north) / 2, (west + east) / 2],
-        "ring": area.buffer(graph.graph["buffer_m"]).to_crs(nl.WGS84).__geo_interface__,
-        "area": area.to_crs(nl.WGS84).__geo_interface__,
+        "ring": area.buffer(graph.graph["buffer_m"]).to_crs(config.WGS84).__geo_interface__,
+        "area": area.to_crs(config.WGS84).__geo_interface__,
         "buffer_streets": paths[~paths.in_study_area][["geometry"]].__geo_interface__,
         "area_streets": paths[paths.in_study_area][["geometry"]].__geo_interface__,
         "avoided_roads": roads[["geometry"]].__geo_interface__,
@@ -95,7 +94,7 @@ def base_map() -> folium.Map:
 def search_places(query: str) -> list[geocode.SearchResult]:
     graph = load_router().graph
     ring = gpd.GeoSeries([graph.graph["study_area"]], crs=graph.graph["crs"]).buffer(graph.graph["buffer_m"])
-    return geocode.search(query, tuple(ring.to_crs(nl.WGS84).total_bounds))
+    return geocode.search(query, tuple(ring.to_crs(config.WGS84).total_bounds))
 
 
 def to_point(latlon: tuple[float, float]) -> Point:
@@ -112,7 +111,7 @@ def in_southbank(latlon: tuple[float, float]) -> bool:
 
 
 def to_metric_geom(geom):
-    return None if geom is None else gpd.GeoSeries([geom], crs=nl.WGS84).to_crs(nl.METRIC_CRS).iloc[0]
+    return None if geom is None else gpd.GeoSeries([geom], crs=config.WGS84).to_crs(config.METRIC_CRS).iloc[0]
 
 
 def resolve(which: str) -> pl.Place:
@@ -136,7 +135,8 @@ def set_point(which: str, latlon: tuple[float, float], source: str, footprint=No
     if which == START:
         state.start, state.start_src, state.start_fp, state.start_label = latlon, source, footprint, label
         if state.dest is None:
-            state.click_target = DEST
+            # The radio widget owning click_target may already be drawn this run; switch on the next run.
+            state.next_click_target = DEST
     else:
         state.dest, state.dest_src, state.dest_fp, state.dest_label = latlon, source, footprint, label
 
@@ -195,6 +195,8 @@ with st.sidebar:
 
     st.divider()
     options = [DEST] if gps_ok else [START, DEST]
+    if "next_click_target" in state:
+        state.click_target = state.pop("next_click_target")
     if state.click_target not in options:
         state.click_target = DEST
     st.radio("A map click sets the", options, key="click_target", horizontal=True)
@@ -226,7 +228,7 @@ overlay = folium.FeatureGroup(name="route")
 for which, place in ends.items():  # the building a start/destination resolved to, and its usable doors
     colour = START_COLOUR if which == START else DEST_COLOUR
     if place.building is not None:
-        folium.GeoJson(gpd.GeoSeries([place.building], crs=nl.METRIC_CRS).to_crs(nl.WGS84).__geo_interface__,
+        folium.GeoJson(gpd.GeoSeries([place.building], crs=config.METRIC_CRS).to_crs(config.WGS84).__geo_interface__,
                        style_function=lambda _, c=colour: {"color": c, "weight": 2, "fillOpacity": 0.12},
                        tooltip=place.label).add_to(overlay)
         for a in place.access:
@@ -253,9 +255,13 @@ elif route is not None:
     c1.metric("Walking distance", f"{route.length_m:,.0f} m")
     c2.metric("Estimated time", f"{route.travel_time_s / 60:.0f} min")
     c3.metric("Network edges used", len(route.edge_ids))
-    o, d = ends[START], ends[DEST]
-    st.caption(f"From **{o.label}** ({o.access_label(route.origin.point)}) → "
-               f"**{d.label}** ({d.access_label(route.destination.point)})")
+    def describe(place: pl.Place, used) -> str:
+        if place.method == "point":
+            return "**selected point**"
+        return f"**{place.label}** ({place.access_label(used)})"
+
+    st.caption(f"From {describe(ends[START], route.origin.point)} → "
+               f"{describe(ends[DEST], route.destination.point)}")
 else:
     st.info(f"Set a start and a destination: search in the sidebar or click the map "
             f"(the next click sets the **{state.click_target.lower()}**).")

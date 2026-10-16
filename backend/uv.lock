@@ -219,11 +219,10 @@ wheels = [
 ]
 
 [[package]]
-name = "flood-risk-routing"
+name = "floodroute"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
-    { name = "folium" },
     { name = "geopandas" },
     { name = "networkx" },
     { name = "numpy" },
@@ -232,19 +231,21 @@ dependencies = [
     { name = "pyproj" },
     { name = "requests" },
     { name = "shapely" },
-    { name = "streamlit" },
-    { name = "streamlit-folium" },
-    { name = "streamlit-js-eval" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
 ]
+tools = [
+    { name = "folium" },
+    { name = "streamlit" },
+    { name = "streamlit-folium" },
+    { name = "streamlit-js-eval" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "folium", specifier = ">=0.17" },
     { name = "geopandas", specifier = ">=1.0" },
     { name = "networkx", specifier = ">=3.3" },
     { name = "numpy", specifier = ">=1.26" },
@@ -253,13 +254,16 @@ requires-dist = [
     { name = "pyproj", specifier = ">=3.6" },
     { name = "requests", specifier = ">=2.32" },
     { name = "shapely", specifier = ">=2.0" },
-    { name = "streamlit", specifier = ">=1.66.0" },
-    { name = "streamlit-folium", specifier = ">=0.27.4" },
-    { name = "streamlit-js-eval", specifier = ">=1.0.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
+tools = [
+    { name = "folium", specifier = ">=0.17" },
+    { name = "streamlit", specifier = ">=1.66.0" },
+    { name = "streamlit-folium", specifier = ">=0.27.4" },
+    { name = "streamlit-js-eval", specifier = ">=1.0.0" },
+]
 
 [[package]]
 name = "folium"

@@ -15,25 +15,24 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
-from pathlib import Path
 
 import folium
 import geopandas as gpd
 import networkx as nx
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-import graph_builder as gb  # noqa: E402
-import network_loader as nl  # noqa: E402
-import osm_graph_builder as ob  # noqa: E402
-import places  # noqa: E402
+from floodroute import config
+from floodroute import places
+from floodroute.network import JUNCTION, PARCEL_ACCESS, is_snappable, parcel_access_nodes, save_graph, to_gdfs
+from floodroute.network import com_builder
+from floodroute.network import osm_builder as ob
+from floodroute.sources import com, osm
 
-PROCESSED_DIR = nl.PROJECT_ROOT / "data" / "processed"
-REPORT_DIR = nl.PROJECT_ROOT / "reports"
-PLACES_PATH = PROCESSED_DIR / "southbank_places.gpkg"
+PROCESSED_DIR = config.PROCESSED_DIR
+REPORT_DIR = config.REPORT_DIR
+PLACES_PATH = config.PROCESSED_PLACES_PATH
 OUTPUTS = {
-    "osm": (PROCESSED_DIR / "southbank_network.gpkg", REPORT_DIR / "network_map.html"),
-    "com": (PROCESSED_DIR / "southbank_network_com.gpkg", REPORT_DIR / "network_map_com.html"),
+    "osm": (config.PROCESSED_NETWORK_PATH, REPORT_DIR / "network_map.html"),
+    "com": (config.PROCESSED_COM_NETWORK_PATH, REPORT_DIR / "network_map_com.html"),
 }
 SOURCES = {
     "osm": "OpenStreetMap walking network (© OpenStreetMap contributors, ODbL)",
@@ -67,15 +66,15 @@ STYLES = {  # class -> (colour, weight, dash)
 
 
 def render_map(graph: nx.Graph, report_lines: list[str], source: str) -> folium.Map:
-    nodes, edges = (g.to_crs(nl.WGS84) for g in gb.to_gdfs(graph))
+    nodes, edges = (g.to_crs(config.WGS84) for g in to_gdfs(graph))
     edges["length_m"] = edges["length_m"].round(1)
     edges["class"] = [edge_class(d) for *_, d in graph.edges(data=True)]
     for col in ("name", "highway"):
         if col not in edges:
             edges[col] = None
     area = gpd.GeoSeries([graph.graph["study_area"]], crs=graph.graph["crs"])
-    ring = area.buffer(graph.graph["buffer_m"]).to_crs(nl.WGS84)
-    area = area.to_crs(nl.WGS84)
+    ring = area.buffer(graph.graph["buffer_m"]).to_crs(config.WGS84)
+    area = area.to_crs(config.WGS84)
     west, south, east, north = area.total_bounds
     fmap = folium.Map(location=[(south + north) / 2, (west + east) / 2], zoom_start=16,
                       tiles="OpenStreetMap", max_zoom=21)
@@ -100,7 +99,7 @@ def render_map(graph: nx.Graph, report_lines: list[str], source: str) -> folium.
                            tooltip=folium.GeoJsonTooltip(tooltip)).add_to(layer)
         layer.add_to(fmap)
 
-    parcel_stubs = gb.parcel_access_nodes(graph)
+    parcel_stubs = parcel_access_nodes(graph)
     if parcel_stubs:
         parcels = folium.FeatureGroup(name=f"Parcels ({len(parcel_stubs)})")
         for pid, stubs in parcel_stubs.items():
@@ -113,7 +112,7 @@ def render_map(graph: nx.Graph, report_lines: list[str], source: str) -> folium.
 
     dead_ends = folium.FeatureGroup(name="Dead ends", show=False)
     for r in nodes.itertuples():
-        if graph.degree(r.node_id) == 1 and r.kind == gb.JUNCTION:
+        if graph.degree(r.node_id) == 1 and r.kind == JUNCTION:
             folium.CircleMarker([r.geometry.y, r.geometry.x], radius=3, color="#d62728", fill=True,
                                 tooltip=f"node {r.node_id}").add_to(dead_ends)
     dead_ends.add_to(fmap)
@@ -121,7 +120,7 @@ def render_map(graph: nx.Graph, report_lines: list[str], source: str) -> folium.
     folium.GeoJson(area, name="Southbank boundary (CoM CLUE)",
                    style_function=lambda _: {"color": "#111", "weight": 3, "fill": False}).add_to(fmap)
 
-    streets = edges[~edges.is_parcel_link]
+    streets = edges[[is_snappable(d) for *_, d in graph.edges(data=True)]]
     inside_km = streets.loc[streets.in_study_area, "length_m"].sum() / 1000
     buffer_km = streets.loc[~streets.in_study_area, "length_m"].sum() / 1000
     panel = f"""
@@ -141,9 +140,9 @@ def render_map(graph: nx.Graph, report_lines: list[str], source: str) -> folium.
 
 
 def build(source: str) -> tuple[nx.Graph, dict, list[str]]:
-    area = nl.load_study_area()
+    area = com.load_study_area()
     if source == "osm":
-        graph, report = ob.build_graph_from_osm(nl.load_osm_network(), nl.METRIC_CRS, area, nl.STUDY_AREA_BUFFER_M)
+        graph, report = ob.build_graph_from_osm(osm.load_walk_network(), config.METRIC_CRS, area, config.STUDY_AREA_BUFFER_M)
         lines = [f"Excluded: {report.indoor_removed} indoor, {report.private_removed} private, "
                  f"{report.use_sidepath_removed} use-sidepath way segments.",
                  f"{report.carriageway_with_sidewalk_penalised} road edges with a sidewalk alongside cost "
@@ -151,7 +150,7 @@ def build(source: str) -> tuple[nx.Graph, dict, list[str]]:
                  f"{report.crossings} crossings, {report.steps} steps; {report.components_dropped} disconnected "
                  f"pieces ({report.nodes_dropped} nodes) dropped."]
     else:
-        graph, report = gb.build_graph(nl.load_com_network(), study_area=area, buffer_m=nl.STUDY_AREA_BUFFER_M)
+        graph, report = com_builder.build_graph(com.load_pedestrian_network(), study_area=area, buffer_m=config.STUDY_AREA_BUFFER_M)
         lines = [f"Cleaned: {report.duplicates_removed} duplicates, {report.tjunction_splits} T-junction splits, "
                  f"{report.components_dropped} small components dropped. Parcels are terminal-only."]
     return graph, report.as_dict(), lines
@@ -159,13 +158,13 @@ def build(source: str) -> tuple[nx.Graph, dict, list[str]]:
 
 def build_places() -> None:
     """Buildings and entrances in the routing CRS, with indoor-only entrances flagged."""
-    buildings = gpd.read_file(nl.OSM_BUILDINGS_PATH).to_crs(nl.METRIC_CRS)
-    entrances = gpd.read_file(nl.OSM_ENTRANCES_PATH).to_crs(nl.METRIC_CRS)
-    entrances = places.mark_indoor_entrances(entrances, nl.load_osm_network())
+    buildings = gpd.read_file(config.OSM_BUILDINGS_PATH).to_crs(config.METRIC_CRS)
+    entrances = gpd.read_file(config.OSM_ENTRANCES_PATH).to_crs(config.METRIC_CRS)
+    entrances = places.mark_indoor_entrances(entrances, osm.load_walk_network())
     PLACES_PATH.unlink(missing_ok=True)
     buildings.to_file(PLACES_PATH, layer="buildings", driver="GPKG")
     entrances.to_file(PLACES_PATH, layer="entrances", driver="GPKG")
-    print(f"places -> {PLACES_PATH.relative_to(nl.PROJECT_ROOT)}: {len(buildings)} buildings, "
+    print(f"places -> {PLACES_PATH.relative_to(config.REPO_ROOT)}: {len(buildings)} buildings, "
           f"{len(entrances)} entrances ({int(entrances.indoor_only.sum())} indoor-only)")
 
 
@@ -175,13 +174,14 @@ def main() -> None:
     args = parser.parse_args()
     graph, report, lines = build(args.source)
     assert nx.is_connected(graph)
-    assert all(graph.degree(n) == 1 for n, d in graph.nodes(data=True) if d["kind"] == gb.PARCEL_ACCESS)
+    assert all(graph.degree(n) == 1 for n, d in graph.nodes(data=True) if d["kind"] == PARCEL_ACCESS)
     gpkg, html = OUTPUTS[args.source]
-    gb.save_graph(graph, gpkg)
+    save_graph(graph, gpkg)
+    html.parent.mkdir(parents=True, exist_ok=True)
     render_map(graph, lines, args.source).save(html)
     print(json.dumps(report, indent=2))
-    print("graph ->", gpkg.relative_to(nl.PROJECT_ROOT))
-    print("map   ->", html.relative_to(nl.PROJECT_ROOT))
+    print("graph ->", gpkg.relative_to(config.REPO_ROOT))
+    print("map   ->", html.relative_to(config.REPO_ROOT))
     if args.source == "osm":
         build_places()
 

@@ -139,7 +139,7 @@ def _tag(row, key: str) -> str | None:
 def mark_indoor_entrances(entrances: gpd.GeoDataFrame, raw_walk_graph) -> gpd.GeoDataFrame:
     """Add ``indoor_only``: the entrance node sits on the OSM walk network but every way through it
     is indoor (a corridor or ``indoor=*``), so it cannot be reached from the street."""
-    from osm_graph_builder import _is_indoor  # local import: osmnx is only needed at build time
+    from floodroute.network.osm_builder import _is_indoor  # osmnx is only needed at build time
 
     flags = []
     for element, osm_id in zip(entrances["element"], entrances["id"]):

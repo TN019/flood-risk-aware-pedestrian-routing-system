@@ -5,8 +5,8 @@ Dijkstra picks whichever gives the cheapest whole route. This matters where path
 a point next to a bridge is often nearest to the bridge deck, while the path the person is
 actually standing on runs underneath it.
 
-Flood-aware cost functions and safety filtering will plug in later through ``weight`` and a
-filtered graph.
+The search itself is delegated to a ``PathFinder`` and the edge cost to a cost function, so
+both can be swapped (e.g. a flood-risk cost, or A*) without touching snapping or route assembly.
 """
 
 from __future__ import annotations
@@ -19,6 +19,10 @@ from shapely.geometry import LineString, Point
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import substring
 from shapely.strtree import STRtree
+
+from floodroute.network.schema import is_snappable
+from floodroute.risk.cost import EdgeCost, walking_cost
+from floodroute.routing.pathfinding import NetworkXDijkstra, NoPathError, PathFinder
 
 WALKING_SPEED_M_S = 1.3  # typical adult walking speed
 MAX_SNAP_DISTANCE_M = 100.0  # a point further than this from any footpath is rejected
@@ -60,12 +64,13 @@ class Route:
 class Router:
     """Shortest-path routing between arbitrary points inside the study area."""
 
-    def __init__(self, graph: nx.Graph, max_snap_m: float = MAX_SNAP_DISTANCE_M):
+    def __init__(self, graph: nx.Graph, max_snap_m: float = MAX_SNAP_DISTANCE_M,
+                 path_finder: PathFinder | None = None):
         self.graph = graph
         self.study_area: BaseGeometry | None = graph.graph.get("study_area")
         self.max_snap_m = max_snap_m
-        # Never snap to parcel links: they are abstract connectors, not walkways.
-        self._edges = [(u, v) for u, v, d in graph.edges(data=True) if not d.get("is_parcel_link")]
+        self.path_finder = path_finder or NetworkXDijkstra()
+        self._edges = [(u, v) for u, v, d in graph.edges(data=True) if is_snappable(d)]
         self._geoms = [graph.edges[e]["geometry"] for e in self._edges]
         self._tree = STRtree(self._geoms)
 
@@ -105,23 +110,23 @@ class Router:
             raise first_error or RoutingError("No usable point to route from.")
         return snaps
 
-    def route(self, origin: Point | Sequence[Point], destination: Point | Sequence[Point], weight=None) -> Route:
+    def route(self, origin: Point | Sequence[Point], destination: Point | Sequence[Point],
+              cost: EdgeCost = walking_cost) -> Route:
         """Route between two places, each given as one point or several access points (e.g. a
-        building's entrances); the cheapest combination is used. ``weight`` defaults to length ×
-        the edge's ``cost_factor``."""
+        building's entrances); the cheapest combination under ``cost`` is used."""
         ends = {ORIGIN: _as_points(origin), DESTINATION: _as_points(destination)}
         candidates = {name: self._candidates_for(points) for name, points in ends.items()}
         graph = self.graph.copy()
         splitter = _EdgeSplitter(graph)
         for name, points in ends.items():
-            graph.add_node(name, x=points[0].x, y=points[0].y, kind=VIRTUAL, parcel_id=None, in_study_area=True)
+            graph.add_node(name, x=points[0].x, y=points[0].y, kind=VIRTUAL, in_study_area=True)
             for i, snap in enumerate(candidates[name]):
                 access = splitter.split(snap, f"{name}_{i}")
                 graph.add_edge(name, access, geometry=LineString([snap.point, snap.snapped]),
                                length_m=snap.distance_m, cost_factor=1.0, edge_id=ACCESS_EDGE, snap=snap)
         try:
-            nodes = nx.shortest_path(graph, ORIGIN, DESTINATION, weight=weight or walking_cost)
-        except nx.NetworkXNoPath:
+            nodes = self.path_finder.find_path(graph, ORIGIN, DESTINATION, cost)
+        except NoPathError:
             raise RoutingError("No route connects these two points.") from None
 
         o_snap = graph.edges[nodes[0], nodes[1]]["snap"]
@@ -142,11 +147,6 @@ class Router:
 
 def _as_points(value: Point | Sequence[Point]) -> list[Point]:
     return [value] if isinstance(value, Point) else list(value)
-
-
-def walking_cost(u, v, data: dict) -> float:
-    """Default routing cost: real length, scaled up on edges pedestrians should avoid."""
-    return data["length_m"] * (data.get("cost_factor") or 1.0)
 
 
 def _node_point(graph: nx.Graph, n) -> Point:
@@ -182,7 +182,7 @@ class _EdgeSplitter:
         geom = _oriented(data["geometry"], _node_point(graph, a))
         t = geom.project(snap.snapped)
         graph.remove_edge(a, b)
-        graph.add_node(name, x=snap.snapped.x, y=snap.snapped.y, kind=VIRTUAL, parcel_id=None, in_study_area=True)
+        graph.add_node(name, x=snap.snapped.x, y=snap.snapped.y, kind=VIRTUAL, in_study_area=True)
         for x, y, part, tag in ((a, name, _piece(geom, 0, t), "a"), (name, b, _piece(geom, t, geom.length), "b")):
             graph.add_edge(x, y, **{**data, "geometry": part, "length_m": part.length,
                                     "edge_id": f"{data['edge_id']}{tag}"})

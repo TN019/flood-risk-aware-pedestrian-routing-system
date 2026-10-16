@@ -7,16 +7,14 @@ against the OpenStreetMap walking network. Writes:
 - reports/network_validation_map.html interactive map of every flagged location
 - reports/network_validation_issues.geojson flagged features (for QGIS etc.)
 
-Run:  uv run python scripts/validate_network.py
+Run:  uv run python scripts/validate_com_network.py
 """
 
 from __future__ import annotations
 
 import collections
 import random
-import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import folium
 import geopandas as gpd
@@ -27,10 +25,10 @@ import pandas as pd
 from shapely.geometry import LineString, Point, box
 from shapely.strtree import STRtree
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-import network_loader as nl  # noqa: E402
+from floodroute import config
+from floodroute.sources import com, osm
 
-REPORT_DIR = nl.PROJECT_ROOT / "reports"
+REPORT_DIR = config.REPORT_DIR
 
 NODE_PRECISION_M = 0.001  # endpoints closer than this are the same node
 TJUNCTION_TOL_M = 0.05  # endpoint this close to another line's interior = missing split
@@ -52,7 +50,7 @@ class Issues:
         self.rows.append({"kind": kind, "geometry": geom, **props})
 
     def gdf(self) -> gpd.GeoDataFrame:
-        return gpd.GeoDataFrame(self.rows, geometry="geometry", crs=nl.METRIC_CRS)
+        return gpd.GeoDataFrame(self.rows, geometry="geometry", crs=config.METRIC_CRS)
 
     def count(self, kind: str) -> int:
         return sum(1 for r in self.rows if r["kind"] == kind)
@@ -89,8 +87,8 @@ def osm_label(row) -> str:
 
 
 def load_osm() -> tuple[nx.MultiGraph, gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    graph = nl.load_osm_network()
-    graph = ox.project_graph(graph, to_crs=nl.METRIC_CRS)
+    graph = osm.load_walk_network()
+    graph = ox.project_graph(graph, to_crs=config.METRIC_CRS)
     undirected = ox.convert.to_undirected(graph)
     nodes, edges = ox.graph_to_gdfs(undirected)
     return undirected, nodes, edges
@@ -102,7 +100,7 @@ def main() -> None:
     out: list[str] = []
 
     # ------------------------------------------------------------------ CoM basics
-    raw = nl.load_com_network()
+    raw = com.load_pedestrian_network()
     lines = raw[raw.geom_type == "LineString"].copy()
     points = raw[raw.geom_type == "Point"].copy()
     other_types = sorted(set(raw.geom_type) - {"LineString", "Point"})
@@ -173,7 +171,7 @@ def main() -> None:
     osm_graph, osm_nodes, osm_edges = load_osm()
     osm_edges = osm_edges.reset_index(drop=True)
     # All OSM bridges (roads, rail and paths, not only walkable ways) plus walkable tunnels.
-    bridges = gpd.read_file(nl.OSM_BRIDGES_PATH).to_crs(nl.METRIC_CRS)
+    bridges = gpd.read_file(config.OSM_BRIDGES_PATH).to_crs(config.METRIC_CRS)
     bridges["label"] = bridges.apply(osm_label, axis=1)
     tunnels = osm_edges[osm_edges["tunnel"].apply(lambda t: "yes" in as_list(t))]
     grade_sep_tree = STRtree(list(bridges.geometry) + list(tunnels.geometry))
@@ -250,7 +248,7 @@ def main() -> None:
         issues.add("osm_crossing_not_in_com", p, nearest_com_line_m=round(float(d), 1))
 
     # River crossings: which CoM lines span water, which OSM bridge they sit on, are both ends connected?
-    water = gpd.read_file(nl.OSM_WATER_PATH).to_crs(nl.METRIC_CRS)
+    water = gpd.read_file(config.OSM_WATER_PATH).to_crs(config.METRIC_CRS)
     water = water[water.geom_type.isin(["Polygon", "MultiPolygon"])].geometry.union_all()
     over = clean.geometry.intersection(water).length
     river_lines = clean[(over > 15) & ~is_link]
@@ -322,7 +320,7 @@ def main() -> None:
         "# Pedestrian Network Validation — Southbank",
         "",
         f"Source: City of Melbourne *Pedestrian Network* (CC BY), last modified 2019-11-19; "
-        f"bbox {nl.SOUTHBANK_BBOX}. Compared with OpenStreetMap walk network (ODbL), downloaded with osmnx.",
+        f"bbox {config.SOUTHBANK_BBOX}. Compared with OpenStreetMap walk network (ODbL), downloaded with osmnx.",
         "",
         "## 1. Contents",
         f"- Records: {len(raw)} — LineString {len(lines)}, Point {len(points)}"
@@ -396,7 +394,7 @@ def main() -> None:
     (REPORT_DIR / "network_validation.md").write_text("\n".join(out) + "\n")
 
     issues_gdf = issues.gdf()
-    issues_gdf.to_crs(nl.WGS84).to_file(REPORT_DIR / "network_validation_issues.geojson", driver="GeoJSON")
+    issues_gdf.to_crs(config.WGS84).to_file(REPORT_DIR / "network_validation_issues.geojson", driver="GeoJSON")
     write_map(clean, is_link, osm_walkable, issues_gdf)
     print("\n".join(out))
 
@@ -421,24 +419,24 @@ STYLE = {
 
 
 def write_map(clean, is_link, osm_walkable, issues_gdf) -> None:
-    centre = nl.SOUTHBANK_BBOX
+    centre = config.SOUTHBANK_BBOX
     fmap = folium.Map(location=[(centre.south + centre.north) / 2, (centre.west + centre.east) / 2],
                       zoom_start=16, tiles="OpenStreetMap", max_zoom=21)
 
-    folium.GeoJson(osm_walkable[["geometry"]].to_crs(nl.WGS84), name="OSM walk network",
+    folium.GeoJson(osm_walkable[["geometry"]].to_crs(config.WGS84), name="OSM walk network",
                    style_function=lambda _: {"color": "#2ca02c", "weight": 1, "opacity": 0.5},
                    show=False).add_to(fmap)
-    folium.GeoJson(clean.loc[~is_link, ["objectid", "geometry"]].to_crs(nl.WGS84),
+    folium.GeoJson(clean.loc[~is_link, ["objectid", "geometry"]].to_crs(config.WGS84),
                    name="CoM street/path lines",
                    style_function=lambda _: {"color": "#1f4e79", "weight": 2, "opacity": 0.8},
                    tooltip=folium.GeoJsonTooltip(["objectid"])).add_to(fmap)
-    folium.GeoJson(clean.loc[is_link, ["objectid", "geometry"]].to_crs(nl.WGS84),
+    folium.GeoJson(clean.loc[is_link, ["objectid", "geometry"]].to_crs(config.WGS84),
                    name="CoM parcel-link lines",
                    style_function=lambda _: {"color": "#e6550d", "weight": 1.5, "opacity": 0.8,
                                              "dashArray": "4 4"},
                    tooltip=folium.GeoJsonTooltip(["objectid"])).add_to(fmap)
 
-    wgs = issues_gdf.to_crs(nl.WGS84)
+    wgs = issues_gdf.to_crs(config.WGS84)
     for kind, (colour, label) in STYLE.items():
         sub = wgs[wgs.kind == kind]
         if sub.empty:
