@@ -1,0 +1,6 @@
+[browser]
+gatherUsageStats = false
+
+[client]
+# Viewer mode: hide the developer menu and Deploy button (and their shortcuts).
+toolbarMode = "viewer"
