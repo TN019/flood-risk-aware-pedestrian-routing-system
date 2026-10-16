@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# osmnx / Overpass response cache
+cache/
+
+# Downloaded and generated data: rebuild with `python src/network_loader.py` and
+# `python scripts/build_network.py`. Small reference inputs are kept.
+data/raw/*
+!data/raw/clue_southbank_boundary.geojson
+data/processed/
+
+# Generated reports and maps
+reports/
+
+# OS files
+.DS_Store
