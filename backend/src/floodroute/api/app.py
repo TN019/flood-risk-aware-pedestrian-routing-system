@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from floodroute import config
 from floodroute.api.service import RequestError, Service
 
-BodyPartKey = Literal["no_wading", "ankle", "lower_calf", "mid_calf"]
+BodyPartKey = Literal["no_wading", "ankle", "lower_calf", "mid_calf", "knee"]
 PreferenceKey = Literal["shortest", "balanced", "avoid_water", "driest"]
 CLIENT_DIR = config.REPO_ROOT / "frontend" / "dist"
 

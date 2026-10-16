@@ -13,7 +13,9 @@ from enum import Enum
 
 from floodroute.hazard.base import DRY_DEPTH_M
 
-HARD_LIMIT_M = 0.30  # nobody is routed through deeper water
+# Nobody is routed through deeper water. Melbourne Water's Southbank floodplain plan takes up to
+# 500 mm as safe pedestrian access; 0.5 m is also the H2 depth limit for people.
+HARD_LIMIT_M = 0.50
 DEFAULT_WALKING_SPEED_M_S = 1.3
 
 
@@ -24,12 +26,17 @@ class BodyPart(Enum):
     ANKLE = 0.039
     LOWER_CALF = 0.121
     MID_CALF = 0.162
+    KNEE = 0.285
 
     @property
     def label(self) -> str:
-        return {"NO_WADING": "no wading", "ANKLE": "ankle", "LOWER_CALF": "lower calf", "MID_CALF": "mid calf"}[
-            self.name
-        ]
+        return {
+            "NO_WADING": "no wading",
+            "ANKLE": "ankle",
+            "LOWER_CALF": "lower calf",
+            "MID_CALF": "mid calf",
+            "KNEE": "knee",
+        }[self.name]
 
 
 # Body landmarks used to describe a depth, as fractions of standing height.

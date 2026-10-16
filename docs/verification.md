@@ -11,13 +11,14 @@ hydraulic model results.
 
 ## Rules used in the derivations
 
-- A traveller's depth limit = body-part fraction × height, capped at 30 cm; no wading = 2 cm;
-  wheelchair = 2 cm. Fractions: ankle 0.039, lower calf 0.121, mid calf 0.162.
+- A traveller's depth limit = body-part fraction × height, capped at 50 cm; no wading = 2 cm;
+  wheelchair = 2 cm. Fractions: ankle 0.039, lower calf 0.121, mid calf 0.162, knee 0.285.
 - Water deeper than the limit (or of unknown depth) is impassable. Up to 2 cm counts as dry.
 - Risk R = depth ÷ limit. Edge cost = length × (1 + α·R) for a fully flooded edge, α = 2 unless
   stated. The recommended route minimises total cost.
-- Alert levels at the start: over 30 cm = DEEP; above the knee (0.285 × height) = VERY_DEEP; above
+- Alert levels at the start: over 50 cm = DEEP; above the knee (0.285 × height) = VERY_DEEP; above
   half the height = CRITICAL.
+- A downgrade is offered only when the start is at most OVER_LIMIT, and only up to 50 cm.
 - Walking speed 1.3 m/s.
 
 Limits used below:
@@ -26,6 +27,7 @@ Limits used below:
 |---|---|---|---|---|---|---|---|
 | Adult | 1.70 m | 2.00 cm | 6.63 cm | 20.57 cm | 27.54 cm | 48.45 cm | 85 cm |
 | Child | 1.20 m | 2.00 cm | 4.68 cm | 14.52 cm | 19.44 cm | 34.20 cm | 60 cm |
+| Tall adult | 1.90 m | 2.00 cm | 7.41 cm | 22.99 cm | 30.78 cm | 54.15 cm (limit 50 cm) | 95 cm |
 
 ## Part 1 — exact predictions on a test town
 
@@ -99,12 +101,14 @@ b12 at 10 cm, α = 2. Bottom street costs 200 + 100 × (1 + 2R); the detour cost
 
 | Case | Setup | Predictions |
 |---|---|---|
-| E1 | b12 and t12 at 40 cm (every way crosses one). Adult, mid calf. Start B0 (dry) | No route within limit. Shortest ignoring flooding 300 m, deepest 40 cm, "up to the knee". **No downgrade** (40 cm > 30 cm). **Refuge "Shelter", 35 m** (25 m up c0 + 10 m to the door), dry, within the limit. Start level OK, no emergency |
+| E1 | b12 and t12 at 40 cm (every way crosses one). Adult, mid calf. Start B0 (dry) | No route within limit. Shortest ignoring flooding 300 m, deepest 40 cm, "up to the knee". **Downgrade to the knee** (48.45 cm ≥ the 40 cm every way needs; ≤ 50 cm): 300 m via b12. **Refuge "Shelter", 35 m** (25 m up c0 + 10 m to the door), dry, within the limit. Start level OK, no emergency |
 | E2 | b12 at 15 cm, t12 at 25 cm. Adult, ankle | No route within limit. **Downgrade to lower calf** (20.57 cm): the least water to face is **15 cm** (via b12), route **300 m**. Refuge "Shelter", 35 m, within limit. No emergency |
-| E3 | b12 and t12 at 40 cm. Adult, mid calf. Start (150, 0), standing in b12 | Start depth 40 cm → **DEEP** (> 30 cm, ≤ knee 48.45 cm). **Emergency "available"**, SOS depth 40 cm. **No downgrade** (get out of the water first). Refuge "Shelter" by the safest way: 50 m west in b12 + 100 m + 25 m + 10 m = **185 m**, deepest 40 cm, **not within the limit** |
+| E3 | b12 and t12 at 40 cm. Adult, mid calf. Start (150, 0), standing in b12 | Start depth 40 cm → **OVER_LIMIT** (> limit 27.54 cm, ≤ knee 48.45 cm, ≤ 50 cm). **No emergency** (a refuge exists). **Downgrade to the knee**: least water 40 cm, 50 m east in b12 + 100 m = **150 m**. Refuge "Shelter" by the safest way: 50 m west in b12 + 100 m + 25 m + 10 m = **185 m**, deepest 40 cm, **not within the limit** |
 | E4 | As E3, water 90 cm | 90 cm > 85 cm half height → **CRITICAL**, emergency **"strongly recommended"** |
 | E5 | As E3, child, mid calf | 40 cm > child knee 34.2 cm → **VERY_DEEP**, emergency **"recommended"** |
 | E6 | As E1 but no buildings | No route, no refuge → emergency **"only option"** |
+| E7 | b12 and t12 at 60 cm. Adult, mid calf. Start B0 (dry) | No route within limit. **No downgrade** (60 cm > 50 cm). Refuge "Shelter", 35 m, within the limit. Start level OK, no emergency |
+| E8 | b12 and t12 at 52 cm. Tall adult (1.90 m), mid calf. Start (150, 0), standing in b12 | 52 cm > 50 cm, ≤ knee 54.15 cm → **DEEP**, emergency **"available"**, SOS depth 52 cm. **No downgrade** (start deeper than OVER_LIMIT). Refuge "Shelter" by the safest way, **185 m**, deepest 52 cm, **not within the limit** |
 
 ### F — switching conditions
 
@@ -123,7 +127,7 @@ flood levels.
 | R-A | Normal conditions: for every trip and traveller, the recommended route equals the shortest route |
 | R-B | Every level, every traveller: no recommended route or shortest-within-limit route uses water deeper than the traveller's limit |
 | R-C | Whenever both exist, the recommended route's risk cost is ≤ the risk cost of the shortest-within-limit route, and ≤ that of the flood-ignoring shortest route if that one is passable |
-| R-D | Same height: a trip possible with a stricter limit is possible with every looser one (no wading ⇒ ankle ⇒ lower calf ⇒ mid calf) |
+| R-D | Same height: a trip possible with a stricter limit is possible with every looser one (no wading ⇒ ankle ⇒ lower calf ⇒ mid calf ⇒ knee) |
 | R-E | Every trip without a route within the limit offers at least one way forward: a downgrade, a refuge, being sheltered, or emergency help |
 | R-F | For a fixed traveller (adult, ankle), the number of network edges over the limit rises strictly from normal to extreme, and the share of trips with a route within the limit never rises |
 
@@ -164,3 +168,10 @@ trips possible at the ankle limit: (100, 97, 17, 10, 2) of 100.
 (light, moderate, heavy and extreme flooding; see architecture.md): predictions unchanged, **68 of
 68 checks met**. Edges over the no-wading limit by level: (0, 169, 1,165, 1,526, 2,341); trips
 possible at the ankle limit: (100, 93, 20, 17, 2) of 100.
+
+**Sixth run, after the hard limit was raised from 30 cm to 50 cm and the knee added as a limit.**
+Before running, E1 and E3 were re-derived under the new rules (above: E1 now offers a downgrade
+to the knee; in E3 40 cm is OVER_LIMIT, so there is a downgrade and no emergency), and E7 and E8
+were added to keep testing what E1 and E3 used to test: water beyond the hard limit (no
+downgrade) and the DEEP level (only reachable by people taller than about 175 cm). Part 2 adds a
+knee traveller to R-A to R-E. Result: **76 of 76 checks met**.

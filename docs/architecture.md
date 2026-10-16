@@ -93,7 +93,7 @@ Conventions that keep these interchangeable:
 ## Flood risk
 
 A traveller picks the deepest water they accept as a body part; `risk.profile.TravellerProfile`
-converts it to a depth from their height H, capped at 30 cm:
+converts it to a depth from their height H, capped at 50 cm:
 
 | Choice | Depth | 170 cm adult |
 |---|---|---|
@@ -101,10 +101,13 @@ converts it to a depth from their height H, capped at 30 cm:
 | Ankle | 0.039 × H | 6.6 cm |
 | Lower calf | 0.121 × H | 20.6 cm |
 | Mid calf | 0.162 × H | 27.5 cm |
+| Knee | 0.285 × H | 48.5 cm |
 
 Ankle and knee heights are Drillis & Contini's body proportions; the calf points lie a third of
-the way and halfway from ankle to knee. Knee (0.285 × H) is not offered: it exceeds 30 cm for
-anyone taller than about 105 cm. Wheelchair users are limited to 2 cm. Up to 2 cm counts as dry
+the way and halfway from ankle to knee. The 50 cm cap is Melbourne Water's limit for safe
+pedestrian access in Southbank, and the H2 depth limit for people (Smith, Davey & Cox, 2014); it
+binds only for the knee, for people taller than about 175 cm. Thigh and waist are not offered:
+they would read 50 cm for almost everyone. Wheelchair users are limited to 2 cm. Up to 2 cm counts as dry
 pavement for everyone, so "no wading" means no water beyond what any pavement carries in rain.
 
 `risk.model.DepthRelativeRisk` gives each edge a risk from its deepest point:
@@ -306,8 +309,8 @@ inside a building counts as sheltered.
 | Level | Water at the start | What is offered |
 |---|---|---|
 | `OK` | within their limit | normal routes |
-| `OVER_LIMIT` | over their limit, up to 30 cm | warning; refuge and downgrade if no safe route |
-| `DEEP` | over 30 cm | refuge (safest route); emergency help available |
+| `OVER_LIMIT` | over their limit, up to 50 cm | warning; refuge and downgrade if no safe route |
+| `DEEP` | over 50 cm (below the knee only for people taller than about 175 cm) | refuge (safest route); emergency help available |
 | `VERY_DEEP` | above the knee (0.285 × height) | refuge; emergency help recommended |
 | `CRITICAL` | above half their height, or unknown | emergency help strongly recommended; refuge route only "if you cannot wait" |
 
@@ -322,7 +325,7 @@ against brute-force enumeration of every path on small random graphs. Unknown de
 infinitely deep, used only when nothing else connects.
 
 **Downgrade.** When the destination is out of reach within the limit, the safest-path search gives
-the least water that has to be faced; the smallest body part covering it (never above 30 cm, never
+the least water that has to be faced; the smallest body part covering it (never above 50 cm, never
 for wheelchair users) is offered with that route.
 
 **Refuges.** In this version every building with a way in counts as a sheltered refuge
