@@ -2,7 +2,9 @@
 
 Walking routes for Southbank, Melbourne that minimise exposure to flood hazards instead of only
 distance. The routing engine works on a real pedestrian network; flood conditions come from
-interchangeable sources (synthetic scenarios today, sensors and forecasts later).
+interchangeable sources (synthetic scenarios today, sensors and forecasts later). Each traveller
+sets the deepest water they accept as a body part, converted to a depth from their height; deeper
+water is never routed through, and shallower water costs more the closer it is to that limit.
 
 ## Repository layout
 
@@ -13,7 +15,8 @@ backend/                 Python package, scripts and tests (uv project)
   tests/
   streamlit_app.py       interim map UI, to be replaced by frontend/
 frontend/                web client (planned)
-data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts)
+data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
+                         data/scenarios/ holds synthetic flood scenarios (GeoJSON)
 docs/                    architecture and design notes
 ```
 
@@ -27,6 +30,7 @@ uv sync                                    # create .venv and install dependenci
 uv run python scripts/download_data.py     # fetch OSM and City of Melbourne data into data/raw
 uv run python scripts/build_network.py     # build data/processed/southbank_network.gpkg and places
 uv run pytest                              # run the test suite
+uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
 uv run streamlit run streamlit_app.py      # open the interim map UI
 ```
 

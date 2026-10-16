@@ -1,6 +1,6 @@
 """Interim Streamlit map UI for the routing engine, until the web frontend replaces it.
 
-Shortest walking route; flood conditions are not applied yet.
+Risk-aware walking routes under synthetic flood scenarios, for a traveller's own wading limit.
 
 Run (from backend/):  uv run streamlit run streamlit_app.py
 """
@@ -17,7 +17,11 @@ from streamlit_js_eval import get_geolocation
 
 from floodroute import config
 from floodroute import places as pl
+from floodroute.hazard import NoHazard
+from floodroute.hazard.scenarios import ScenarioHazard, list_scenarios, load_scenario
 from floodroute.network import is_snappable, load_graph, to_gdfs
+from floodroute.risk import DEFAULT_ALPHA, HARD_LIMIT_M, BodyPart, TravellerProfile, risk_cost
+from floodroute.risk.metrics import route_metrics
 from floodroute.routing import Router, RoutingError
 from floodroute.sources import geocoding as geocode
 
@@ -28,6 +32,10 @@ CHOOSE, CURRENT = "A point I choose", "My current location"
 
 NETWORK_COLOUR = "#4a6f94"
 ROUTE_COLOUR = "#7b2cbf"
+SHORTEST_COLOUR = "#555555"
+WATER_COLOUR = "#1f78b4"
+OVER_LIMIT_COLOUR = "#d62728"
+NO_FLOOD = "No flooding"
 START_COLOUR = "green"
 DEST_COLOUR = "red"
 
@@ -48,6 +56,33 @@ def load_router() -> Router:
 def load_places() -> pl.PlaceResolver:
     return pl.PlaceResolver(gpd.read_file(PLACES_PATH, layer="buildings"),
                             gpd.read_file(PLACES_PATH, layer="entrances"), load_router().footpaths)
+
+
+@st.cache_resource
+def load_hazards() -> dict:
+    """Scenario title -> hazard provider."""
+    hazards = {NO_FLOOD: NoHazard()}
+    for path in list_scenarios():
+        scenario = load_scenario(path)
+        hazards[scenario.title] = ScenarioHazard(scenario)
+    return hazards
+
+
+@st.cache_resource
+def flood_features(title: str) -> dict:
+    """Zones and wet edges of a scenario, as WGS84 GeoJSON with depths."""
+    hazard = load_hazards()[title]
+    if not isinstance(hazard, ScenarioHazard):
+        return {"zones": None, "edges": []}
+    graph = load_router().graph
+    snapshot = hazard.snapshot(graph)
+    zones = gpd.GeoDataFrame([{"name": z.name, "max_depth_m": z.max_depth_m, "geometry": z.polygon}
+                              for z in hazard.scenario.zones], crs=config.METRIC_CRS).to_crs(config.WGS84)
+    by_id = {d["edge_id"]: d for *_, d in graph.edges(data=True)}
+    edges = [{"depth_m": c.depth_m, "geometry": by_id[eid]["geometry"]} for eid, c in snapshot.conditions.items()]
+    edges = gpd.GeoDataFrame(edges, crs=config.METRIC_CRS).to_crs(config.WGS84) if edges else None
+    return {"zones": zones.__geo_interface__,
+            "edges": [] if edges is None else [(r.depth_m, r.geometry.__geo_interface__) for r in edges.itertuples()]}
 
 
 @st.cache_resource
@@ -194,6 +229,22 @@ with st.sidebar:
     search_box(DEST)
 
     st.divider()
+    scenario_title = st.selectbox("Flood scenario", list(load_hazards()))
+    hazard = load_hazards()[scenario_title]
+    if isinstance(hazard, ScenarioHazard):
+        st.caption(hazard.scenario.description)
+    height_cm = st.number_input("Your height (cm)", min_value=60, max_value=230, value=170, step=1)
+    part = st.selectbox("Deepest water you will walk through", list(BodyPart), index=1,
+                        format_func=lambda b: b.label)
+    wheelchair = st.checkbox("I use a wheelchair or mobility aid")
+    profile = TravellerProfile(height_cm / 100, part, uses_wheelchair=wheelchair)
+    st.caption(f"Your limit: **{profile.depth_limit_m * 100:.0f} cm** "
+               f"(never more than {HARD_LIMIT_M * 100:.0f} cm)")
+    with st.expander("Routing settings"):
+        alpha = st.slider("Risk weight α", 0.0, 10.0, DEFAULT_ALPHA, 0.5,
+                          help="Extra metres worth walking to avoid one metre of water at your limit.")
+
+    st.divider()
     options = [DEST] if gps_ok else [START, DEST]
     if "next_click_target" in state:
         state.click_target = state.pop("next_click_target")
@@ -213,18 +264,35 @@ with st.sidebar:
 # --------------------------------------------------------------------------- route + map
 
 router = load_router()
-route, error, ends = None, None, {}
+snapshot = hazard.snapshot(router.graph)
+route, shortest, error, ends = None, None, None, {}
 if state.start and state.dest:
     if not (in_southbank(state.start) and in_southbank(state.dest)):
         error = "Start and destination must both be inside Southbank (the black boundary)."
     else:
         ends = {START: resolve(START), DEST: resolve(DEST)}
         try:
-            route = router.route(ends[START].access_points, ends[DEST].access_points)
-        except RoutingError as exc:
-            error = str(exc)
+            shortest = router.route(ends[START].access_points, ends[DEST].access_points)
+            route = router.route(ends[START].access_points, ends[DEST].access_points,
+                                 risk_cost(snapshot, profile, alpha=alpha))
+        except RoutingError:
+            error = (f"No route keeps you within your limit ({profile.depth_limit_m * 100:.0f} cm) "
+                     "in this scenario.") if shortest is not None else "No route connects these points."
 
 overlay = folium.FeatureGroup(name="route")
+flood = flood_features(scenario_title)
+if flood["zones"]:
+    folium.GeoJson(flood["zones"], style_function=lambda f: {
+        "color": WATER_COLOUR, "weight": 1, "fillColor": WATER_COLOUR,
+        "fillOpacity": min(0.5, 0.15 + f["properties"]["max_depth_m"])},
+        tooltip=folium.GeoJsonTooltip(["name", "max_depth_m"], aliases=["Flood zone", "Max depth (m)"])).add_to(overlay)
+for depth, geom in flood["edges"]:  # wet footpaths: red where deeper than this traveller's limit
+    over = depth > profile.depth_limit_m
+    folium.GeoJson(geom, style_function=lambda _, o=over: {"color": OVER_LIMIT_COLOUR if o else WATER_COLOUR,
+                                                           "weight": 5, "opacity": 0.9,
+                                                           "dashArray": "6 4" if o else None},
+                   tooltip=f"{depth * 100:.0f} cm · {profile.describe_depth(depth)}"
+                           + (" · over your limit" if over else "")).add_to(overlay)
 for which, place in ends.items():  # the building a start/destination resolved to, and its usable doors
     colour = START_COLOUR if which == START else DEST_COLOUR
     if place.building is not None:
@@ -234,9 +302,13 @@ for which, place in ends.items():  # the building a start/destination resolved t
         for a in place.access:
             folium.CircleMarker(to_latlon(a.point), radius=4, color=colour, fill=True, fill_opacity=0.6,
                                 tooltip=f"{place.label}: {a.label}").add_to(overlay)
+if shortest is not None and (route is None or not shortest.geometry.equals(route.geometry)):
+    folium.PolyLine([to_latlon(Point(c)) for c in shortest.geometry.coords], color=SHORTEST_COLOUR, weight=4,
+                    opacity=0.8, dash_array="8 6", tooltip=f"Shortest, ignoring flooding: {shortest.length_m:.0f} m"
+                    ).add_to(overlay)
 if route is not None:
     folium.PolyLine([to_latlon(Point(c)) for c in route.geometry.coords], color=ROUTE_COLOUR, weight=7,
-                    opacity=0.9, tooltip=f"{route.length_m:.0f} m").add_to(overlay)
+                    opacity=0.9, tooltip=f"Recommended: {route.length_m:.0f} m").add_to(overlay)
     for snap in (route.origin, route.destination):  # short walk between the door/point and the footpath
         folium.PolyLine([to_latlon(snap.point), to_latlon(snap.snapped)], color=ROUTE_COLOUR, weight=3,
                         dash_array="4 6").add_to(overlay)
@@ -251,10 +323,20 @@ for which, colour in ((START, START_COLOUR), (DEST, DEST_COLOUR)):
 if error:
     st.error(error)
 elif route is not None:
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Walking distance", f"{route.length_m:,.0f} m")
-    c2.metric("Estimated time", f"{route.travel_time_s / 60:.0f} min")
-    c3.metric("Network edges used", len(route.edge_ids))
+    m = route_metrics(route, snapshot, profile, reference_length_m=shortest.length_m)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Walking distance", f"{m.length_m:,.0f} m",
+              f"+{m.detour_ratio:.0%} vs shortest" if m.detour_ratio and m.detour_ratio > 0.005 else None,
+              delta_color="off")
+    c2.metric("Estimated time", f"{m.travel_time_s / 60:.0f} min")
+    c3.metric("Deepest water", "none" if not m.max_depth_m or m.max_depth_m <= 0.02 else f"{m.max_depth_m * 100:.0f} cm",
+              m.max_depth_label if m.max_depth_m and m.max_depth_m > 0.02 else None, delta_color="off")
+    c4.metric("Distance in water", f"{m.wading_length_m:,.0f} m")
+    if shortest is not None and not shortest.geometry.equals(route.geometry):
+        s = route_metrics(shortest, snapshot, profile)
+        st.caption(f"Grey dashed line: shortest route ignoring flooding, {s.length_m:,.0f} m, "
+                   f"{s.wading_length_m:,.0f} m in water, deepest {s.max_depth_label}"
+                   + (f", **{s.segments_over_limit} section(s) over your limit**" if s.segments_over_limit else "") + ".")
     def describe(place: pl.Place, used) -> str:
         if place.method == "point":
             return "**selected point**"

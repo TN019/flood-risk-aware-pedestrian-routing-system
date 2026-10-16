@@ -4,8 +4,9 @@ A ``PathFinder`` returns the node sequence of a cheapest path between two nodes 
 cost function. Cost functions follow the NetworkX convention: ``cost(u, v, data)`` returns a
 non-negative number, or ``None`` to make the edge impassable.
 
-New algorithms (an in-house Dijkstra, A*, time-dependent search) implement the same protocol
-and are passed to ``Router(path_finder=...)``.
+Implementations: ``routing.dijkstra.Dijkstra`` (in-house, the router's default) and
+``NetworkXDijkstra`` (reference, used to verify it). Further algorithms (A*, time-dependent
+search) implement the same protocol and are passed to ``Router(path_finder=...)``.
 """
 
 from __future__ import annotations
