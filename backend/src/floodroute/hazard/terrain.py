@@ -9,10 +9,11 @@ estimated statically from a bare-earth elevation model:
   to the river through ground lower than that level is under water ("bathtub with connectivity",
   the usual method for regional coastal inundation mapping). Ground the river cannot reach stays
   dry however low it is.
-- Stormwater ponding (``depression_ponding``): inside the official overland-flow extents (SBO
-  overlays) water collects in closed depressions of the terrain. A depression full to its spill
-  point is the most it can hold before water runs on; ``fill_fraction`` sets how far up from its
-  lowest point each depression fills.
+- Stormwater ponding (``depression_ponding``): rain that the drains cannot take collects in closed
+  depressions of the terrain, wherever they are; the plan describes local stormwater flooding as
+  shallow but widespread across streets and laneways. A depression full to its spill point is the
+  most it can hold before water runs on; ``fill_fraction`` sets how far up from its lowest point
+  each depression fills.
 
 This is a static estimate, not a hydraulic model: no flow, velocity, timing or drainage.
 """
@@ -23,7 +24,6 @@ import heapq
 from dataclasses import dataclass
 from pathlib import Path
 
-import geopandas as gpd
 import numpy as np
 from affine import Affine
 from rasterio.features import geometry_mask
@@ -36,7 +36,6 @@ WATER_SURFACE_M = 0.05  # DEM cells at or below this are river or dock water sur
 PIT_WINDOW_CELLS = 5  # neighbourhood used to recognise narrow pits (about 25 m across)
 PIT_TOLERANCE_M = 0.5  # ground more than this below its neighbourhood median is treated as a pit
 GROUND_FILTER_CELLS = 3  # final median smoothing
-OVERLAND_CODES = ("SBO",)
 EIGHT_NEIGHBOURS = np.ones((3, 3), dtype=bool)
 
 
@@ -131,7 +130,6 @@ def depression_ponding(terrain: Terrain, areas: np.ndarray, fill_fraction: float
 
 def scenario_depths(
     terrain: Terrain,
-    overlays: gpd.GeoDataFrame,
     river_level_m: float | None,
     ponding_fill_fraction: float,
 ) -> DepthGrid:
@@ -140,8 +138,6 @@ def scenario_depths(
     if river_level_m is not None:
         depth = river_inundation(terrain, river_level_m)
     if ponding_fill_fraction > 0:
-        overlays = overlays.to_crs(terrain.crs)
-        overland = overlays[overlays["zone_code"].fillna("").str.startswith(OVERLAND_CODES)]
-        depth = np.maximum(depth, depression_ponding(terrain, terrain.mask(overland.geometry), ponding_fill_fraction))
+        depth = np.maximum(depth, depression_ponding(terrain, ~terrain.water, ponding_fill_fraction))
     depth = np.where(np.isnan(terrain.ground_m), np.nan, depth).astype("float32")
     return DepthGrid(depth, terrain.transform, terrain.crs)

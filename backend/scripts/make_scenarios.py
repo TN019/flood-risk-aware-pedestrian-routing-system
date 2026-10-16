@@ -2,16 +2,14 @@
 
 Reads the definitions in data/scenarios/*.json and writes data/processed/scenarios/<id>.tif.
 
-Inputs (scripts/download_data.py --only dem overlays):
-- Geoscience Australia 5 m LiDAR DEM (data/raw/dem_5m_southbank.tif)
-- Vicmap Planning flood overlays (data/raw/flood_overlays_southbank.geojson)
+Input (scripts/download_data.py --only dem): Geoscience Australia 5 m LiDAR DEM
+(data/raw/dem_5m_southbank.tif).
 
 Run:  uv run python scripts/make_scenarios.py
 """
 
 from __future__ import annotations
 
-import geopandas as gpd
 import numpy as np
 
 from floodroute import config
@@ -22,14 +20,13 @@ from floodroute.hazard.terrain import Terrain, scenario_depths
 
 def main() -> None:
     terrain = Terrain.read(config.DEM_PATH)
-    overlays = gpd.read_file(config.FLOOD_OVERLAYS_PATH)
     land = ~terrain.water & ~np.isnan(terrain.ground_m)
     for info in list_scenarios():
         if info.method != TERRAIN_FILL:
             print(f"{info.order} {info.title}: no water")
             continue
         river = info.params["river_level_m_ahd"]
-        grid = scenario_depths(terrain, overlays, river, info.params["ponding_fill_fraction"])
+        grid = scenario_depths(terrain, river, info.params["ponding_fill_fraction"])
         grid.write(info.grid_path)
         wet = (np.nan_to_num(grid.depth_m) > DRY_DEPTH_M) & land
         print(

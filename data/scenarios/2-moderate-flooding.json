@@ -5,11 +5,11 @@
   "method": "terrain-fill",
   "river_level_m_ahd": 1.6,
   "ponding_fill_fraction": 1.0,
-  "description": "A 1-in-100-year storm tide today (1.6 m AHD) backs up the Yarra while local depressions are full of stormwater. A static estimate, not a hydraulic model: no flow or velocity. Upstream river flows can raise Southbank levels above the bay tide level, so river depths are a lower bound.",
+  "description": "A 1-in-100-year storm tide today (1.6 m AHD) backs up the Yarra while low spots across the area are full of stormwater. A static estimate, not a hydraulic model: no flow or velocity. Upstream river flows can raise Southbank levels above the bay tide level, so river depths are a lower bound.",
   "sources": [
     "Mechanism: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026).",
     "River level: Melbourne Water 1% annual exceedance probability tide level in Port Phillip Bay, Planning for Sea Level Rise Guidelines (2017), as cited in GHD (2019) Appendix G, Fishermans Bend flood levee memo. Today: 1.6 m AHD.",
-    "Stormwater ponding: closed terrain depressions inside the Special Building Overlay (overland flow) extents, Vicmap Planning (CC BY 4.0).",
+    "Stormwater ponding: closed depressions of the ground model, anywhere in the area; the plan describes local stormwater flooding as shallow but widespread across streets, laneways and building interfaces.",
     "Ground: Geoscience Australia 5 m LiDAR digital elevation model (CC BY 4.0)."
   ]
 }
