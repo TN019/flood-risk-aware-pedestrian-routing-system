@@ -2,6 +2,7 @@
 name = "floodroute"
 version = "0.1.0"
 description = "Flood risk-aware pedestrian routing for Southbank, Melbourne"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
     "geopandas>=1.0",

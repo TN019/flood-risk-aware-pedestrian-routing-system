@@ -1,0 +1,10 @@
+Flood Risk-Aware Pedestrian Routing
+Copyright 2026 TN019 and contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It uses data that is not covered by that licence:
+- OpenStreetMap data © OpenStreetMap contributors, available under the Open Database
+  License (ODbL) 1.0. Databases derived from it (e.g. processed network files) must be
+  shared under the ODbL and credit OpenStreetMap.
+- City of Melbourne open data, licensed under Creative Commons Attribution (CC BY).

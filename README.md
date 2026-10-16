@@ -42,3 +42,16 @@ Both write maps and reports to `reports/` (git-ignored).
 | Southbank boundary (study area) | City of Melbourne, CLUE small areas | CC BY |
 | Pedestrian network (alternative source) | City of Melbourne, Pedestrian Network | CC BY |
 | Place search | OpenStreetMap Nominatim | ODbL; usage policy applies |
+
+## Safety notice
+
+Routes are guidance based on modelled or reported conditions, which can be incomplete, out of date
+or wrong, and flood conditions can change quickly. A suggested route is not a guarantee that it is
+safe. Never walk, ride or drive through floodwater you do not have to, follow directions from
+emergency services, and in an emergency call 000.
+
+## Licence
+
+Code is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution.
+Data listed above keeps its own licence; processed network files derived from OpenStreetMap are
+covered by the ODbL and must credit OpenStreetMap if shared.
