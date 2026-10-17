@@ -7,6 +7,11 @@ actually standing on runs underneath it.
 
 The search itself is delegated to a ``PathFinder`` and the edge cost to a cost function, so
 both can be swapped (e.g. a flood-risk cost, or A*) without touching snapping or route assembly.
+
+An access leg (the straight walk from a point to a footpath) that runs alongside or across the
+middle of a flight of steps, or passes close to both its ends (a flight that turns back on itself),
+is marked ``is_steps`` like the steps themselves; otherwise a leg could join the footpath at the top
+of a short flight and so skip the steps for travellers who cannot use them.
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ WALKING_SPEED_M_S = 1.3  # typical adult walking speed
 MAX_SNAP_DISTANCE_M = 100.0  # a point further than this from any footpath is rejected
 SNAP_SLACK_M = 15.0  # also consider footpaths up to this much further away than the nearest
 STANDING_TOLERANCE_M = 1.0  # footpaths this close to the nearest one also count as "standing on"
+STEPS_END_M = 1.0  # an access leg may meet a flight of steps within this far of either end (a quarter if shorter)
+STEPS_CLEARANCE_M = 0.5  # an access leg this close to the rest of a flight passes it
 MAX_SNAP_CANDIDATES = 6
 
 ORIGIN = "origin"
@@ -92,6 +99,8 @@ class Router:
         self._edges = [(u, v) for u, v, d in graph.edges(data=True) if is_snappable(d)]
         self._geoms = [graph.edges[e]["geometry"] for e in self._edges]
         self._tree = STRtree(self._geoms)
+        self._steps = [_Flight.of(d["geometry"]) for *_, d in graph.edges(data=True) if d.get("is_steps")]
+        self._steps_tree = STRtree([f.line for f in self._steps]) if self._steps else None
 
     def snap_candidates(self, point: Point) -> list[Snap]:
         """Footpaths this point could be joined to, nearest first."""
@@ -112,6 +121,13 @@ class Router:
 
     def snap(self, point: Point) -> Snap:
         return self.snap_candidates(point)[0]
+
+    def passes_steps(self, leg: LineString) -> bool:
+        """Whether a straight leg runs past a flight of steps: alongside or across its middle, or close
+        to both its ends."""
+        if self._steps_tree is None:
+            return False
+        return any(self._steps[i].passed_by(leg) for i in self._steps_tree.query(leg.buffer(STEPS_END_M)))
 
     @property
     def footpaths(self) -> list[BaseGeometry]:
@@ -158,10 +174,11 @@ class Router:
                 # one the traveller stands on, of the water where they stand.
                 joined = self.graph.edges[snap.edge]
                 also = () if joined["edge_id"] in standing else standing
+                leg = LineString([snap.point, snap.snapped])
                 graph.add_edge(
                     name,
                     access,
-                    geometry=LineString([snap.point, snap.snapped]),
+                    geometry=leg,
                     length_m=snap.distance_m,
                     cost_factor=1.0,
                     edge_id=ACCESS_EDGE,
@@ -169,6 +186,7 @@ class Router:
                     parent_edge_id=joined["edge_id"],
                     parent_length_m=joined["length_m"],
                     standing_on=also,
+                    is_steps=self.passes_steps(leg),
                 )
         try:
             nodes = (path_finder or self.path_finder).find_path(graph, ORIGIN, DESTINATION, cost)
@@ -215,6 +233,30 @@ def _oriented(geom: LineString, start: Point) -> LineString:
     if Point(geom.coords[0]).distance(start) <= Point(geom.coords[-1]).distance(start):
         return geom
     return LineString(geom.coords[::-1])
+
+
+@dataclass(frozen=True)
+class _Flight:
+    """A flight of steps as seen by an access leg, which may meet it at its top or bottom but not
+    run past the rest of it."""
+
+    line: LineString
+    middle: LineString  # the flight without its ends
+    ends: tuple[Point, Point]
+    end_m: float
+    clearance_m: float
+
+    @classmethod
+    def of(cls, line: LineString) -> _Flight:
+        end = min(STEPS_END_M, line.length / 4)
+        middle = _piece(line, end, line.length - end)
+        ends = (Point(line.coords[0]), Point(line.coords[-1]))
+        return cls(line, middle, ends, end, min(STEPS_CLEARANCE_M, end))
+
+    def passed_by(self, leg: LineString) -> bool:
+        if self.middle.distance(leg) < self.clearance_m:
+            return True
+        return all(p.distance(leg) < self.end_m for p in self.ends)
 
 
 def _piece(geom: LineString, start: float, end: float) -> LineString:

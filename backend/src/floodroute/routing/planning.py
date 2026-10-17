@@ -55,7 +55,7 @@ class RoutePlan:
     alpha: float
     blocked_edges: int  # network edges over this traveller's limit under these conditions
     step_free: bool = False  # the traveller cannot use steps, so no route uses them
-    steps_avoided: bool = False  # the plain shortest way uses steps that this traveller cannot
+    steps_avoided: bool = False  # the plain shortest way uses steps this traveller cannot use
 
     @property
     def options(self) -> tuple[RouteOption, RouteOption, RouteOption]:

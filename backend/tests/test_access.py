@@ -142,3 +142,62 @@ def test_no_wheelchair_route_in_a_trip_uses_steps():
     assert not t.has_safe_route and t.routes.step_free
     routes = [o.route for o in t.routes.options if o.found] + [t.refuge.route, t.least_water.route]
     assert len(routes) == 3 and not any(r.uses_steps for r in routes)
+
+
+def test_an_access_leg_cannot_skip_a_short_flight_of_steps():
+    """A 6 m flight S0–S1 between two footpaths, and an 86 m step-free way round it. From the bottom
+    of the flight, the footpath at the top is only 6 m away in a straight line."""
+    g = nx.Graph(crs=config.METRIC_CRS)
+    xy = {"P": (-100, 0), "S0": (0, 0), "S1": (6, 0), "Q": (106, 0), "U": (0, 40), "V": (6, 40)}
+    for n, (x, y) in xy.items():
+        g.add_node(n, x=x, y=y, kind="junction", in_study_area=True)
+    for i, (u, v) in enumerate((("P", "S0"), ("S0", "S1"), ("S1", "Q"), ("S0", "U"), ("U", "V"), ("V", "S1"))):
+        geom = LineString([xy[u], xy[v]])
+        g.add_edge(
+            u,
+            v,
+            geometry=geom,
+            length_m=geom.length,
+            edge_id=f"e{i}",
+            cost_factor=1.0,
+            in_study_area=True,
+            is_steps=i == 1,
+        )
+    router = Router(g)
+    walker = plan_routes(router, Point(0, 0), Point(6, 0), DRY_SNAPSHOT, WALKER)
+    assert walker.recommended.route.length_m == pytest.approx(6) and walker.recommended.route.uses_steps
+    chair = plan_routes(router, Point(0, 0), Point(6, 0), DRY_SNAPSHOT, CHAIR)
+    assert {round(o.route.length_m, 6) for o in chair.options} == {86.0}
+    assert not any(o.route.uses_steps for o in chair.options)
+    # Legs that only meet the flight at its top or bottom are not steps.
+    assert not router.passes_steps(LineString([(-5, -5), (0, 0)]))
+    assert not router.passes_steps(LineString([(6, 10), (6, 0)]))
+    assert router.passes_steps(LineString([(3, -5), (3, 5)]))  # across the middle
+
+
+def test_an_access_leg_cannot_skip_a_flight_that_turns_back():
+    """A 10 m flight that climbs north and comes back, so its bottom S0 and top S1 are 2 m apart, and
+    a 62 m step-free way round to the south."""
+    g = nx.Graph(crs=config.METRIC_CRS)
+    xy = {"P": (-100, 0), "S0": (0, 0), "S1": (2, 0), "Q": (102, 0), "U": (0, -30), "V": (2, -30)}
+    for n, (x, y) in xy.items():
+        g.add_node(n, x=x, y=y, kind="junction", in_study_area=True)
+    flight = LineString([(0, 0), (0, 4), (2, 4), (2, 0)])
+    edges = (("P", "S0"), ("S0", "S1"), ("S1", "Q"), ("S0", "U"), ("U", "V"), ("V", "S1"))
+    for i, (u, v) in enumerate(edges):
+        geom = flight if i == 1 else LineString([xy[u], xy[v]])
+        g.add_edge(
+            u,
+            v,
+            geometry=geom,
+            length_m=geom.length,
+            edge_id=f"e{i}",
+            cost_factor=1.0,
+            in_study_area=True,
+            is_steps=i == 1,
+        )
+    router = Router(g)
+    assert router.passes_steps(LineString([(0, 0), (2, 0)]))
+    chair = plan_routes(router, Point(0, 0), Point(2, 0), DRY_SNAPSHOT, CHAIR)
+    assert {round(o.route.length_m, 6) for o in chair.options} == {62.0}
+    assert not any(o.route.uses_steps for o in chair.options)
