@@ -52,6 +52,10 @@ and the interfaces new code should plug into.
    npm test                       # unit tests
    ```
 
+   If a change adds a feature or changes what the app shows, refresh the README images in the same
+   pull request: with the API (port 8010) and `npm run dev` running, `npm run capture` rewrites the
+   screenshots and the walkthrough in `docs/images/` (needs Google Chrome and ffmpeg).
+
    If you change path finding, also run `uv run python scripts/compare_pathfinders.py`; it must
    report no mismatches against the NetworkX reference.
 4. Open a pull request into `main` describing what changed, why, and how it was verified.
