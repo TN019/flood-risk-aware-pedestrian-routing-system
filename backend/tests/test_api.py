@@ -38,14 +38,24 @@ class StaticHazard:
         return HazardSnapshot("test", at, conditions, DRY)
 
 
-def town_service() -> Service:
+def town_service(steps: tuple[str, ...] = ()) -> Service:
     xy = {1: (0, 0), 2: (150, 0), 3: (300, 0), 4: (0, 100), 5: (300, 100)}
     g = nx.Graph(crs=config.METRIC_CRS, study_area=box(X0 - 50, Y0 - 50, X0 + 350, Y0 + 150), buffer_m=50.0)
     for n, (x, y) in xy.items():
         g.add_node(n, x=X0 + x, y=Y0 + y, kind="junction", in_study_area=True)
     for i, (u, v) in enumerate(((1, 2), (2, 3), (1, 4), (4, 5), (5, 3))):
         geom = LineString([(X0 + xy[u][0], Y0 + xy[u][1]), (X0 + xy[v][0], Y0 + xy[v][1])])
-        g.add_edge(u, v, geometry=geom, length_m=geom.length, edge_id=f"e{i}", cost_factor=1.0, in_study_area=True)
+        eid = f"e{i}"
+        g.add_edge(
+            u,
+            v,
+            geometry=geom,
+            length_m=geom.length,
+            edge_id=eid,
+            cost_factor=1.0,
+            in_study_area=True,
+            is_steps=eid in steps,
+        )
     router = Router(g)
     buildings = gpd.GeoDataFrame(
         {"name": ["Shelter"], "geometry": [box(X0 + 100, Y0 + 30, X0 + 140, Y0 + 70)]}, crs=config.METRIC_CRS
@@ -66,6 +76,13 @@ def town_service() -> Service:
 @pytest.fixture(scope="module")
 def client():
     with TestClient(create_app(town_service, serve_client=False)) as c:
+        yield c
+
+
+@pytest.fixture(scope="module")
+def stepped_client():
+    """The same streets with steps on the east half of the bottom street (e1)."""
+    with TestClient(create_app(lambda: town_service(steps=("e1",)), serve_client=False)) as c:
         yield c
 
 
@@ -159,3 +176,22 @@ def test_traveller_explains_the_preference(client):
     assert j["depth_limit_m"] == pytest.approx(0.02) and "no effect" in j["explanation"]
     j = client.post("/api/traveller", json={"height_cm": 170, "wading": "mid_calf", "preference": "driest"}).json()
     assert j["alpha"] == 15 and "further" in j["explanation"]
+
+
+def test_wheelchair_trips_never_use_steps(stepped_client):
+    walker = trip(stepped_client, scenario="dry").json()
+    chair = trip(stepped_client, scenario="dry", wheelchair=True).json()
+    for o in walker["routes"]["options"]:
+        assert o["route"]["uses_steps"] and o["route"]["metrics"]["length_m"] == pytest.approx(310, abs=1)
+    assert not walker["routes"]["step_free"] and not walker["routes"]["steps_avoided"]
+    for o in chair["routes"]["options"]:
+        assert not o["route"]["uses_steps"] and o["route"]["metrics"]["length_m"] == pytest.approx(510, abs=1)
+    assert chair["routes"]["step_free"] and chair["routes"]["steps_avoided"]
+
+
+def test_wheelchair_trip_in_water_offers_no_route_over_steps(stepped_client):
+    # Bottom street flooded at 50 cm and partly steps: every route, refuge and least-water route stays off the steps.
+    j = trip(stepped_client, scenario="both", wheelchair=True).json()
+    routes = [o["route"] for o in j["routes"]["options"] if o["found"]]
+    routes += [j[k]["route"] for k in ("refuge", "least_water", "downgrade") if j[k] is not None]
+    assert routes and not any(r["uses_steps"] for r in routes)

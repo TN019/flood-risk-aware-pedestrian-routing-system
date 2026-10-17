@@ -59,6 +59,7 @@ class RouteSegment:
     source_length_m: float  # length of that whole network edge
     is_access: bool = False
     standing_on: tuple[str, ...] = ()  # access legs: footpaths where the traveller starts or ends
+    on_steps: bool = False
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,10 @@ class Route:
     @property
     def travel_time_s(self) -> float:
         return self.length_m / WALKING_SPEED_M_S
+
+    @property
+    def uses_steps(self) -> bool:
+        return any(seg.on_steps for seg in self.segments)
 
 
 class Router:
@@ -185,6 +190,7 @@ class Router:
                     data.get("parent_length_m") or data["length_m"],
                     is_access,
                     tuple(data.get("standing_on", ())),
+                    bool(data.get("is_steps")),
                 )
             )
             if is_access:

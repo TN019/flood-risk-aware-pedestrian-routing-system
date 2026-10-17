@@ -282,6 +282,8 @@ class Service:
             routes = {
                 "alpha": alpha,
                 "blocked_edges": trip.routes.blocked_edges,
+                "step_free": trip.routes.step_free,
+                "steps_avoided": trip.routes.steps_avoided,
                 "options": [
                     {
                         "kind": option.kind,
@@ -382,6 +384,7 @@ class Service:
         return {
             "geometry": self.to_wgs(route.geometry),
             "access_legs": [self.to_wgs(leg) for leg in legs if leg.length > 0],
+            "uses_steps": route.uses_steps,
             "from": {**self.latlon(route.origin.point), "label": start.access_label(route.origin.point)},
             "to": {
                 **self.latlon(route.destination.point),
