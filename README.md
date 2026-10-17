@@ -6,6 +6,31 @@ interchangeable sources (scenarios built from published flood levels and terrain
 sets the deepest water they accept as a body part, converted to a depth from their height; deeper
 water is never routed through, and shallower water costs more the closer it is to that limit.
 
+## Screenshots
+
+Each trip opens with the next step to take, and the map highlights the route it refers to. Water
+the traveller can walk through is blue; water over their limit, or of unknown depth, is dashed red.
+
+**A route that fits.** Light flooding, ankle limit: the shortest way crosses water of unknown
+depth, so the recommended route walks 12 m further to stay within the limit.
+
+![Recommended route under light flooding, with the next step and the route comparison](docs/images/detour.jpg)
+
+**No route fits: a choice.** Moderate flooding, Boyd Village to Crown Melbourne, mid-calf limit
+(28 cm): every way crosses at least 32 cm, so the choices are to accept water up to the knee or to
+stay inside. The deepest point on the way is marked.
+
+![Two choices side by side when no route fits the traveller's limit](docs/images/choose.jpg)
+
+**Standing in deep water.** Heavy flooding, starting in 67 cm: emergency help comes first, then the
+nearest shelter by the shallowest way out.
+
+![Emergency help and the way to the nearest shelter from deep water](docs/images/emergency.jpg)
+
+**On a phone.** The map sits above a sheet that slides up; the legend starts folded.
+
+<img src="docs/images/phone.jpg" alt="The same choice on a phone" width="300">
+
 ## Repository layout
 
 ```
