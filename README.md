@@ -77,7 +77,7 @@ uv run python scripts/make_scenarios.py    # build the flood scenario depth grid
 uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
-uv run python scripts/verify.py            # cases A–G vs the predictions in docs/verification.md
+uv run python scripts/verify.py            # cases A–H vs the predictions in docs/verification.md
 uv run streamlit run streamlit_app.py      # open the Streamlit map UI
 ```
 
@@ -93,6 +93,23 @@ then open http://localhost:8000; the API serves the built client and its own rou
 `npm run dev` in `frontend/` instead and open the address it prints; it passes `/api` requests to
 the API on port 8000 (or wherever `FLOODROUTE_API_URL` points, e.g. `http://127.0.0.1:8010` when
 port 8000 is taken) and reloads on every change.
+
+### Sharing a temporary public link
+
+To let someone elsewhere open your copy, without hosting it anywhere, run from the repository root
+
+```bash
+./deploy/share.sh       # macOS and Linux; on Windows double-click deploy\share.bat
+```
+
+Each run builds the web client from your working copy, starts the API on a free local port
+(8010, or the next free one) and opens a [Cloudflare quick tunnel](https://try.cloudflare.com),
+then prints a public `https://….trycloudflare.com` address; Ctrl+C (or closing the window on
+Windows) stops both. It needs the processed data from the steps above, Node.js, and `cloudflared`
+(`brew install cloudflared` on macOS, `winget install --id Cloudflare.cloudflared` on Windows).
+The address is public, so anyone who has it can open the app; it changes on every run and works
+only while your computer is on and the script is running. It serves your local files, so pull
+first if you want the latest commits.
 
 `scripts/build_network.py --source com` builds the alternative City of Melbourne network, and
 `scripts/validate_com_network.py` reports its topology and coverage against OpenStreetMap.
