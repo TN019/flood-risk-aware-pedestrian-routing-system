@@ -226,6 +226,13 @@ that R-G could not see: for 64 of the 72 trips whose
 walking route used the steps, the wheelchair route was just as short. Its straight access leg ran
 from the bottom of a short flight to the footpath at its top, within the 15 m snapping reach, so
 no network edge on the route was steps. Access legs that run past a flight are now treated as
-steps (architecture.md, "Wheelchair users"), with two unit tests that fail without the rule. After
+steps (architecture.md, "Mobility aid users"), with two unit tests that fail without the rule. After
 that, 92 walking routes count as using steps (legs included) and none of the wheelchair routes
 uses steps or is as short as the walking route.
+
+**Eighth run, after wheelchair users got device levels.** Case H (test town), R-H and the wider
+R-G (Southbank) were derived and committed before the change; the Southbank trips now also run for
+a manual wheelchair at 5 cm and 7.5 cm and a mobility scooter at 2.5 cm. Result: **121 of 121
+checks met**, including all 15 in H. The one random trip whose plain shortest way has steps is
+now counted once for each of the four mobility aid travellers (4), and none of their routes uses
+steps. No manual wheelchair trip is possible at a lower level but not a higher one.

@@ -126,7 +126,8 @@ Ankle and knee heights are Drillis & Contini's body proportions; the calf points
 the way and halfway from ankle to knee. The 50 cm cap is Melbourne Water's limit for safe
 pedestrian access in Southbank, and the H2 depth limit for people (Smith, Davey & Cox, 2014); it
 binds only for the knee, for people taller than about 175 cm. Thigh and waist are not offered:
-they would read 50 cm for almost everyone. Wheelchair users are limited to 2 cm. Up to 2 cm counts as dry
+they would read 50 cm for almost everyone. Travellers with a wheeled mobility aid pick a level of
+their device instead (see [Mobility aid users](#mobility-aid-users)). Up to 2 cm counts as dry
 pavement for everyone, so "no wading" means no water beyond what any pavement carries in rain.
 
 `risk.model.DepthRelativeRisk` gives each edge a risk from its deepest point:
@@ -145,9 +146,27 @@ With no water R = 0 everywhere and the cost equals the plain walking cost, so ro
 flood are identical to routing without the risk layer (tested on the Southbank network). Flow
 velocity is not used yet.
 
-### Wheelchair users
+### Mobility aid users
 
-Wheelchair users get two rules: water no deeper than 2 cm, and **no steps**. `risk.access.can_use`
+Height does not say how deep a wheelchair or scooter can go, so a traveller with a wheeled mobility
+aid picks the device and one of its levels (`risk.profile.MobilityAid`):
+
+| Device | Levels | Cap |
+|---|---|---|
+| Manual wheelchair | no water (2 cm), below a 4-inch castor axle (5 cm), below a 6-inch castor axle (7.5 cm) | 7.5 cm |
+| Powered wheelchair | no water (2 cm), well below the chassis (5 cm) | 5 cm |
+| Mobility scooter | no water (2 cm), a shallow puddle (2.5 cm) | 2.5 cm |
+
+No study measures how stable an occupied wheelchair or scooter is in floodwater, so the levels
+follow device geometry and manufacturer instructions: the one depth a scooter manufacturer states,
+the height of castor axles, and the ground clearance of powered chairs whose electrics are rated
+only for spray. Two values are judgements, the 7.5 cm manual cap and the 2.5 cm margin below a
+powered chair's chassis; [parameters.md](parameters.md) gives the sources and marks both. The
+caps replace the 50 cm for walkers: the device's cap is the hard limit in every search, in the
+least-water report and in the downgrade. The origin alert tiers still use the traveller's height
+(known limit).
+
+Every mobility aid user gets **no steps** whatever the level. `risk.access.can_use`
 makes an edge with `is_steps` (OSM `highway=steps`, 100 network edges) impassable for them,
 whatever the water, and every search made for them applies it: `risk_cost` (shortest within limit,
 recommended, refuge), `walking_cost_for` (shortest ignoring flooding, least water, safest way to a
@@ -344,7 +363,7 @@ experiments.
 
 When water is the obstacle, the safe and recommended options carry an error instead of a route;
 the shortest option is still returned so the exposure it would involve can be shown. For
-wheelchair users all three leave out steps.
+mobility aid users all three leave out steps.
 
 ## When no safe route exists
 
@@ -378,8 +397,9 @@ the way that faces the least water (`trip.find_least_water`): how deep its deepe
 that point is, and the route. It is reported whatever the depth, so the traveller can see why no
 route fits.
 
-**Downgrade.** From the least water, the smallest body part covering it (never above 50 cm, never
-for wheelchair users) is offered with that route. For wheelchair users the least water and the
+**Downgrade.** From the least water, the smallest body part covering it (never above 50 cm) is
+offered with that route. A mobility aid user is offered the lowest higher level of the same device
+that covers it, never above the device's cap. For mobility aid users the least water and the
 refuge route are searched over step-free ways only.
 
 **Refuges.** In this version every building with a way in counts as a sheltered refuge
