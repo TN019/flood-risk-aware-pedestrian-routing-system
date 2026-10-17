@@ -40,9 +40,9 @@ and the interfaces new code should plug into.
 3. Before pushing, make sure all of these pass:
 
    ```bash
-   uv run ruff check              # lint (uv run ruff check --fix for safe automatic fixes)
-   uv run ruff format --check     # formatting (uv run ruff format to apply)
-   uv run pytest                  # tests
+   uv run ruff check . ../deploy           # lint (uv run ruff check --fix for safe automatic fixes)
+   uv run ruff format --check . ../deploy  # formatting (uv run ruff format to apply)
+   uv run pytest                           # tests
    ```
 
    If you change the web client, also run, from `frontend/`:

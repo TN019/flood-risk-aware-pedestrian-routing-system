@@ -32,9 +32,9 @@ jobs:
       - name: Install Python and dependencies
         run: uv sync --locked
       - name: Lint
-        run: uv run ruff check
+        run: uv run ruff check . ../deploy
       - name: Formatting
-        run: uv run ruff format --check
+        run: uv run ruff format --check . ../deploy
       - name: Tests
         run: uv run pytest
 
