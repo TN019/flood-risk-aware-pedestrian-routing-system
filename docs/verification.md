@@ -20,6 +20,9 @@ hydraulic model results.
   half the height = CRITICAL.
 - A downgrade is offered only when the start is at most OVER_LIMIT, and only up to 50 cm.
 - Walking speed 1.3 m/s.
+- Wheelchair users never use steps: an edge marked as steps is impassable for them in every search
+  (shortest ignoring flooding, shortest within limit, recommended, least water, refuge). For
+  everyone else steps are ordinary paths.
 
 Limits used below:
 
@@ -116,6 +119,17 @@ Same router, same trip and traveller (adult, ankle), conditions switched normal 
 normal: recommended **300 → 400 → 300 m**; edges over the limit **0 → 1 → 0**. Nothing from one
 run carries into the next.
 
+### G — steps and wheelchair users
+
+The same town with some edges marked as steps (no other change). Adult, ankle limit (6.63 cm)
+against a wheelchair user (2 cm, no steps). Start B0 unless stated.
+
+| Case | Setup | Predictions |
+|---|---|---|
+| G1 | b12 is steps. No water | Adult: shortest, shortest within limit and recommended all **300 m**, through b12 (steps are ordinary paths for walkers); no steps reported as avoided. Wheelchair: all three **400 m**, none through b12; steps reported as avoided. Edges over the limit for the wheelchair user: **0** (steps are not water) |
+| G2 | b12 is steps, t12 at 10 cm | Adult: t12 is over the limit, b12 is usable: recommended **300 m**. Wheelchair: every way from x = 100 to x = 200 uses b12 (steps) or t12 (10 cm > 2 cm), so **no route within the limit**. Shortest ignoring flooding **400 m** (step-free, through t12). Least water **10 cm**, route **400 m** (the dry 300 m way has steps). No downgrade. Refuge "Shelter", **35 m**, within the limit. Start level OK, no emergency |
+| G3 | c0 is steps, b12 and t12 at 10 cm | Adult: no route within limit; downgrade to the lower calf, least water 10 cm, route 300 m; refuge "Shelter", **35 m** up c0, within the limit; no emergency. Wheelchair: no route within limit; least water **10 cm**, route **300 m** (via b12, no steps); no downgrade; the Shelter door joins the network only on c0 (the bottom and top streets are 26.9 m from it, beyond the 10 + 15 m snapping reach), so **no refuge** is offered; emergency **"only option"** |
+
 ## Part 2 — properties on the Southbank network
 
 On the real network exact routes cannot be worked out by hand, so the predictions are properties
@@ -130,6 +144,7 @@ flood levels.
 | R-D | Same height: a trip possible with a stricter limit is possible with every looser one (no wading ⇒ ankle ⇒ lower calf ⇒ mid calf ⇒ knee) |
 | R-E | Every trip without a route within the limit offers at least one way forward: a downgrade, a refuge, being sheltered, or emergency help |
 | R-F | For a fixed traveller (adult, ankle), the number of network edges over the limit rises strictly from normal to extreme, and the share of trips with a route within the limit never rises |
+| R-G | Every level, every trip: no route planned for a wheelchair user (shortest ignoring flooding, shortest within limit, recommended, least water, refuge) uses steps |
 
 ## Results
 
