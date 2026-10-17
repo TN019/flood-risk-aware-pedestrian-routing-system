@@ -199,6 +199,8 @@ export function MapView(props: Props) {
       attributionControl: { compact: true },
     });
     map.current = m;
+    // For scripts/capture.mjs, which records the README images: development builds only.
+    if (import.meta.env.DEV) (window as unknown as { __floodrouteMap?: maplibregl.Map }).__floodrouteMap = m;
     let rebuildTimer: number | undefined;
     let rebuildPending = false;
     const rebuild = () => {
@@ -364,7 +366,9 @@ export function MapView(props: Props) {
     }, BASEMAP_TIMEOUT_MS);
     m.on("click", (e: MapMouseEvent) => clickHandler.current(e.lngLat.lat, e.lngLat.lng));
 
-    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    // The hover popup must not catch clicks: it sits next to the pointer, and a click on it would
+    // not reach the map (so a start or destination on a flooded street could not be set).
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: "hover-popup" });
     for (const layer of ["water-ok", "water-over"]) {
       m.on("mousemove", layer, (e) => {
         const depth = e.features?.[0]?.properties?.depth_m;
