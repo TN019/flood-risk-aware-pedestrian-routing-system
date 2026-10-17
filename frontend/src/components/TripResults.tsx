@@ -10,7 +10,7 @@ interface Props {
   options: Options;
   sosSentAt: number | null;
   onSos: (sentAt: number | null) => void;
-  onUseLimit: (bodyPart: string) => void;
+  onUseLimit: (downgrade: NonNullable<TripPlan["downgrade"]>) => void;
   selected: RouteKind | null;
   onSelect: (kind: RouteKind | null) => void;
 }

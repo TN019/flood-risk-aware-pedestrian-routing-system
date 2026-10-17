@@ -11,8 +11,12 @@ export function describeDepth(depthM: number | null, heightM: number, options: P
   return "above the shoulders";
 }
 
+/** Centimetres: whole above 10 cm; below that, one decimal when it matters (2.5 cm, 6.6 cm). */
 export function cm(depthM: number): string {
-  return `${Math.round(depthM * 100)} cm`;
+  const value = depthM * 100;
+  const whole = Math.round(value);
+  if (value >= 10 || Math.abs(value - whole) < 0.05) return `${whole} cm`;
+  return `${value.toFixed(1)} cm`;
 }
 
 export function distance(metres: number): string {

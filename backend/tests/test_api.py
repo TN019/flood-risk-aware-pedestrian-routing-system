@@ -195,3 +195,29 @@ def test_wheelchair_trip_in_water_offers_no_route_over_steps(stepped_client):
     routes = [o["route"] for o in j["routes"]["options"] if o["found"]]
     routes += [j[k]["route"] for k in ("refuge", "least_water", "downgrade") if j[k] is not None]
     assert routes and not any(r["uses_steps"] for r in routes)
+
+
+def test_options_list_mobility_aids_and_their_levels(client):
+    aids = {a["key"]: [lv["depth_m"] for lv in a["levels"]] for a in client.get("/api/options").json()["mobility_aids"]}
+    assert aids == {
+        "manual_wheelchair": [0.02, 0.05, 0.075],
+        "powered_wheelchair": [0.02, 0.05],
+        "mobility_scooter": [0.02, 0.025],
+    }
+
+
+def test_mobility_aid_trip_uses_the_device_level(client):
+    # The bottom street is at 50 cm: far beyond every device, so the downgrade offer is empty.
+    j = trip(client, mobility_aid="manual_wheelchair", aid_level=2).json()
+    assert j["traveller"]["depth_limit_m"] == pytest.approx(0.075)
+    assert j["traveller"]["hard_limit_m"] == pytest.approx(0.075)
+    assert j["traveller"]["limit_label"] == "below a 6-inch castor axle"
+    assert j["has_safe_route"]  # the dry top street
+    info = client.post("/api/traveller", json={"mobility_aid": "mobility_scooter", "aid_level": 1}).json()
+    assert info["depth_limit_m"] == pytest.approx(0.025) and info["limit_label"] == "a shallow puddle"
+
+
+def test_mobility_aid_requests_are_checked(client):
+    assert trip(client, mobility_aid="hoverboard").status_code == 422
+    r = trip(client, mobility_aid="mobility_scooter", aid_level=2)
+    assert r.status_code == 422 and "no level 2" in r.json()["detail"]

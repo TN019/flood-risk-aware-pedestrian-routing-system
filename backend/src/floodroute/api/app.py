@@ -22,13 +22,16 @@ from floodroute.api.service import RequestError, Service
 
 BodyPartKey = Literal["no_wading", "ankle", "lower_calf", "mid_calf", "knee"]
 PreferenceKey = Literal["shortest", "balanced", "avoid_water", "driest"]
+MobilityAidKey = Literal["none", "manual_wheelchair", "powered_wheelchair", "mobility_scooter"]
 CLIENT_DIR = config.REPO_ROOT / "frontend" / "dist"
 
 
 class Traveller(BaseModel):
     height_cm: float = Field(170, ge=60, le=230)
     wading: BodyPartKey = "ankle"
-    wheelchair: bool = False
+    wheelchair: bool = Field(False, description="Without mobility_aid: a manual wheelchair, no water")
+    mobility_aid: MobilityAidKey = "none"
+    aid_level: int = Field(0, ge=0, le=5, description="Index into the device's levels, lowest first")
     preference: PreferenceKey = "balanced"
     alpha: float | None = Field(None, ge=0, le=50, description="Overrides the preference's risk weight")
 
@@ -93,7 +96,9 @@ def create_app(load_service: Callable[[], Service] = Service.from_files, serve_c
 
     @app.post("/api/traveller")
     def traveller(body: Traveller) -> dict:
-        return service().traveller(body.height_cm, body.wading, body.wheelchair, body.preference, body.alpha)
+        return service().traveller(
+            body.height_cm, body.wading, body.wheelchair, body.preference, body.alpha, body.mobility_aid, body.aid_level
+        )
 
     @app.get("/api/search")
     def search(q: str = Query(min_length=1, max_length=200)) -> list[dict]:
@@ -116,6 +121,8 @@ def create_app(load_service: Callable[[], Service] = Service.from_files, serve_c
             t.wheelchair,
             t.preference,
             t.alpha,
+            t.mobility_aid,
+            t.aid_level,
         )
 
     if serve_client and CLIENT_DIR.exists():

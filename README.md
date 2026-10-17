@@ -3,8 +3,9 @@
 Walking routes for Southbank, Melbourne that minimise exposure to flood hazards instead of only
 distance. The routing engine works on a real pedestrian network; flood conditions come from
 interchangeable sources (scenarios built from published flood levels and terrain today, sensors and forecasts later). Each traveller
-sets the deepest water they accept as a body part, converted to a depth from their height; deeper
-water is never routed through, and shallower water costs more the closer it is to that limit.
+sets the deepest water they accept as a body part, converted to a depth from their height (or, with
+a wheelchair or mobility scooter, a level of their device); deeper water is never routed through,
+and shallower water costs more the closer it is to that limit.
 
 ## Walkthrough
 
@@ -35,6 +36,14 @@ stay inside. The deepest point on the way is marked.
 nearest shelter by the shallowest way out.
 
 ![Emergency help and the way to the nearest shelter from deep water](docs/images/emergency.jpg)
+
+**With a wheelchair.** Light flooding, a manual wheelchair at its lowest level (no water, 2 cm),
+from inside the Crown Entertainment Complex to Boyd Village: every step-free way crosses 3 cm, so
+the choices are to accept water below a 4-inch castor axle (5 cm), the device's next level, or to
+stay inside. Each device has its own levels and cap (manual wheelchair 7.5 cm, powered wheelchair
+5 cm, mobility scooter 2.5 cm), and routes never use steps.
+
+![A manual wheelchair user offered the next level of their device or staying inside](docs/images/wheelchair.jpg)
 
 **On a phone.** The map sits above a sheet that slides up; the legend starts folded.
 

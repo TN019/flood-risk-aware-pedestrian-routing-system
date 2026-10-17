@@ -23,7 +23,7 @@ from floodroute import places as pl
 from floodroute.hazard.catalog import NONE, list_scenarios, load_hazard
 from floodroute.network import is_snappable, load_graph, to_gdfs
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
+from floodroute.risk import DRY_DEPTH_M, BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
 from floodroute.risk.levels import REFERENCE_HEIGHT_M, FloodLevel, level_of, typical_depth_m
 from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
@@ -321,15 +321,32 @@ with st.sidebar:
         with st.expander("Sources"):
             st.markdown("\n".join(f"- {source}" for source in scenario_info.params["sources"]))
     height_cm = st.number_input("Your height (cm)", min_value=60, max_value=230, value=170, step=1)
-    if "next_wading_part" in state:  # set by "use this limit"; widgets may only change before they render
+    # Set by "use this limit"; widgets may only change before they render.
+    if "next_wading_part" in state:
         state.wading_part = state.pop("next_wading_part")
+    if "next_aid_level" in state:
+        state.aid_level = state.pop("next_aid_level")
+    aid = st.selectbox("Mobility aid", list(MobilityAid), format_func=lambda a: a.label.capitalize())
     state.setdefault("wading_part", BodyPart.ANKLE)
-    part = st.selectbox(
-        "Deepest water you will walk through", list(BodyPart), key="wading_part", format_func=lambda b: b.label
+    if aid is MobilityAid.NONE:
+        part = st.selectbox(
+            "Deepest water you will walk through", list(BodyPart), key="wading_part", format_func=lambda b: b.label
+        )
+        profile = TravellerProfile(height_cm / 100, part)
+    else:
+        if state.get("aid_level_for") != aid:  # a different device starts at its lowest level
+            state.aid_level, state.aid_level_for = 0, aid
+        level = st.selectbox(
+            f"Deepest water for your {aid.label}",
+            range(len(aid.levels)),
+            key="aid_level",
+            format_func=lambda i: f"{aid.levels[i].label} ({aid.levels[i].depth_m * 100:g} cm)",
+        )
+        st.caption("Limits for wheeled aids follow the device, not your height. Routes never use steps.")
+        profile = TravellerProfile(height_cm / 100, mobility_aid=aid, aid_level=level)
+    st.caption(
+        f"Your limit: **{profile.depth_limit_m * 100:g} cm** (never more than {profile.hard_limit_m * 100:g} cm)"
     )
-    wheelchair = st.checkbox("I use a wheelchair or mobility aid")
-    profile = TravellerProfile(height_cm / 100, part, uses_wheelchair=wheelchair)
-    st.caption(f"Your limit: **{profile.depth_limit_m * 100:.0f} cm** (never more than {HARD_LIMIT_M * 100:.0f} cm)")
     preference = st.radio(
         "Route preference",
         list(RoutePreference),
@@ -462,7 +479,7 @@ if trip is not None and trip.downgrade is not None:
         weight=5,
         opacity=0.9,
         dash_array="10 6",
-        tooltip=f"With a {trip.downgrade.body_part.label} limit: {trip.downgrade.option.route.length_m:,.0f} m",
+        tooltip=f"With a higher limit ({trip.downgrade.label}): {trip.downgrade.option.route.length_m:,.0f} m",
     ).add_to(overlay)
 if trip is not None and trip.refuge is not None:
     folium.PolyLine(
@@ -543,12 +560,15 @@ def show_alternatives(trip: TripPlan) -> None:
         m = d.option.metrics
         with st.container(border=True):
             st.markdown(
-                f"**Accept water up to the {d.body_part.label} ({d.depth_limit_m * 100:.0f} cm)?** "
+                f"**Accept water {'up to the ' if d.body_part else ''}{d.label} ({d.depth_limit_m * 100:g} cm)?** "
                 f"Then you can get there: {m.length_m:,.0f} m, deepest {m.max_depth_m * 100:.0f} cm "
                 f"({m.max_depth_label}). Dashed light purple on the map."
             )
-            if st.button(f"Use the {d.body_part.label} limit"):
-                state.next_wading_part = d.body_part
+            if st.button("Use this limit"):
+                if d.body_part is not None:
+                    state.next_wading_part = d.body_part
+                else:
+                    state.next_aid_level = d.aid_level
                 st.rerun()
     if trip.refuge is not None:
         r = trip.refuge

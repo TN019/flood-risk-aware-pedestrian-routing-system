@@ -25,7 +25,7 @@ from floodroute.network import is_snappable
 from floodroute.places import Place, PlaceResolver
 from floodroute.places.refuges import RefugeIndex
 from floodroute.places.resolver import DESTINATION, ORIGIN
-from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, TravellerProfile
+from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
 from floodroute.risk.levels import REFERENCE_HEIGHT_M, FloodLevel, level_of, typical_depth_m
 from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
@@ -135,6 +135,15 @@ class Service:
             "landmarks": [{"fraction": f, "name": n} for f, n in LANDMARKS],
             "dry_depth_m": DRY_DEPTH_M,
             "hard_limit_m": HARD_LIMIT_M,
+            "mobility_aids": [
+                {
+                    "key": aid.name.lower(),
+                    "label": aid.label,
+                    "levels": [{"key": lv.key, "label": lv.label, "depth_m": lv.depth_m} for lv in aid.levels],
+                }
+                for aid in MobilityAid
+                if aid is not MobilityAid.NONE
+            ],
             "preferences": [
                 {"key": p.name.lower(), "label": p.label, "summary": p.summary, "alpha": p.alpha}
                 for p in RoutePreference
@@ -197,12 +206,23 @@ class Service:
 
     # ------------------------------------------------------------------ traveller
 
-    def traveller(self, height_cm: float, wading: str, wheelchair: bool, preference: str, alpha: float | None) -> dict:
-        profile = make_profile(height_cm, wading, wheelchair)
+    def traveller(
+        self,
+        height_cm: float,
+        wading: str,
+        wheelchair: bool,
+        preference: str,
+        alpha: float | None,
+        mobility_aid: str = "none",
+        aid_level: int = 0,
+    ) -> dict:
+        profile = make_profile(height_cm, wading, wheelchair, mobility_aid, aid_level)
         alpha = preference_alpha(preference) if alpha is None else alpha
         return {
             "depth_limit_m": profile.depth_limit_m,
-            "limit_label": profile.describe_depth(profile.depth_limit_m),
+            "limit_label": limit_label(profile),
+            "hard_limit_m": profile.hard_limit_m,
+            "mobility_aid": profile.mobility_aid.name.lower(),
             "alpha": alpha,
             "explanation": explain(alpha, profile),
         }
@@ -248,9 +268,11 @@ class Service:
         wheelchair: bool,
         preference: str,
         alpha: float | None = None,
+        mobility_aid: str = "none",
+        aid_level: int = 0,
     ) -> dict:
         scenario = self.scenario(scenario_id)
-        profile = make_profile(height_cm, wading, wheelchair)
+        profile = make_profile(height_cm, wading, wheelchair, mobility_aid, aid_level)
         alpha = preference_alpha(preference) if alpha is None else alpha
         places = {}
         for which, spec, role in (("start", start, ORIGIN), ("destination", destination, DESTINATION)):
@@ -301,8 +323,10 @@ class Service:
         if trip.downgrade is not None:
             d = trip.downgrade
             downgrade = {
-                "body_part": d.body_part.name.lower(),
-                "body_part_label": d.body_part.label,
+                "body_part": None if d.body_part is None else d.body_part.name.lower(),
+                "aid_level": d.aid_level,
+                "label": d.label,
+                "body_part_label": d.label,
                 "depth_limit_m": d.depth_limit_m,
                 "required_depth_m": d.required_depth_m,
                 "route": self._route_json(d.option.route, d.option.metrics, start, end),
@@ -323,7 +347,7 @@ class Service:
             least = {
                 "required_depth_m": lw.required_depth_m,
                 "required_label": profile.describe_depth(lw.required_depth_m),
-                "beyond_hard_limit": lw.required_depth_m is None or lw.required_depth_m > HARD_LIMIT_M,
+                "beyond_hard_limit": lw.required_depth_m is None or lw.required_depth_m > profile.hard_limit_m,
                 "deepest_point": self.latlon(lw.deepest_at),
                 "route": self._route_json(lw.route, lw.metrics, start, end),
             }
@@ -347,9 +371,11 @@ class Service:
             "destination": self._place_json(end),
             "traveller": {
                 "depth_limit_m": profile.depth_limit_m,
-                "limit_label": profile.describe_depth(profile.depth_limit_m),
+                "limit_label": limit_label(profile),
                 "height_m": profile.height_m,
-                "hard_limit_m": HARD_LIMIT_M,
+                "hard_limit_m": profile.hard_limit_m,
+                "mobility_aid": profile.mobility_aid.name.lower(),
+                "mobility_aid_label": profile.mobility_aid.label,
             },
             "origin": {
                 "level": o.level.name.lower(),
@@ -402,15 +428,29 @@ class Service:
         }
 
 
-def make_profile(height_cm: float, wading: str, wheelchair: bool) -> TravellerProfile:
+def make_profile(
+    height_cm: float, wading: str, wheelchair: bool, mobility_aid: str = "none", aid_level: int = 0
+) -> TravellerProfile:
+    """``wheelchair=True`` without ``mobility_aid`` means a manual wheelchair, no water."""
     try:
         part = BodyPart[wading.upper()]
     except KeyError:
         raise RequestError(f"Unknown wading limit {wading!r}.") from None
     try:
-        return TravellerProfile(height_cm / 100, part, uses_wheelchair=wheelchair)
+        aid = MobilityAid[mobility_aid.upper()]
+    except KeyError:
+        raise RequestError(f"Unknown mobility aid {mobility_aid!r}.") from None
+    try:
+        return TravellerProfile(
+            height_cm / 100, part, uses_wheelchair=wheelchair, mobility_aid=aid, aid_level=aid_level
+        )
     except ValueError as exc:
         raise RequestError(str(exc)) from exc
+
+
+def limit_label(profile: TravellerProfile) -> str:
+    """The traveller's limit in words: a level of their device, or where it reaches on the body."""
+    return profile.aid.label if profile.aid is not None else profile.describe_depth(profile.depth_limit_m)
 
 
 def preference_alpha(preference: str) -> float:

@@ -10,7 +10,8 @@ interface Props {
 }
 
 export function TravellerPanel({ options, traveller, info, onChange }: Props) {
-  const ids = { height: useId(), wading: useId(), alpha: useId() };
+  const ids = { height: useId(), wading: useId(), aid: useId(), level: useId(), alpha: useId() };
+  const aid = options.mobility_aids.find((a) => a.key === traveller.mobility_aid) ?? null;
   const set = (patch: Partial<Traveller>) => onChange({ ...traveller, ...patch });
   const heightM = traveller.height_cm / 100;
 
@@ -37,30 +38,49 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
         </div>
       </div>
       <div className="row">
-        <label htmlFor={ids.wading}>Deepest water you will walk through</label>
-        <select
-          id={ids.wading}
-          value={traveller.wading}
-          onChange={(e) => set({ wading: e.target.value })}
-          disabled={traveller.wheelchair}
-        >
-          {options.body_parts.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.fraction === null
-                ? `${p.label} (${cm(options.dry_depth_m)})`
-                : `${p.label} (${cm(Math.min(p.fraction * heightM, options.hard_limit_m))})`}
+        <label htmlFor={ids.aid}>Mobility aid</label>
+        <select id={ids.aid} value={traveller.mobility_aid} onChange={(e) => set({ mobility_aid: e.target.value, aid_level: 0 })}>
+          <option value="none">None</option>
+          {options.mobility_aids.map((a) => (
+            <option key={a.key} value={a.key}>
+              {a.label.charAt(0).toUpperCase() + a.label.slice(1)}
             </option>
           ))}
         </select>
       </div>
-      <label className="check">
-        <input type="checkbox" checked={traveller.wheelchair} onChange={(e) => set({ wheelchair: e.target.checked })} />
-        I use a wheelchair or mobility aid
-      </label>
+      {aid ? (
+        <div className="row">
+          <label htmlFor={ids.level}>Deepest water for your {aid.label}</label>
+          <select id={ids.level} value={traveller.aid_level} onChange={(e) => set({ aid_level: Number(e.target.value) })}>
+            {aid.levels.map((level, i) => (
+              <option key={level.key} value={i}>
+                {`${level.label} (${cm(level.depth_m)})`}
+              </option>
+            ))}
+          </select>
+          <p className="muted small">
+            Limits for wheeled aids follow the device (castor axle, chassis, manufacturer advice), not your height. Routes never use
+            steps.
+          </p>
+        </div>
+      ) : (
+        <div className="row">
+          <label htmlFor={ids.wading}>Deepest water you will walk through</label>
+          <select id={ids.wading} value={traveller.wading} onChange={(e) => set({ wading: e.target.value })}>
+            {options.body_parts.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.fraction === null
+                  ? `${p.label} (${cm(options.dry_depth_m)})`
+                  : `${p.label} (${cm(Math.min(p.fraction * heightM, options.hard_limit_m))})`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {info && (
         <p className="limit">
           Your limit: <strong>{cm(info.depth_limit_m)}</strong>{" "}
-          <span className="muted">(never more than {cm(options.hard_limit_m)})</span>
+          <span className="muted">(never more than {cm(info.hard_limit_m)})</span>
         </p>
       )}
 

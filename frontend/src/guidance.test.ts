@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultChoice, detourText, situation, whyNoRoute } from "./guidance";
+import { acceptText, defaultChoice, detourText, situation, whyNoRoute } from "./guidance";
 import type { RouteJson, RouteOption, TripPlan } from "./types";
 
 function line(x: number, metrics: Partial<RouteJson["metrics"]> = {}): RouteJson {
@@ -32,7 +32,14 @@ function plan(p: Partial<TripPlan> & { shortest?: RouteJson; recommended?: Route
   return {
     start: { label: "Start", method: "point", point: { lat: 0, lon: 0 }, building: null, access: [] },
     destination: { label: "Crown", method: "entrances", point: { lat: 0, lon: 0 }, building: null, access: [] },
-    traveller: { depth_limit_m: 0.0663, limit_label: "up to the ankle", height_m: 1.7, hard_limit_m: 0.5 },
+    traveller: {
+      depth_limit_m: 0.0663,
+      limit_label: "up to the ankle",
+      height_m: 1.7,
+      hard_limit_m: 0.5,
+      mobility_aid: "none",
+      mobility_aid_label: "none",
+    },
     origin: { level: "ok", level_rank: 0, depth_m: 0, depth_label: "dry", sheltered: false, above_knee: false },
     has_safe_route: recommended !== null,
     routes: {
@@ -58,7 +65,15 @@ const least = (depth: number | null, beyond = false): TripPlan["least_water"] =>
   route: line(400),
 });
 const refuge: TripPlan["refuge"] = { name: "Shelter", entrance_label: "entrance", within_limit: true, building: { type: "Point", coordinates: [0, 0] }, route: line(35) };
-const downgrade: TripPlan["downgrade"] = { body_part: "knee", body_part_label: "knee", depth_limit_m: 0.48, required_depth_m: 0.4, route: line(300) };
+const downgrade: NonNullable<TripPlan["downgrade"]> = {
+  body_part: "knee",
+  aid_level: null,
+  label: "knee",
+  body_part_label: "knee",
+  depth_limit_m: 0.48,
+  required_depth_m: 0.4,
+  route: line(300),
+};
 
 describe("situation", () => {
   it("goes straight when the shortest way fits", () => {
@@ -104,11 +119,25 @@ describe("situation", () => {
 describe("whyNoRoute", () => {
   it("names the least water and the limit it breaks", () => {
     expect(whyNoRoute(plan({ recommended: null, least_water: least(0.32) }))).toBe(
-      "Every way to Crown crosses at least 32 cm of water (up to the mid calf), deeper than your limit of 7 cm. The deepest point is marked on the map.",
+      "Every way to Crown crosses at least 32 cm of water (up to the mid calf), deeper than your limit of 6.6 cm. The deepest point is marked on the map.",
     );
     expect(whyNoRoute(plan({ recommended: null, least_water: least(0.55, true) }))).toContain(
       "more than the 50 cm anyone is routed through",
     );
     expect(whyNoRoute(plan({ recommended: null, least_water: least(null, true) }))).toBe("Every way to Crown crosses water of unknown depth.");
+  });
+});
+
+describe("mobility aids", () => {
+  it("names the device's cap when the least water is beyond it", () => {
+    const p = plan({ recommended: null, least_water: least(0.04, true) });
+    p.traveller = { ...p.traveller, depth_limit_m: 0.02, hard_limit_m: 0.025, mobility_aid: "mobility_scooter", mobility_aid_label: "mobility scooter" };
+    expect(whyNoRoute(p)).toContain("more than the 2.5 cm a mobility scooter is routed through");
+  });
+
+  it("words the higher limit for walkers and for devices", () => {
+    expect(acceptText(downgrade)).toBe("water up to the knee");
+    expect(acceptText({ ...downgrade, body_part: null, aid_level: 1, label: "below a 4-inch castor axle" })).toBe("water below a 4-inch castor axle");
+    expect(acceptText({ ...downgrade, body_part: null, aid_level: 1, label: "a shallow puddle" })).toBe("a shallow puddle");
   });
 });

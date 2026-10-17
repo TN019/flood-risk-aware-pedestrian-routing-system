@@ -24,7 +24,7 @@ from floodroute import config
 from floodroute.hazard import DRY, EdgeCondition, HazardSnapshot
 from floodroute.places import PlaceResolver
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import BodyPart, DepthRelativeRisk, TravellerProfile, risk_cost
+from floodroute.risk import BodyPart, DepthRelativeRisk, MobilityAid, TravellerProfile, risk_cost
 from floodroute.risk.model import source_edge_id
 from floodroute.routing import Route, Router, RoutingError, plan_routes
 from floodroute.trip import ONLY_OPTION, plan_trip
@@ -393,6 +393,77 @@ def run_test_town() -> list[Check]:
     )
     add("G3", "wheelchair: downgrade, refuge", (None, None), (t.downgrade, t.refuge))
     add("G3", "wheelchair: emergency advice", ONLY_OPTION, t.emergency.advice if t.emergency else None)
+
+    # H — mobility aids and their levels
+    def aid(device: MobilityAid, level: int = 0) -> TravellerProfile:
+        return TravellerProfile(ADULT, mobility_aid=device, aid_level=level)
+
+    manual, powered, scooter = (
+        MobilityAid.MANUAL_WHEELCHAIR,
+        MobilityAid.POWERED_WHEELCHAIR,
+        MobilityAid.MOBILITY_SCOOTER,
+    )
+
+    def downgrade(t) -> tuple | None:
+        d = t.downgrade
+        return (d.label, d.required_depth_m, round(d.option.route.length_m, 3)) if d else None
+
+    def refuge(t) -> tuple | None:
+        r = t.refuge
+        return (r.refuge.name, round(r.route.length_m, 3), r.within_limit) if r else None
+
+    t = _trip(flood(b12=0.04), aid(manual))
+    add(
+        "H1",
+        "manual, no water: within limit / recommended (m)",
+        (400.0, 400.0),
+        (_len(t.routes.safe_shortest), _len(t.routes.recommended)),
+    )
+    t = _trip(flood(b12=0.04), aid(manual, 1))
+    add(
+        "H2",
+        "manual, 5 cm: within limit / recommended (m)",
+        (300.0, 400.0),
+        (_len(t.routes.safe_shortest), _len(t.routes.recommended)),
+    )
+    add(
+        "H2", "manual, 5 cm: deepest on the shortest within limit (m)", 0.04, t.routes.safe_shortest.metrics.max_depth_m
+    )
+    t = _trip(flood(b12=0.04), aid(scooter, 1))
+    add("H3", "scooter, 2.5 cm: recommended (m)", 400.0, _len(t.routes.recommended))
+
+    t = _trip(flood(b12=0.04, t12=0.04), aid(manual))
+    lw = t.least_water
+    add("H4", "manual, no water: route within limit", False, t.has_safe_route)
+    add(
+        "H4",
+        "manual: least water (m), its route (m)",
+        (0.04, 300.0),
+        (lw.required_depth_m, round(lw.route.length_m, 3)) if lw else None,
+    )
+    add(
+        "H4",
+        "manual: downgrade to, least water (m), route (m)",
+        ("below a 4-inch castor axle", 0.04, 300.0),
+        downgrade(t),
+    )
+    add("H4", "manual: refuge, length (m), within limit", ("Shelter", 35.0, True), refuge(t))
+    add("H4", "manual: emergency", None, t.emergency)
+    t = _trip(flood(b12=0.04, t12=0.04), aid(scooter))
+    add("H5", "scooter, no water: route within limit", False, t.has_safe_route)
+    add("H5", "scooter: least water (m)", 0.04, t.least_water.required_depth_m if t.least_water else None)
+    add("H5", "scooter: downgrade", None, t.downgrade)
+    add("H5", "scooter: refuge, length (m), within limit", ("Shelter", 35.0, True), refuge(t))
+
+    t = _trip(flood(b12=0.07, t12=0.07), aid(powered))
+    add("H6", "powered, no water: downgrade", None, t.downgrade)
+    t = _trip(flood(b12=0.07, t12=0.07), aid(manual))
+    add(
+        "H6",
+        "manual, no water: downgrade to, least water (m), route (m)",
+        ("below a 6-inch castor axle", 0.07, 300.0),
+        downgrade(t),
+    )
     return checks
 
 
@@ -452,7 +523,13 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
     parts = [BodyPart.NO_WADING, BodyPart.ANKLE, BodyPart.LOWER_CALF, BodyPart.MID_CALF, BodyPart.KNEE]
     travellers = {p.label: adult(p) for p in parts}
     travellers["child, ankle"] = TravellerProfile(CHILD, BodyPart.ANKLE)
-    travellers["wheelchair"] = adult(BodyPart.MID_CALF, uses_wheelchair=True)
+    travellers["wheelchair"] = adult(BodyPart.MID_CALF, uses_wheelchair=True)  # manual wheelchair, no water
+    manual_levels = ["wheelchair", "manual wheelchair, 5 cm", "manual wheelchair, 7.5 cm"]
+    travellers[manual_levels[1]] = TravellerProfile(ADULT, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR, aid_level=1)
+    travellers[manual_levels[2]] = TravellerProfile(ADULT, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR, aid_level=2)
+    travellers["mobility scooter, 2.5 cm"] = TravellerProfile(
+        ADULT, mobility_aid=MobilityAid.MOBILITY_SCOOTER, aid_level=1
+    )
     model = DepthRelativeRisk()
 
     checks: list[Check] = []
@@ -461,9 +538,10 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
         snap = load_hazard(scenario).snapshot(g)
         level = f"{scenario.order} {scenario.title}"
         same, over, cost_bad, monotone_bad, no_way_forward, on_steps, steps_avoided = 0, 0, 0, 0, 0, 0, 0
+        aid_monotone_bad = 0
         feasible_ankle = 0
         for o, d in pairs:
-            feasible = []
+            feasible, feasible_manual = [], []
             for name, prof in travellers.items():
                 plan = plan_routes(router, o.access_points, d.access_points, snap, prof)
                 if (
@@ -484,12 +562,14 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
                         cost_bad += 1
                 if name in {p.label for p in parts}:
                     feasible.append(plan.recommended.found)
+                if name in manual_levels:
+                    feasible_manual.append(plan.recommended.found)
                 if name == BodyPart.ANKLE.label:
                     feasible_ankle += plan.recommended.found
                 trip = None
-                if name == "wheelchair" or (not plan.recommended.found and name == BodyPart.ANKLE.label):
+                if prof.uses_wheelchair or (not plan.recommended.found and name == BodyPart.ANKLE.label):
                     trip = plan_trip(router, refuges, o, d, snap, prof)
-                if name == "wheelchair":
+                if prof.uses_wheelchair:
                     planned = [opt.route for opt in plan.options]
                     planned += [
                         x.route for x in (trip.least_water, trip.refuge, trip.downgrade and trip.downgrade.option) if x
@@ -502,6 +582,9 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
                 if trip is not None and not plan.recommended.found and not way_forward:
                     no_way_forward += 1
             monotone_bad += any(feasible[i] and not feasible[i + 1] for i in range(len(feasible) - 1))
+            aid_monotone_bad += any(
+                feasible_manual[i] and not feasible_manual[i + 1] for i in range(len(feasible_manual) - 1)
+            )
         if scenario.order == 0:
             checks.append(
                 Check("R-A", f"{level}: recommended = shortest (trip × traveller)", len(pairs) * len(travellers), same)
@@ -510,7 +593,10 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
         checks.append(Check("R-C", f"{level}: recommended costlier than an alternative", 0, cost_bad))
         checks.append(Check("R-D", f"{level}: trips possible with a stricter limit only", 0, monotone_bad))
         checks.append(Check("R-E", f"{level}: no-route trips with no way forward", 0, no_way_forward))
-        checks.append(Check("R-G", f"{level}: wheelchair routes using steps", 0, on_steps))
+        checks.append(Check("R-G", f"{level}: mobility aid routes using steps", 0, on_steps))
+        checks.append(
+            Check("R-H", f"{level}: manual wheelchair trips possible at a lower level only", 0, aid_monotone_bad)
+        )
         checks.append(
             Check("R-G", f"{level}: wheelchair trips whose plain shortest way has steps", "—", steps_avoided, True)
         )

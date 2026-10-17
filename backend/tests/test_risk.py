@@ -11,7 +11,15 @@ from shapely.geometry import LineString, Point, box, mapping
 from floodroute import config
 from floodroute.hazard import DRY, UNKNOWN, EdgeCondition, HazardSnapshot, NoHazard
 from floodroute.hazard.scenarios import FloodScenario, FloodZone, ScenarioHazard, load_scenario
-from floodroute.risk import BodyPart, DepthRelativeRisk, TravellerProfile, describe_depth, risk_cost, walking_cost
+from floodroute.risk import (
+    BodyPart,
+    DepthRelativeRisk,
+    MobilityAid,
+    TravellerProfile,
+    describe_depth,
+    risk_cost,
+    walking_cost,
+)
 from floodroute.routing import Router, RoutingError
 from floodroute.routing.metrics import route_metrics
 
@@ -283,3 +291,35 @@ def test_no_flood_gives_identical_routes_on_the_southbank_network():
         risky = router.route(a, b, dry)
         assert risky.length_m == plain.length_m and risky.geometry.equals(plain.geometry)
         checked += 1
+
+
+# ------------------------------------------------------------------ mobility aids
+
+
+@pytest.mark.parametrize(
+    "aid, depths_cm",
+    [
+        (MobilityAid.MANUAL_WHEELCHAIR, [2.0, 5.0, 7.5]),
+        (MobilityAid.POWERED_WHEELCHAIR, [2.0, 5.0]),
+        (MobilityAid.MOBILITY_SCOOTER, [2.0, 2.5]),
+    ],
+)
+def test_mobility_aid_levels_and_caps(aid, depths_cm):
+    limits = [TravellerProfile(ADULT, mobility_aid=aid, aid_level=i).depth_limit_m * 100 for i in range(len(depths_cm))]
+    assert limits == pytest.approx(depths_cm)
+    assert aid.cap_m * 100 == pytest.approx(depths_cm[-1])
+    with pytest.raises(ValueError):
+        TravellerProfile(ADULT, mobility_aid=aid, aid_level=len(depths_cm))
+
+
+def test_mobility_aid_ignores_body_part_and_height():
+    a = TravellerProfile(1.2, BodyPart.KNEE, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR, aid_level=1)
+    b = TravellerProfile(2.0, BodyPart.ANKLE, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR, aid_level=1)
+    assert a.depth_limit_m == b.depth_limit_m == pytest.approx(0.05)
+    assert a.uses_wheelchair and a.hard_limit_m == pytest.approx(0.075)
+
+
+def test_the_wheelchair_flag_alone_is_a_manual_wheelchair_with_no_water():
+    p = TravellerProfile(ADULT, BodyPart.MID_CALF, uses_wheelchair=True)
+    assert p.mobility_aid is MobilityAid.MANUAL_WHEELCHAIR and p.depth_limit_m == pytest.approx(0.02)
+    assert TravellerProfile(ADULT).hard_limit_m == pytest.approx(0.50)

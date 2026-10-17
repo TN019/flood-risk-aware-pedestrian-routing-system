@@ -11,16 +11,23 @@ hydraulic model results.
 
 ## Rules used in the derivations
 
-- A traveller's depth limit = body-part fraction × height, capped at 50 cm; no wading = 2 cm;
-  wheelchair = 2 cm. Fractions: ankle 0.039, lower calf 0.121, mid calf 0.162, knee 0.285.
+- A traveller's depth limit = body-part fraction × height, capped at 50 cm; no wading = 2 cm.
+  Fractions: ankle 0.039, lower calf 0.121, mid calf 0.162, knee 0.285.
+- A traveller with a mobility aid picks a level of their device instead: manual wheelchair 2 cm
+  (no water), 5 cm (below a 4-inch castor axle), 7.5 cm (below a 6-inch castor axle); powered
+  wheelchair 2 cm or 5 cm (well below the chassis); mobility scooter 2 cm or 2.5 cm (a shallow
+  puddle). The highest level of each device is its cap.
 - Water deeper than the limit (or of unknown depth) is impassable. Up to 2 cm counts as dry.
 - Risk R = depth ÷ limit. Edge cost = length × (1 + α·R) for a fully flooded edge, α = 2 unless
   stated. The recommended route minimises total cost.
 - Alert levels at the start: over 50 cm = DEEP; above the knee (0.285 × height) = VERY_DEEP; above
   half the height = CRITICAL.
-- A downgrade is offered only when the start is at most OVER_LIMIT, and only up to 50 cm.
+- A downgrade is offered only when the start is at most OVER_LIMIT, and only up to 50 cm; for a
+  mobility aid, it is the lowest higher level of the same device that covers the least water,
+  never above that device's cap.
 - Walking speed 1.3 m/s.
-- Wheelchair users never use steps: an edge marked as steps is impassable for them in every search
+- Mobility aid users (any of the three devices; "wheelchair" below) never use steps: an edge marked
+  as steps is impassable for them in every search
   (shortest ignoring flooding, shortest within limit, recommended, least water, refuge). For
   everyone else steps are ordinary paths.
 
@@ -130,6 +137,20 @@ against a wheelchair user (2 cm, no steps). Start B0 unless stated.
 | G2 | b12 is steps, t12 at 10 cm | Adult: t12 is over the limit, b12 is usable: recommended **300 m**. Wheelchair: every way from x = 100 to x = 200 uses b12 (steps) or t12 (10 cm > 2 cm), so **no route within the limit**. Shortest ignoring flooding **400 m** (step-free, through t12). Least water **10 cm**, route **400 m** (the dry 300 m way has steps). No downgrade. Refuge "Shelter", **35 m**, within the limit. Start level OK, no emergency |
 | G3 | c0 is steps, b12 and t12 at 10 cm | Adult: no route within limit; downgrade to the lower calf, least water 10 cm, route 300 m; refuge "Shelter", **35 m** up c0, within the limit; no emergency. Wheelchair: no route within limit; least water **10 cm**, route **300 m** (via b12, no steps); no downgrade; the Shelter door joins the network only on c0 (the bottom and top streets are 26.9 m from it, beyond the 10 + 15 m snapping reach), so **no refuge** is offered; emergency **"only option"** |
 
+### H — mobility aids and their levels
+
+The town without steps. Start B0, α = 2. Limits: manual wheelchair 2 / 5 / 7.5 cm, powered
+wheelchair 2 / 5 cm, mobility scooter 2 / 2.5 cm.
+
+| Case | Setup | Predictions |
+|---|---|---|
+| H1 | b12 at 4 cm. Manual wheelchair, no water (2 cm) | b12 is impassable: shortest within limit and recommended **400 m**, dry |
+| H2 | As H1, manual wheelchair at 5 cm | R = 0.04 / 0.05 = 0.8; b12 costs 100 × (1 + 2 × 0.8) = 260, so the bottom street costs 460 > 400: recommended **400 m**. Shortest within limit (α = 0) **300 m** through b12, deepest 4 cm |
+| H3 | As H1, mobility scooter at 2.5 cm | 4 cm > 2.5 cm: b12 is impassable; recommended **400 m** |
+| H4 | b12 and t12 at 4 cm. Manual wheelchair, no water | No route within the limit. Least water **4 cm**, route **300 m**. Downgrade to **"below a 4-inch castor axle"** (5 cm ≥ 4 cm), route **300 m**. Refuge "Shelter", **35 m**, within the limit. No emergency |
+| H5 | As H4, mobility scooter, no water | No route within the limit. Least water 4 cm. **No downgrade** (4 cm > the scooter's 2.5 cm cap). Refuge "Shelter", 35 m, within the limit |
+| H6 | b12 and t12 at 7 cm. Powered wheelchair, no water; manual wheelchair, no water | Powered: **no downgrade** (7 cm > its 5 cm cap). Manual: downgrade to **"below a 6-inch castor axle"** (7.5 cm ≥ 7 cm; 5 cm is not enough), route **300 m** |
+
 ## Part 2 — properties on the Southbank network
 
 On the real network exact routes cannot be worked out by hand, so the predictions are properties
@@ -144,7 +165,8 @@ flood levels.
 | R-D | Same height: a trip possible with a stricter limit is possible with every looser one (no wading ⇒ ankle ⇒ lower calf ⇒ mid calf ⇒ knee) |
 | R-E | Every trip without a route within the limit offers at least one way forward: a downgrade, a refuge, being sheltered, or emergency help |
 | R-F | For a fixed traveller (adult, ankle), the number of network edges over the limit rises strictly from normal to extreme, and the share of trips with a route within the limit never rises |
-| R-G | Every level, every trip: no route planned for a wheelchair user (shortest ignoring flooding, shortest within limit, recommended, least water, refuge) uses steps |
+| R-G | Every level, every trip: no route planned for a mobility aid user (shortest ignoring flooding, shortest within limit, recommended, least water, refuge) uses steps |
+| R-H | Same device: a trip possible for a manual wheelchair at a lower level is possible at every higher one (no water ⇒ 5 cm ⇒ 7.5 cm) |
 
 ## Results
 
@@ -204,6 +226,13 @@ that R-G could not see: for 64 of the 72 trips whose
 walking route used the steps, the wheelchair route was just as short. Its straight access leg ran
 from the bottom of a short flight to the footpath at its top, within the 15 m snapping reach, so
 no network edge on the route was steps. Access legs that run past a flight are now treated as
-steps (architecture.md, "Wheelchair users"), with two unit tests that fail without the rule. After
+steps (architecture.md, "Mobility aid users"), with two unit tests that fail without the rule. After
 that, 92 walking routes count as using steps (legs included) and none of the wheelchair routes
 uses steps or is as short as the walking route.
+
+**Eighth run, after wheelchair users got device levels.** Case H (test town), R-H and the wider
+R-G (Southbank) were derived and committed before the change; the Southbank trips now also run for
+a manual wheelchair at 5 cm and 7.5 cm and a mobility scooter at 2.5 cm. Result: **121 of 121
+checks met**, including all 15 in H. The one random trip whose plain shortest way has steps is
+now counted once for each of the four mobility aid travellers (4), and none of their routes uses
+steps. No manual wheelchair trip is possible at a lower level but not a higher one.

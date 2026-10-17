@@ -35,8 +35,21 @@ export interface FloodLevel {
   upper_m: number | null;
 }
 
+export interface AidLevel {
+  key: string;
+  label: string;
+  depth_m: number;
+}
+
+export interface MobilityAidOption {
+  key: string;
+  label: string;
+  levels: AidLevel[];
+}
+
 export interface Options {
   body_parts: BodyPartOption[];
+  mobility_aids: MobilityAidOption[];
   landmarks: { fraction: number; name: string }[];
   dry_depth_m: number;
   hard_limit_m: number;
@@ -67,7 +80,8 @@ export interface SearchHit {
 export interface Traveller {
   height_cm: number;
   wading: string;
-  wheelchair: boolean;
+  mobility_aid: string; // "none" or a key of Options.mobility_aids
+  aid_level: number; // index into that device's levels
   preference: string;
   alpha: number | null;
 }
@@ -75,6 +89,8 @@ export interface Traveller {
 export interface TravellerInfo {
   depth_limit_m: number;
   limit_label: string;
+  hard_limit_m: number;
+  mobility_aid: string;
   alpha: number;
   explanation: string;
 }
@@ -125,7 +141,14 @@ export type AlertLevelKey = "ok" | "over_limit" | "deep" | "very_deep" | "critic
 export interface TripPlan {
   start: PlaceJson;
   destination: PlaceJson;
-  traveller: { depth_limit_m: number; limit_label: string; height_m: number; hard_limit_m: number };
+  traveller: {
+    depth_limit_m: number;
+    limit_label: string;
+    height_m: number;
+    hard_limit_m: number;
+    mobility_aid: string;
+    mobility_aid_label: string;
+  };
   origin: {
     level: AlertLevelKey;
     level_rank: number;
@@ -143,7 +166,9 @@ export interface TripPlan {
     options: RouteOption[];
   } | null;
   downgrade: {
-    body_part: string;
+    body_part: string | null; // a body part for walkers
+    aid_level: number | null; // a level of their device for mobility aid users
+    label: string;
     body_part_label: string;
     depth_limit_m: number;
     required_depth_m: number;

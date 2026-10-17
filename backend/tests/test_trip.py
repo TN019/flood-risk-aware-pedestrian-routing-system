@@ -7,7 +7,7 @@ from floodroute import config
 from floodroute.hazard import DRY, EdgeCondition, HazardSnapshot
 from floodroute.places import PlaceResolver
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import HARD_LIMIT_M, BodyPart, TravellerProfile
+from floodroute.risk import HARD_LIMIT_M, BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel, alert_level
 from floodroute.routing import Router
 from floodroute.trip import ONLY_OPTION, plan_trip
@@ -231,3 +231,23 @@ def test_least_water_is_reported_beyond_the_hard_limit_without_a_downgrade():
 
 def test_no_least_water_when_a_route_fits():
     assert trip(snapshot(), TravellerProfile(ADULT, BodyPart.ANKLE)).least_water is None
+
+
+# ------------------------------------------------------------------ mobility aids
+
+
+def test_mobility_aid_downgrade_is_the_next_level_of_the_same_device():
+    manual = TravellerProfile(ADULT, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR)
+    d = trip(snapshot(e1=0.04, e4=0.04), manual).downgrade
+    assert d.body_part is None and d.aid_level == 1 and d.label == "below a 4-inch castor axle"
+    assert d.depth_limit_m == pytest.approx(0.05) and d.required_depth_m == pytest.approx(0.04)
+    d = trip(snapshot(e1=0.07, e4=0.07), manual).downgrade
+    assert d.aid_level == 2 and d.depth_limit_m == pytest.approx(0.075)
+
+
+def test_no_mobility_aid_downgrade_beyond_the_device_cap():
+    scooter = TravellerProfile(ADULT, mobility_aid=MobilityAid.MOBILITY_SCOOTER)
+    plan = trip(snapshot(e1=0.04, e4=0.04), scooter)
+    assert plan.least_water.required_depth_m == pytest.approx(0.04) and plan.downgrade is None
+    powered = TravellerProfile(ADULT, mobility_aid=MobilityAid.POWERED_WHEELCHAIR)
+    assert trip(snapshot(e1=0.07, e4=0.07), powered).downgrade is None
