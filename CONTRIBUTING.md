@@ -59,6 +59,11 @@ and the interfaces new code should plug into.
    If you change path finding, also run `uv run python scripts/compare_pathfinders.py`; it must
    report no mismatches against the NetworkX reference.
 4. Open a pull request into `main` describing what changed, why, and how it was verified.
+   GitHub Actions runs the same lint, format and test commands on every pull request
+   (`.github/workflows/ci.yml`), for the backend and for the web client. CI has no downloaded
+   data, so the tests that need the processed Southbank network and flood grids skip there: run
+   `uv run pytest` and `uv run python scripts/verify.py` locally with the data before asking for
+   a merge.
 
 ## Code guidelines
 
