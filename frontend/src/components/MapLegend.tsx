@@ -16,7 +16,10 @@ export function MapLegend({ trip, selected, hasWater }: Props) {
   // Routes that follow the same line are drawn once, as the most important of them.
   const shown = kinds.filter((k, i) => !kinds.slice(0, i).some((j) => JSON.stringify(route(trip!, j)!.geometry) === JSON.stringify(route(trip!, k)!.geometry)));
   const name = (k: RouteKind) => {
-    if (k === "downgrade" && trip?.downgrade) return `With a ${trip.downgrade.body_part_label} limit`;
+    if (k === "downgrade" && trip?.downgrade) {
+      const d = trip.downgrade;
+      return d.body_part !== null ? `With a ${d.label} limit` : `With a higher limit (${Math.round(d.depth_limit_m * 1000) / 10} cm)`;
+    }
     if (k === "shortest" && route(trip!, k)!.metrics.segments_over_limit > 0) return "Shortest, ignoring flooding (not safe)";
     return ROUTE_STYLES[k].name;
   };

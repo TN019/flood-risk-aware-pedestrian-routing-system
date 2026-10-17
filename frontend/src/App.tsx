@@ -23,7 +23,14 @@ import type {
 
 type Which = "start" | "destination";
 
-const DEFAULT_TRAVELLER: Traveller = { height_cm: 170, wading: "ankle", wheelchair: false, preference: "balanced", alpha: null };
+const DEFAULT_TRAVELLER: Traveller = {
+  height_cm: 170,
+  wading: "ankle",
+  mobility_aid: "none",
+  aid_level: 0,
+  preference: "balanced",
+  alpha: null,
+};
 
 export default function App() {
   const [area, setArea] = useState<Area | null>(null);
@@ -266,7 +273,9 @@ export default function App() {
             options={options}
             sosSentAt={sosSentAt}
             onSos={setSosSentAt}
-            onUseLimit={(part) => setTraveller((t) => ({ ...t, wading: part }))}
+            onUseLimit={(d) =>
+              setTraveller((t) => (d.aid_level !== null ? { ...t, aid_level: d.aid_level } : { ...t, wading: d.body_part ?? t.wading }))
+            }
             selected={selected}
             onSelect={(kind) => {
               setSelected(kind);

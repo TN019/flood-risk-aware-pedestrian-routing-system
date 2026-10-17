@@ -67,9 +67,12 @@ export function whyNoRoute(trip: TripPlan): string | null {
   const where = trip.destination.method === "point" ? "there" : `to ${trip.destination.label}`;
   if (least.required_depth_m === null) return `Every way ${where} crosses water of unknown depth.`;
   const depth = `${cm(least.required_depth_m)} of water (${least.required_label})`;
-  const limit = least.beyond_hard_limit
-    ? `more than the ${cm(trip.traveller.hard_limit_m)} anyone is routed through`
-    : `deeper than your limit of ${cm(trip.traveller.depth_limit_m)}`;
+  const t = trip.traveller;
+  const cap =
+    t.mobility_aid === "none"
+      ? `more than the ${cm(t.hard_limit_m)} anyone is routed through`
+      : `more than the ${cm(t.hard_limit_m)} a ${t.mobility_aid_label} is routed through`;
+  const limit = least.beyond_hard_limit ? cap : `deeper than your limit of ${cm(t.depth_limit_m)}`;
   return `Every way ${where} crosses at least ${depth}, ${limit}. The deepest point is marked on the map.`;
 }
 
@@ -89,4 +92,11 @@ export function detourText(trip: TripPlan): string | null {
   }
   const avoided = Math.max(0, s.wading_length_m - rec.metrics.wading_length_m);
   return `This route walks ${distance(extra)} further than the shortest way to avoid ${distance(avoided)} of water up to ${cm(s.max_depth_m ?? 0)} (${s.max_depth_label}).`;
+}
+
+/** The water a higher limit accepts, in words: "water up to the knee", "water below a 4-inch castor
+ * axle", "a shallow puddle". */
+export function acceptText(d: NonNullable<TripPlan["downgrade"]>): string {
+  if (d.body_part !== null) return `water up to the ${d.label}`;
+  return d.label.startsWith("a ") ? d.label : `water ${d.label}`;
 }

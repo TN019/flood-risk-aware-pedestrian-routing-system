@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contains, describeDepth, distance, groupRoutes } from "./format";
+import { cm, contains, describeDepth, distance, groupRoutes } from "./format";
 import type { RouteOption } from "./types";
 
 const options = {
@@ -59,5 +59,15 @@ describe("distance", () => {
   it("switches to km", () => {
     expect(distance(950)).toBe("950 m");
     expect(distance(1530)).toBe("1.5 km");
+  });
+});
+
+describe("cm", () => {
+  it("keeps a decimal only where it matters", () => {
+    expect(cm(0.025)).toBe("2.5 cm");
+    expect(cm(0.075)).toBe("7.5 cm");
+    expect(cm(0.0663)).toBe("6.6 cm");
+    expect(cm(0.05)).toBe("5 cm");
+    expect(cm(0.4845)).toBe("48 cm");
   });
 });

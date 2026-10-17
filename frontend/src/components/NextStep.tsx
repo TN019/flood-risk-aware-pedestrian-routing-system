@@ -1,5 +1,5 @@
 import { cm, depthSummary, distance, minutes } from "../format";
-import { detourText, route, situation, whyNoRoute } from "../guidance";
+import { acceptText, detourText, route, situation, whyNoRoute } from "../guidance";
 import type { RouteKind } from "../routeStyles";
 import type { Options, RouteJson, TripPlan } from "../types";
 import { RouteSwatch } from "./Swatch";
@@ -9,7 +9,7 @@ interface Props {
   options: Options;
   selected: RouteKind | null;
   onSelect: (kind: RouteKind | null) => void;
-  onUseLimit: (bodyPart: string) => void;
+  onUseLimit: (downgrade: NonNullable<TripPlan["downgrade"]>) => void;
 }
 
 function Metrics({ r, options }: { r: RouteJson; options: Options }) {
@@ -89,10 +89,10 @@ export function NextStep({ trip, options, selected, onSelect, onUseLimit }: Prop
       kind="downgrade"
       selected={selected}
       onSelect={onSelect}
-      title={`Accept water up to the ${d.body_part_label} (${cm(d.depth_limit_m)})`}
+      title={`Accept ${acceptText(d)} (${cm(d.depth_limit_m)})`}
       action={
-        <button type="button" className="button" onClick={() => onUseLimit(d.body_part)}>
-          Use the {d.body_part_label} limit
+        <button type="button" className="button" onClick={() => onUseLimit(d)}>
+          Use this limit
         </button>
       }
     >
