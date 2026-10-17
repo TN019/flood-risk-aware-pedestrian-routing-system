@@ -22,3 +22,6 @@ reports/
 
 # OS files
 .DS_Store
+
+# QR code of the temporary link, written and deleted by deploy/tunnel.py
+deploy/share.png

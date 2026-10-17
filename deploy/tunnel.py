@@ -2,7 +2,8 @@
 
 Run it with ./deploy/share.sh (macOS, Linux) or deploy\\share.bat (Windows). Each run builds the
 web client from the working copy, starts the API on a free local port, opens the tunnel and prints
-the public address; Ctrl+C stops both. The address is public (anyone who has it can open the app),
+the public address, with a QR code of it in the terminal and in deploy/share.png; Ctrl+C stops both
+and deletes the image. The address is public (anyone who has it can open the app),
 changes on every run, and works only while this computer is on and the script is running.
 
 Needs uv, Node.js (npm), cloudflared, and the processed data (see Getting started in README.md).
@@ -13,6 +14,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -22,9 +24,12 @@ import urllib.request
 from collections import deque
 from pathlib import Path
 
+import segno
+
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 FRONTEND = ROOT / "frontend"
+SHARE_PNG = Path(__file__).resolve().parent / "share.png"  # QR code of the link, only while it works
 TUNNEL_URL = re.compile(r"https://[-a-z0-9]+\.trycloudflare\.com")
 INSTALL = {
     "npm": "Node.js 20 from https://nodejs.org",
@@ -142,6 +147,25 @@ def start_tunnel(cloudflared: str, port: int) -> tuple[subprocess.Popen, list[st
     return process, address, log
 
 
+def show_qr(link: str) -> None:
+    """Print a QR code of the link and save it as deploy/share.png."""
+    qr = segno.make(link, error="m")
+    qr.save(str(SHARE_PNG), scale=10, border=4)
+    try:
+        qr.terminal(compact=True)
+    except UnicodeEncodeError:  # a console without block characters
+        qr.terminal()
+
+
+# Signals that end the run like Ctrl+C. SIGBREAK is how Windows reports Ctrl+Break and a closed
+# console window; SIGHUP a closed terminal elsewhere.
+STOP_SIGNALS = [getattr(signal, name) for name in ("SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK") if hasattr(signal, name)]
+
+
+def interrupt(signum, frame) -> None:
+    raise KeyboardInterrupt
+
+
 def stop(process: subprocess.Popen | None) -> None:
     if process is None or process.poll() is not None:
         return
@@ -157,6 +181,9 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8010, help="local port for the API (the next free one if taken)")
     args = parser.parse_args()
 
+    SHARE_PNG.unlink(missing_ok=True)  # left over if an earlier run was killed
+    for stop_signal in STOP_SIGNALS:
+        signal.signal(stop_signal, interrupt)
     npm = require("npm")
     cloudflared = require("cloudflared")
     check_data()
@@ -184,6 +211,9 @@ def main() -> None:
         print(f"  This computer {local}")
         if not reachable:
             print("  The link did not answer from this computer yet; it may need another minute.")
+        print()
+        show_qr(public)
+        print(f"  The QR code is also in {SHARE_PNG.relative_to(ROOT)} until this stops.")
         print("\n  Anyone with the link can open the app while this runs. Press Ctrl+C to stop.\n", flush=True)
 
         while api.poll() is None and tunnel.poll() is None:
@@ -193,8 +223,11 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nStopping.")
     finally:
+        for stop_signal in STOP_SIGNALS:  # let the clean-up finish
+            signal.signal(stop_signal, signal.SIG_IGN)
         stop(tunnel)
         stop(api)
+        SHARE_PNG.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
