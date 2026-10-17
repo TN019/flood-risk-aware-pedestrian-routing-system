@@ -104,9 +104,11 @@ To let someone elsewhere open your copy, without hosting it anywhere, run from t
 
 Each run builds the web client from your working copy, starts the API on a free local port
 (8010, or the next free one) and opens a [Cloudflare quick tunnel](https://try.cloudflare.com),
-then prints a public `https://….trycloudflare.com` address; Ctrl+C (or closing the window on
-Windows) stops both. It needs the processed data from the steps above, Node.js, and `cloudflared`
-(`brew install cloudflared` on macOS, `winget install --id Cloudflare.cloudflared` on Windows).
+then prints a public `https://….trycloudflare.com` address with a QR code of it, in the terminal
+and as `deploy/share.png`, for opening it on a phone. Ctrl+C stops both and deletes the image
+(closing the window on Windows also stops them; an image left behind is deleted on the next run).
+It needs the processed data from the steps above, Node.js, and `cloudflared` (`brew install
+cloudflared` on macOS, `winget install --id Cloudflare.cloudflared` on Windows).
 The address is public, so anyone who has it can open the app; it changes on every run and works
 only while your computer is on and the script is running. It serves your local files, so pull
 first if you want the latest commits.
