@@ -1,4 +1,4 @@
-// Regenerate the README images: four screenshots and the animated walkthrough.
+// Regenerate the README images: five screenshots and the animated walkthrough.
 //
 // Needs, running locally: the API (`uv run uvicorn floodroute.api.app:app --port 8010` in backend/)
 // and the web dev server (`npm run dev`, with FLOODROUTE_API_URL pointing at that API).
@@ -29,6 +29,7 @@ const CHROME =
 // Places used in the images: [lat, lon].
 const BOYD_VILLAGE = [-37.82613, 144.96126];
 const CROWN = [-37.8224, 144.96048];
+const CROWN_WEST = [-37.82506, 144.95828]; // inside the Crown Entertainment Complex
 const SOUTHBANK_EAST = [-37.826185, 144.963614];
 const SOUTH_WHARF = [-37.824086, 144.954684];
 const STURT_STREET = [-37.82579, 144.961159];
@@ -42,6 +43,7 @@ const SCREENSHOTS = [
   { file: "choose.jpg", viewport: DESKTOP, level: "Moderate", wading: "mid_calf", from: BOYD_VILLAGE, to: CROWN },
   { file: "emergency.jpg", viewport: DESKTOP, level: "Heavy", wading: "mid_calf", from: STURT_STREET, to: SOUTHBANK_PROMENADE },
   { file: "phone.jpg", viewport: PHONE, level: "Moderate", wading: "mid_calf", from: BOYD_VILLAGE, to: CROWN },
+  { file: "wheelchair.jpg", viewport: DESKTOP, level: "Light", aid: "manual_wheelchair", from: CROWN_WEST, to: BOYD_VILLAGE },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -67,13 +69,21 @@ function mapIdle(page) {
   );
 }
 
-async function setWading(page, wading) {
-  await page.evaluate((value) => {
-    const select = [...document.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === "knee"));
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, value);
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  }, wading);
+/** Choose `value` in the select that offers `marker` (a body part, or a mobility aid). */
+async function choose(page, marker, value) {
+  await page.evaluate(
+    (marker, value) => {
+      const select = [...document.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === marker));
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, value);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    marker,
+    value,
+  );
 }
+
+const setWading = (page, wading) => choose(page, "knee", wading);
+const setAid = (page, aid) => choose(page, "manual_wheelchair", aid);
 
 /** Screen position of a place on the map. */
 function mapPoint(page, [lat, lon]) {
@@ -136,7 +146,8 @@ function showResults(page, phone, smooth = false) {
 async function screenshots(browser) {
   for (const shot of SCREENSHOTS) {
     const page = await open(browser, shot.viewport);
-    await setWading(page, shot.wading);
+    if (shot.aid) await setAid(page, shot.aid);
+    else await setWading(page, shot.wading);
     await page.evaluate((level) => [...document.querySelectorAll(".levels button")].find((b) => b.textContent === level).click(), shot.level);
     await sleep(1500);
     const before = await nextStepText(page);
@@ -246,7 +257,7 @@ async function walkthrough(browser) {
     await mapIdle(page);
     await sleep(1800);
     before = await nextStepText(page);
-    await clickButton(page, ".choice button.button", "Use the");
+    await clickButton(page, ".choice button.button", "Use this limit");
     await waitForNewPlan(page, before);
     await showResults(page, false, true);
     await sleep(2200);
