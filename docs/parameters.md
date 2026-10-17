@@ -23,6 +23,8 @@ Basis:
 | Mid thigh, waist heights | 0.41, 0.63 × height | `risk.profile.LANDMARKS` | Derived: about halfway knee–hip and hip–chest; used only to describe a depth |
 | Hard limit | 50 cm | `risk.profile.HARD_LIMIT_M` | Cited: Melbourne Water's Southbank plan takes up to 500 mm as safe pedestrian access (300 mm for vulnerable uses); 0.5 m is also the H2 depth limit for people (Smith, Davey & Cox, 2014). Nobody is routed through deeper water whatever their height or choice. Thigh and waist are not offered: at 0.41 and 0.63 × height they would be capped to 50 cm for almost everyone |
 | No-wading limit, wheelchair limit, dry pavement | 2 cm | `hazard.base.DRY_DEPTH_M` | Chosen: a film of water any pavement carries in rain. Water up to 2 cm costs nothing; deeper water counts as wading. |
+| Steps for wheelchair users | impassable | `risk.access.can_use` | Cited: AS 1428.1 (Design for access and mobility) requires an accessible path of travel without steps; stairways are not part of it. Edges come from OSM `highway=steps` (`is_steps`) |
+| Steepest path for wheelchair users | 1:14 (7.1%), **not applied** | — | Cited: AS 1428.1 allows ramps up to 1:14 and walkways up to 1:20 (5%); 1:14 would be the hard limit. Measured: of 39,710 directed ways in the raw OSM walking network, 1,024 carry `incline`, all `up` (612), `down` (346) or `yes` (66), 818 of them on steps, none with a gradient. Known limit: steep paths are not detected; a gradient could later come from surveyed levels or the terrain model |
 | Accepted heights | 0.5–2.5 m | `risk.profile.TravellerProfile` | Chosen: input check |
 | Walking speed | 1.3 m/s | `risk.profile.DEFAULT_WALKING_SPEED_M_S` | Chosen: a typical adult pace; only used for travel times |
 
@@ -51,6 +53,7 @@ Basis:
 | Network beyond the study area | 250 m | `config.STUDY_AREA_BUFFER_M` | Chosen: room for detours and river crossings near the boundary |
 | Furthest point from a footpath | 100 m | `routing.router.MAX_SNAP_DISTANCE_M` | Chosen: further away is treated as not on the walking network |
 | Footpaths also considered | up to 15 m further than the nearest | `routing.router.SNAP_SLACK_M` | Chosen: the nearest line may be a bridge deck above the path the person is actually on |
+| Access leg passing a flight of steps | within 0.5 m of the flight without its end metres (a quarter of it if shorter), or within 1 m of both its ends | `routing.router.STEPS_CLEARANCE_M`, `STEPS_END_M` | Chosen: about half the width of a narrow stair. A leg may meet a flight at its top or bottom, but one that runs past it is treated as steps, so wheelchair users cannot skip a flight through the snapping reach |
 | Footpaths counted as "standing on" | within 1 m of the nearest | `routing.router.STANDING_TOLERANCE_M` | Chosen: at a corner the traveller stands on the shallowest of these |
 | Entrance belongs to a building | within 1.5 m of its outline | `places.resolver` | Chosen: OSM entrance nodes sit on or next to the outline |
 | Building without mapped entrances | outline points nearest the footpaths within 60 m, at least 15 m apart | `places.resolver` | Chosen |

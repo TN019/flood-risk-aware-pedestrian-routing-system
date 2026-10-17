@@ -145,6 +145,35 @@ With no water R = 0 everywhere and the cost equals the plain walking cost, so ro
 flood are identical to routing without the risk layer (tested on the Southbank network). Flow
 velocity is not used yet.
 
+### Wheelchair users
+
+Wheelchair users get two rules: water no deeper than 2 cm, and **no steps**. `risk.access.can_use`
+makes an edge with `is_steps` (OSM `highway=steps`, 100 network edges) impassable for them,
+whatever the water, and every search made for them applies it: `risk_cost` (shortest within limit,
+recommended, refuge), `walking_cost_for` (shortest ignoring flooding, least water, safest way to a
+refuge) and the depth used by the minimax search. So their "shortest" is the shortest step-free
+way, a refuge whose entrances can only be reached by steps is not offered, and the least water is
+the least over step-free ways. For everyone else steps are ordinary paths, and nothing changes.
+
+The straight access leg from a point to a footpath could otherwise skip a short flight: from the
+bottom of a 6 m flight, the footpath at its top is within the 15 m snapping reach. So the router
+marks an access leg as steps when it runs alongside or across the middle of a flight (within
+0.5 m of it, leaving out a metre at each end where legs may meet it) or passes within a metre of
+both its ends (a flight that turns back on itself; one in Southbank has its ends 2 m apart).
+Level changes not mapped as steps, such as a footpath on a deck just above, are not known and can
+still be bridged by an access leg, for every traveller.
+
+Each route reports whether it uses steps, access legs included (`Route.uses_steps`, `uses_steps` in the API), and the
+plan reports `step_free` and `steps_avoided` (the plain shortest way has steps that the routes
+avoid). When no step-free way connects the two places at all, every option carries the error "No
+step-free route connects these places."
+
+Steep paths are **not** filtered yet. The intended rule is a gradient steeper than 1:14 (AS 1428.1's
+steepest ramp; see [parameters.md](parameters.md)), but OSM's `incline` tag in Southbank never gives
+a gradient: it is set on 2.6% of the raw network edges, always as `up`, `down` or `yes`, and mostly on steps.
+The processed network therefore does not keep it. Kerbs, ways tagged `wheelchair=no` and surface
+are not used either.
+
 ### Route preferences
 
 Travellers choose a preference rather than a number; each maps to α
@@ -314,7 +343,8 @@ experiments.
 | `recommended` | risk cost with α (default 2) | what weighting the remaining water changes |
 
 When water is the obstacle, the safe and recommended options carry an error instead of a route;
-the shortest option is still returned so the exposure it would involve can be shown.
+the shortest option is still returned so the exposure it would involve can be shown. For
+wheelchair users all three leave out steps.
 
 ## When no safe route exists
 
@@ -349,7 +379,8 @@ that point is, and the route. It is reported whatever the depth, so the travelle
 route fits.
 
 **Downgrade.** From the least water, the smallest body part covering it (never above 50 cm, never
-for wheelchair users) is offered with that route.
+for wheelchair users) is offered with that route. For wheelchair users the least water and the
+refuge route are searched over step-free ways only.
 
 **Refuges.** In this version every building with a way in counts as a sheltered refuge
 (`places.refuges`); whether it is open to the public is not known from the data. The nearest 25

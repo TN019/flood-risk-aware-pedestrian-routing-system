@@ -1,4 +1,4 @@
-"""Verification cases A–F (docs/verification.md): every hand-derived prediction must hold."""
+"""Verification cases A–G (docs/verification.md): every hand-derived prediction must hold."""
 
 import pytest
 

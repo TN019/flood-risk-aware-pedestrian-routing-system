@@ -1,7 +1,7 @@
 # Verification: predictions
 
 This document states, **before running the program**, what the routing rules should produce in a
-set of test cases (A–F). The predictions are derived by hand from the rules in
+set of test cases (A–G). The predictions are derived by hand from the rules in
 [architecture.md](architecture.md). `backend/scripts/verify.py` then runs the same cases and
 compares its results with these predictions; see `reports/verification_results.md`.
 
@@ -190,3 +190,20 @@ to the knee; in E3 40 cm is OVER_LIMIT, so there is a downgrade and no emergency
 were added to keep testing what E1 and E3 used to test: water beyond the hard limit (no
 downgrade) and the DEEP level (only reachable by people taller than about 175 cm). Part 2 adds a
 knee traveller to R-A to R-E. Result: **76 of 76 checks met**.
+
+**Seventh run, after wheelchair users were kept off steps.** Case G (test town) and R-G
+(Southbank) were derived and committed before the change. To keep R-A from failing on a trip with
+no step-free route, it now counts only trips whose recommended route was found; the prediction
+is unchanged. Result: **101 of 101 checks met**, including all 20 in G. Without the step rule, 8
+of the G checks fail. On the Southbank network only 1 of the 100 random trips has steps on its
+plain shortest way, so R-G tests little there; case G and the unit tests carry most of the weight.
+
+An extra check outside these predictions, 160 trips through `/api/trip` between the two ends of
+randomly chosen flights of steps (both directions, normal and moderate flooding), then found a gap
+that R-G could not see: for 64 of the 72 trips whose
+walking route used the steps, the wheelchair route was just as short. Its straight access leg ran
+from the bottom of a short flight to the footpath at its top, within the 15 m snapping reach, so
+no network edge on the route was steps. Access legs that run past a flight are now treated as
+steps (architecture.md, "Wheelchair users"), with two unit tests that fail without the rule. After
+that, 92 walking routes count as using steps (legs included) and none of the wheelchair routes
+uses steps or is as short as the walking route.
