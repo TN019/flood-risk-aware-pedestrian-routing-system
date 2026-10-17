@@ -1,4 +1,4 @@
-"""Run verification cases A–F and compare the results with the predictions in docs/verification.md.
+"""Run verification cases A–G and compare the results with the predictions in docs/verification.md.
 
 Writes reports/verification_results.md and exits non-zero if any prediction is not met.
 

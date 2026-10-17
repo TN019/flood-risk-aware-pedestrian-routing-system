@@ -98,6 +98,7 @@ export interface RouteMetrics {
 export interface RouteJson {
   geometry: Geometry;
   access_legs: Geometry[];
+  uses_steps: boolean;
   from: LatLon & { label: string };
   to: LatLon & { label: string | null };
   metrics: RouteMetrics;
@@ -134,7 +135,13 @@ export interface TripPlan {
     above_knee: boolean;
   };
   has_safe_route: boolean;
-  routes: { alpha: number; blocked_edges: number; options: RouteOption[] } | null;
+  routes: {
+    alpha: number;
+    blocked_edges: number;
+    step_free: boolean; // the traveller cannot use steps, so no route uses them
+    steps_avoided: boolean; // the plain shortest way has steps these routes avoid
+    options: RouteOption[];
+  } | null;
   downgrade: {
     body_part: string;
     body_part_label: string;

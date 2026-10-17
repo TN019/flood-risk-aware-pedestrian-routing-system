@@ -1,4 +1,4 @@
-"""Verification harness: run cases A–F and compare with the predictions in docs/verification.md.
+"""Verification harness: run cases A–G and compare with the predictions in docs/verification.md.
 
 Part 1 builds the small "test town" from that document, where every expected number was worked out
 by hand, and checks the program's results against those numbers. Part 2 checks properties that
@@ -80,13 +80,22 @@ SHELTER_DOOR = (-10, 25)
 START, END = Point(0, 0), Point(300, 0)
 
 
-def test_town(with_shelter: bool = True) -> tuple[Router, PlaceResolver, RefugeIndex]:
+def test_town(with_shelter: bool = True, steps: tuple[str, ...] = ()) -> tuple[Router, PlaceResolver, RefugeIndex]:
     g = nx.Graph(crs=config.METRIC_CRS)
     for n, (x, y) in NODES.items():
         g.add_node(n, x=x, y=y, kind="junction", in_study_area=True)
     for eid, (u, v) in EDGES.items():
         geom = LineString([NODES[u], NODES[v]])
-        g.add_edge(u, v, geometry=geom, length_m=geom.length, edge_id=eid, cost_factor=1.0, in_study_area=True)
+        g.add_edge(
+            u,
+            v,
+            geometry=geom,
+            length_m=geom.length,
+            edge_id=eid,
+            cost_factor=1.0,
+            in_study_area=True,
+            is_steps=eid in steps,
+        )
     router = Router(g)
     names, shapes, doors = (["Shelter"], [SHELTER], [SHELTER_DOOR]) if with_shelter else ([], [], [(9e5, 9e5)])
     buildings = gpd.GeoDataFrame({"name": names, "geometry": shapes}, geometry="geometry", crs=config.METRIC_CRS)
@@ -107,8 +116,8 @@ def adult(part: BodyPart = BodyPart.ANKLE, **kw) -> TravellerProfile:
     return TravellerProfile(ADULT, part, **kw)
 
 
-def _trip(snapshot, profile, alpha=2.0, start=START, end=END, with_shelter=True):
-    router, resolver, refuges = test_town(with_shelter)
+def _trip(snapshot, profile, alpha=2.0, start=START, end=END, with_shelter=True, steps=()):
+    router, resolver, refuges = test_town(with_shelter, steps)
     o = resolver.resolve(start, "start", role="origin")
     d = resolver.resolve(end, "end")
     return plan_trip(router, refuges, o, d, snapshot, profile, alpha)
@@ -313,7 +322,86 @@ def run_test_town() -> list[Check]:
         tuple(_len(p.routes.recommended) for p in seq),
     )
     add("F", "edges over the limit", (0, 1, 0), tuple(p.routes.blocked_edges for p in seq))
+
+    # G — steps and wheelchair users
+    wheelchair = adult(BodyPart.MID_CALF, uses_wheelchair=True)
+    t = _trip(flood(), adult(), steps=("b12",))
+    r = t.routes
+    add("G1", "adult: shortest / within limit / recommended (m)", (300.0, 300.0, 300.0), tuple(map(_len, r.options)))
+    add("G1", "adult: every route through b12, steps avoided", (True, False), (_all_use(r, "b12"), r.steps_avoided))
+    t = _trip(flood(), wheelchair, steps=("b12",))
+    r = t.routes
+    add(
+        "G1",
+        "wheelchair: shortest / within limit / recommended (m)",
+        (400.0, 400.0, 400.0),
+        tuple(map(_len, r.options)),
+    )
+    add(
+        "G1",
+        "wheelchair: any route through b12, steps avoided",
+        (False, True),
+        (any("b12" in _sources(o) for o in r.options), r.steps_avoided),
+    )
+    add("G1", "wheelchair: edges over the limit", 0, r.blocked_edges)
+
+    t = _trip(flood(t12=0.10), adult(), steps=("b12",))
+    add("G2", "adult: recommended (m)", 300.0, _len(t.routes.recommended))
+    t = _trip(flood(t12=0.10), wheelchair, steps=("b12",))
+    lw = t.least_water
+    add("G2", "wheelchair: route within limit", False, t.has_safe_route)
+    add("G2", "wheelchair: shortest ignoring flooding (m)", 400.0, _len(t.routes.shortest))
+    add(
+        "G2",
+        "wheelchair: least water (m), its route (m)",
+        (0.10, 400.0),
+        (lw.required_depth_m, round(lw.route.length_m, 3)) if lw else None,
+    )
+    add("G2", "wheelchair: downgrade", None, t.downgrade)
+    add(
+        "G2",
+        "wheelchair: refuge, length (m), within limit",
+        ("Shelter", 35.0, True),
+        (t.refuge.refuge.name, round(t.refuge.route.length_m, 3), t.refuge.within_limit) if t.refuge else None,
+    )
+    add("G2", "wheelchair: start level, emergency", ("OK", None), (t.origin.level.name, t.emergency))
+
+    t = _trip(flood(b12=0.10, t12=0.10), adult(), steps=("c0",))
+    d = t.downgrade
+    add("G3", "adult: route within limit", False, t.has_safe_route)
+    add(
+        "G3",
+        "adult: downgrade to, least water (m), route (m)",
+        ("lower calf", 0.10, 300.0),
+        (d.body_part.label, d.required_depth_m, round(d.option.route.length_m, 3)) if d else None,
+    )
+    add(
+        "G3",
+        "adult: refuge, length (m), within limit",
+        ("Shelter", 35.0, True),
+        (t.refuge.refuge.name, round(t.refuge.route.length_m, 3), t.refuge.within_limit) if t.refuge else None,
+    )
+    add("G3", "adult: emergency", None, t.emergency)
+    t = _trip(flood(b12=0.10, t12=0.10), wheelchair, steps=("c0",))
+    lw = t.least_water
+    add("G3", "wheelchair: route within limit", False, t.has_safe_route)
+    add(
+        "G3",
+        "wheelchair: least water (m), its route (m)",
+        (0.10, 300.0),
+        (lw.required_depth_m, round(lw.route.length_m, 3)) if lw else None,
+    )
+    add("G3", "wheelchair: downgrade, refuge", (None, None), (t.downgrade, t.refuge))
+    add("G3", "wheelchair: emergency advice", ONLY_OPTION, t.emergency.advice if t.emergency else None)
     return checks
+
+
+def _sources(option) -> set[str]:
+    return {s.source_edge_id for s in option.route.segments} if option.found else set()
+
+
+def _all_use(plan, edge_id: str) -> bool:
+    return all(edge_id in _sources(o) for o in plan.options)
 
 
 # ---------------------------------------------------------------------------------------------- Southbank
@@ -372,13 +460,17 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
     for scenario in list_scenarios():
         snap = load_hazard(scenario).snapshot(g)
         level = f"{scenario.order} {scenario.title}"
-        same, over, cost_bad, monotone_bad, no_way_forward = 0, 0, 0, 0, 0
+        same, over, cost_bad, monotone_bad, no_way_forward, on_steps, steps_avoided = 0, 0, 0, 0, 0, 0, 0
         feasible_ankle = 0
         for o, d in pairs:
             feasible = []
             for name, prof in travellers.items():
                 plan = plan_routes(router, o.access_points, d.access_points, snap, prof)
-                if scenario.order == 0 and plan.recommended.route.geometry.equals(plan.shortest.route.geometry):
+                if (
+                    scenario.order == 0
+                    and plan.recommended.found
+                    and plan.recommended.route.geometry.equals(plan.shortest.route.geometry)
+                ):
                     same += 1
                 for opt in (plan.recommended, plan.safe_shortest):
                     if opt.found and opt.metrics.segments_over_limit:
@@ -394,10 +486,21 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
                     feasible.append(plan.recommended.found)
                 if name == BodyPart.ANKLE.label:
                     feasible_ankle += plan.recommended.found
-                if not plan.recommended.found and name in (BodyPart.ANKLE.label, "wheelchair"):
+                trip = None
+                if name == "wheelchair" or (not plan.recommended.found and name == BodyPart.ANKLE.label):
                     trip = plan_trip(router, refuges, o, d, snap, prof)
-                    if not (trip.downgrade or trip.refuge or trip.origin.sheltered or trip.emergency):
-                        no_way_forward += 1
+                if name == "wheelchair":
+                    planned = [opt.route for opt in plan.options]
+                    planned += [
+                        x.route for x in (trip.least_water, trip.refuge, trip.downgrade and trip.downgrade.option) if x
+                    ]
+                    on_steps += sum(1 for route in planned if route is not None and route.uses_steps)
+                    steps_avoided += plan.steps_avoided
+                way_forward = trip is not None and (
+                    trip.downgrade or trip.refuge or trip.origin.sheltered or trip.emergency
+                )
+                if trip is not None and not plan.recommended.found and not way_forward:
+                    no_way_forward += 1
             monotone_bad += any(feasible[i] and not feasible[i + 1] for i in range(len(feasible) - 1))
         if scenario.order == 0:
             checks.append(
@@ -407,6 +510,10 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
         checks.append(Check("R-C", f"{level}: recommended costlier than an alternative", 0, cost_bad))
         checks.append(Check("R-D", f"{level}: trips possible with a stricter limit only", 0, monotone_bad))
         checks.append(Check("R-E", f"{level}: no-route trips with no way forward", 0, no_way_forward))
+        checks.append(Check("R-G", f"{level}: wheelchair routes using steps", 0, on_steps))
+        checks.append(
+            Check("R-G", f"{level}: wheelchair trips whose plain shortest way has steps", "—", steps_avoided, True)
+        )
 
         def over_limit(profile: TravellerProfile, snap=snap) -> int:
             return sum(

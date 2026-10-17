@@ -40,6 +40,7 @@ describe("groupRoutes", () => {
   const line = (x: number): RouteOption["route"] => ({
     geometry: { type: "LineString", coordinates: [[0, 0], [x, 0]] },
     access_legs: [],
+    uses_steps: false,
     from: { lat: 0, lon: 0, label: "" },
     to: { lat: 0, lon: 0, label: null },
     metrics: { length_m: x, travel_time_s: 1, max_depth_m: 0, max_depth_label: "dry", wading_length_m: 0, segments_over_limit: 0, detour_ratio: 0 },

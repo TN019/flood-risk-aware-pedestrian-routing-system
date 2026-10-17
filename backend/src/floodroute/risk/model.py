@@ -11,6 +11,8 @@ no flood is identical to routing without the risk layer. α sets how many extra 
 are worth avoiding one metre of water at the traveller's limit (R = 1).
 
 Only the deepest point of an edge is used for R and for the safety check, never an average.
+Edges the traveller cannot use at all (steps, for wheelchair users; ``risk.access``) are
+impassable whatever the water.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from floodroute.hazard import EdgeCondition, HazardSnapshot
+from floodroute.risk.access import can_use
 from floodroute.risk.cost import EdgeCost
 from floodroute.risk.profile import DRY_DEPTH_M, TravellerProfile
 
@@ -103,6 +106,8 @@ def risk_cost(
     model = model or DepthRelativeRisk()
 
     def cost(u, v, data: dict) -> float | None:
+        if not can_use(profile, data):
+            return None
         condition = edge_condition(snapshot, data)
         risk = model.edge_risk(condition, profile)
         if risk is None:

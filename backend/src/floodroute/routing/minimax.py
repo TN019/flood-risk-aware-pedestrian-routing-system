@@ -25,19 +25,24 @@ from typing import Any
 import networkx as nx
 
 from floodroute.hazard import HazardSnapshot
+from floodroute.risk.access import can_use
 from floodroute.risk.cost import EdgeCost
 from floodroute.risk.model import edge_condition
+from floodroute.risk.profile import TravellerProfile
 from floodroute.routing.dijkstra import Dijkstra
 from floodroute.routing.pathfinding import NoPathError, PathFinder
 
 EdgeDepth = Callable[[Any, Any, dict], "float | None"]  # deepest water on an edge; None = impassable
 
 
-def snapshot_depth(snapshot: HazardSnapshot) -> EdgeDepth:
+def snapshot_depth(snapshot: HazardSnapshot, profile: TravellerProfile | None = None) -> EdgeDepth:
     """Edge depth from a hazard snapshot. Unknown depth counts as infinitely deep: such edges are
-    used only when nothing else connects."""
+    used only when nothing else connects. With a ``profile``, edges that traveller cannot use at all
+    (``risk.access``) are impassable, so the deepest point is searched over usable edges only."""
 
-    def depth(u, v, data: dict) -> float:
+    def depth(u, v, data: dict) -> float | None:
+        if profile is not None and not can_use(profile, data):
+            return None
         d = edge_condition(snapshot, data).depth_m
         return math.inf if d is None else d
 

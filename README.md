@@ -68,7 +68,7 @@ uv run python scripts/make_scenarios.py    # build the flood scenario depth grid
 uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
-uv run python scripts/verify.py            # cases A–F vs the predictions in docs/verification.md
+uv run python scripts/verify.py            # cases A–G vs the predictions in docs/verification.md
 uv run streamlit run streamlit_app.py      # open the Streamlit map UI
 ```
 

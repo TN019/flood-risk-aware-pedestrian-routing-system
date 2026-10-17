@@ -13,6 +13,8 @@
    - **Refuge**: a nearby building to shelter in. From dry ground the route stays within the
      limit; from water over the limit it is the *safest* route (shallowest deepest point, then
      shortest), which may cross deep water and is marked as such.
+   Wheelchair users never use steps in any of these searches, so a refuge whose entrances can only
+   be reached by steps is not offered to them.
 4. **Emergency help** when the start is over 50 cm deep (more strongly above the knee and above
    half the traveller's height), or when no refuge can be reached at all. Only the request is
    produced here; sending it (e.g. alerting people nearby) is outside this package.
@@ -29,7 +31,7 @@ from shapely.geometry import Point
 from floodroute.hazard import HazardSnapshot
 from floodroute.places import Place
 from floodroute.places.refuges import Refuge, RefugeIndex
-from floodroute.risk import DEFAULT_ALPHA, HARD_LIMIT_M, BodyPart, TravellerProfile, risk_cost, walking_cost
+from floodroute.risk import DEFAULT_ALPHA, HARD_LIMIT_M, BodyPart, TravellerProfile, risk_cost, walking_cost_for
 from floodroute.risk.alerts import AlertLevel, alert_level
 from floodroute.risk.model import edge_condition, source_edge_id
 from floodroute.routing import Route, RouteMetrics, RouteOption, RoutePlan, Router, RoutingError, plan_routes
@@ -129,9 +131,11 @@ def find_least_water(
     snapshot: HazardSnapshot,
     profile: TravellerProfile,
 ) -> LeastWater | None:
-    finder = MinimaxPathFinder(snapshot_depth(snapshot))
+    finder = MinimaxPathFinder(snapshot_depth(snapshot, profile))
     try:
-        route = router.route(origin.access_points, destination.access_points, walking_cost, path_finder=finder)
+        route = router.route(
+            origin.access_points, destination.access_points, walking_cost_for(profile), path_finder=finder
+        )
     except RoutingError:
         return None
     required = finder.last_bottleneck_m
@@ -204,9 +208,9 @@ def find_refuge(
         except RoutingError:
             route = None
     if route is None:  # already in deep water, or no dry way: the safest way out
-        finder = MinimaxPathFinder(snapshot_depth(snapshot))
+        finder = MinimaxPathFinder(snapshot_depth(snapshot, profile))
         try:
-            route = router.route(origin.access_points, points, walking_cost, path_finder=finder)
+            route = router.route(origin.access_points, points, walking_cost_for(profile), path_finder=finder)
         except RoutingError:
             return None
     refuge, label = owner[(route.destination.point.x, route.destination.point.y)]
