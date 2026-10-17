@@ -6,6 +6,15 @@ interchangeable sources (scenarios built from published flood levels and terrain
 sets the deepest water they accept as a body part, converted to a depth from their height; deeper
 water is never routed through, and shallower water costs more the closer it is to that limit.
 
+## Walkthrough
+
+![Planning walks from Boyd Village to Crown Melbourne as the flood level rises](docs/images/walkthrough.gif)
+
+From Boyd Village to Crown Melbourne with a mid-calf limit (28 cm): under light flooding the plain
+route is dry; under moderate flooding no route fits, so the app offers accepting water up to the
+knee or staying inside; taking the knee limit gives a route. Last, under heavy flooding, a start in
+67 cm of water brings up emergency help and the shallowest way to shelter.
+
 ## Screenshots
 
 Each trip opens with the next step to take, and the map highlights the route it refers to. Water
