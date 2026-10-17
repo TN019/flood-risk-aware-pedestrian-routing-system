@@ -126,6 +126,7 @@ function Comparison({ trip, options, selected, onSelect }: Pick<Props, "trip" | 
       </ul>
       <p className="muted small">
         Select a route to see it on the map. {routes.blocked_edges} network sections are over your limit in this scenario.
+        {routes.steps_avoided ? " Every route avoids the steps on the shortest way." : routes.step_free ? " Every route is step-free." : ""}
       </p>
     </section>
   );
