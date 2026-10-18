@@ -1,0 +1,197 @@
+/* The /reference page: a plain, scrolling document on the app's colours. */
+
+body:has(.reference) {
+  height: auto;
+}
+
+.reference {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  line-height: 1.5;
+}
+
+.reference header {
+  margin-bottom: 8px;
+}
+
+.reference .back {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.reference h1 {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+}
+
+.reference h2 {
+  font-size: 1.3rem;
+  margin: 0 0 8px;
+}
+
+.reference h3 {
+  font-size: 1.05rem;
+  margin: 20px 0 6px;
+}
+
+.reference p {
+  margin: 0 0 10px;
+}
+
+.reference a {
+  color: var(--brand);
+}
+
+.reference nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.reference section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 18px 8px;
+  margin-top: 16px;
+  scroll-margin-top: 12px;
+}
+
+.reference .muted {
+  color: var(--muted);
+}
+
+.reference .table-wrap {
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.reference table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.reference th,
+.reference td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 10px 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.reference th {
+  border-top: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.reference td strong + .muted {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.reference td.num {
+  white-space: nowrap;
+}
+
+.reference tr.group-start td {
+  border-top: 2px solid var(--line);
+}
+
+.reference .scenario {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.reference .scenario h3 {
+  margin-top: 0;
+}
+
+.reference ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.reference li {
+  margin-bottom: 6px;
+}
+
+.reference .works {
+  list-style: none;
+  padding-left: 0;
+}
+
+.reference .works li {
+  margin-bottom: 10px;
+}
+
+.reference cite {
+  display: block;
+  font-style: normal;
+}
+
+.reference .works .muted {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.reference .basis {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.reference .basis-cited {
+  background: var(--info-bg);
+  color: var(--brand);
+}
+
+.reference .basis-derived {
+  background: #e7f5ec;
+  color: #1e6b3a;
+}
+
+.reference .basis-chosen {
+  background: var(--warn-bg);
+  color: #8a5300;
+  border: 1px solid var(--warn-line);
+}
+
+.reference .notice {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.reference footer {
+  margin-top: 20px;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .reference {
+    padding: 16px 12px 40px;
+  }
+
+  .reference section {
+    padding: 14px 12px 6px;
+  }
+
+  .reference h1 {
+    font-size: 1.5rem;
+  }
+}
