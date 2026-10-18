@@ -1,4 +1,4 @@
-// Regenerate the README images: five screenshots and the animated walkthrough.
+// Regenerate the README images: six screenshots and the animated walkthrough.
 //
 // Needs, running locally: the API (`uv run uvicorn floodroute.api.app:app --port 8010` in backend/)
 // and the web dev server (`npm run dev`, with FLOODROUTE_API_URL pointing at that API).
@@ -7,6 +7,7 @@
 //   npm run capture                    # everything
 //   npm run capture -- screenshots     # only the screenshots
 //   npm run capture -- walkthrough     # only the animated walkthrough
+//   npm run capture -- reference       # only the /reference page
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -143,6 +144,17 @@ function showResults(page, phone, smooth = false) {
   );
 }
 
+/** The /reference page, once its values have loaded from the API. */
+async function reference(browser) {
+  const page = await browser.newPage();
+  await page.setViewport(DESKTOP);
+  await page.goto(`${APP}/reference/`, { waitUntil: "networkidle0" });
+  await page.waitForSelector(".scenario");
+  await page.screenshot({ path: path.join(OUT, "reference.jpg"), type: "jpeg", quality: 82 });
+  console.log("saved reference.jpg");
+  await page.close();
+}
+
 async function screenshots(browser) {
   for (const shot of SCREENSHOTS) {
     const page = await open(browser, shot.viewport);
@@ -163,6 +175,7 @@ async function screenshots(browser) {
     console.log("saved", shot.file);
     await page.close();
   }
+  await reference(browser);
 }
 
 // A visible pointer that follows the mouse and pulses on clicks; headless screenshots have none.
@@ -302,6 +315,7 @@ const browser = await puppeteer.launch({
 try {
   if (which === "all" || which === "screenshots") await screenshots(browser);
   if (which === "all" || which === "walkthrough") await walkthrough(browser);
+  if (which === "reference") await reference(browser);
 } finally {
   await browser.close();
 }

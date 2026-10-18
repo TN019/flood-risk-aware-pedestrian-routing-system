@@ -45,6 +45,12 @@ stay inside. Each device has its own levels and cap (manual wheelchair 7.5 cm, p
 
 ![A manual wheelchair user offered the next level of their device or staying inside](docs/images/wheelchair.jpg)
 
+**Sources and references.** `/reference`, reached only by its address, lists where the data comes
+from, the documents each flood level and limit rests on, and which values are judgements. Its
+values are read from the running API.
+
+![The sources and references page](docs/images/reference.jpg)
+
 **On a phone.** The map sits above a sheet that slides up; the legend starts folded.
 
 <img src="docs/images/phone.jpg" alt="The same choice on a phone" width="300">
@@ -89,7 +95,9 @@ cd ../backend && uv run uvicorn floodroute.api.app:app --port 8000
 ```
 
 then open http://localhost:8000; the API serves the built client and its own routes under
-`/api` (interactive reference at http://localhost:8000/docs). While working on the client, run
+`/api` (interactive reference at http://localhost:8000/docs). The data sources, documents and
+the basis of every depth limit are at http://localhost:8000/reference, a page the app does not
+link to. While working on the client, run
 `npm run dev` in `frontend/` instead and open the address it prints; it passes `/api` requests to
 the API on port 8000 (or wherever `FLOODROUTE_API_URL` points, e.g. `http://127.0.0.1:8010` when
 port 8000 is taken) and reloads on every change.
