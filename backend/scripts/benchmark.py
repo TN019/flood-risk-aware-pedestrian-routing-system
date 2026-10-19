@@ -96,7 +96,7 @@ def main() -> None:
     out["access"] = {"step_free_pairs": timed("step-free pairs", access.step_free_pairs, world, 300, args.seed)}
     inspected = config.GROUND_TRUTH_DIR / "inspected.csv"
     out["field"] = ground_truth.compare(ground_truth.read_csv(inspected)) if inspected.exists() else None
-    out["performance"] = {"plan_ms": out["safety"]["cost"]["plan_ms"], "seconds": timings}
+    out["seconds"] = timings
 
     config.BENCHMARK_PATH.write_text(json.dumps(rounded(out), indent=1, ensure_ascii=False) + "\n")
     print("results ->", config.BENCHMARK_PATH.relative_to(config.REPO_ROOT))

@@ -445,6 +445,6 @@ reference:
 search against brute force, fault injection (each safety rule broken on purpose while the whole test
 suite runs, through `tests/conftest.py` and `FLOODROUTE_FAULT`), the safety routes give and what it
 costs at every level, rerouting while a flood rises during a walk, step-free connectivity between
-buildings, planning time, and a kit for inspecting the data on site. What each should show, written
+buildings, and a kit for inspecting the data on site. What each should show, written
 before the first run, is in [benchmarks.md](benchmarks.md); the results are in `docs/benchmark.json`
 and on `/benchmark`.

@@ -2,7 +2,7 @@
 
 ``safety_cost``: random trips at every flood level for several travellers: how many have a route
 within the limit, what the recommended route avoids compared with the plain shortest way and how much
-longer it is, and what is offered when no route fits. It also times every plan.
+longer it is, and what is offered when no route fits.
 
 ``rising_flood``: a traveller walks while the flood level rises on a schedule; at every rise the trip
 is planned again from where they are and they follow the new advice. Each part of a route is walked
@@ -15,7 +15,6 @@ level, and that is counted separately.
 from __future__ import annotations
 
 import math
-import time
 from collections import Counter
 
 from shapely.geometry import LineString, Point
@@ -77,18 +76,16 @@ def _offered(plan: TripPlan) -> str:
 
 
 def safety_cost(world: World, trips: list[tuple[Place, Place]], levels: list[str] | None = None) -> dict:
-    out: dict = {"trips": len(trips), "levels": {}, "plan_ms": {}}
+    out: dict = {"trips": len(trips), "levels": {}}
     for level in levels or [s for s in world.snapshots if s != "normal"]:
         snap = world.snapshots[level]
-        by_traveller, times = {}, []
+        by_traveller = {}
         for name, profile in TRAVELLERS.items():
             safe = over_limit_routes = 0
             detours, avoided, short_deep, rec_deep = [], [], [], []
             offered: Counter = Counter()
             for origin, destination in trips:
-                start = time.perf_counter()
                 plan = plan_trip(world.router, world.refuges, origin, destination, snap, profile)
-                times.append((time.perf_counter() - start) * 1000)
                 if not plan.has_safe_route:
                     offered[_offered(plan)] += 1
                     continue
@@ -113,7 +110,6 @@ def safety_cost(world: World, trips: list[tuple[Place, Place]], levels: list[str
                 "without_route": dict(offered),
             }
         out["levels"][level] = {"title": world.titles[level], "travellers": by_traveller}
-        out["plan_ms"][level] = {"median": quantile(times, 0.5), "p95": quantile(times, 0.95), "plans": len(times)}
     return out
 
 

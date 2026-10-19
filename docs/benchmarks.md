@@ -11,11 +11,16 @@ run**. Some benchmarks are measurements with no prediction; they say so.
 Two layers are tested differently. Whether the **algorithms** follow their rules on given data can
 be checked automatically, on made-up data (the test town) and on the real network. Whether the
 **data** matches the streets (steps, kerbs, gradients, barriers, entrances) cannot be checked by the
-program: only an inspection on site can, and section 3.2 gives the method.
+program: only an inspection on site can, and section 4 gives the method.
 
-## 1. Correctness of the algorithms
+## Algorithm layer
 
-### 1.1 Path finder against a reference
+Whether routes follow their rules on the data they are given: on the test town and on the Southbank
+network, automatically.
+
+### Correctness
+
+#### 1.1 Path finder against a reference
 
 The in-house Dijkstra against NetworkX's, under the walking cost: 1,000 random node pairs searched
 directly, and 300 random trips through the router (snapping, access legs).
@@ -23,7 +28,7 @@ directly, and 300 random trips through the router (snapping, access legs).
 **Prediction:** every node pair has the same cost (or no path for both), and every trip the same
 length.
 
-### 1.2 Safest-path search against brute force
+#### 1.2 Safest-path search against brute force
 
 The two-phase minimax search (lowest possible deepest point, then the cheapest path that never goes
 deeper) against enumerating every simple path, on 300 random graphs of 9 nodes and 16 edges with
@@ -31,14 +36,14 @@ random lengths and depths, 3 node pairs each.
 
 **Prediction:** for every connected pair, the same deepest point and the same length.
 
-### 1.3 Hand-derived predictions
+#### 1.3 Hand-derived predictions
 
 The test town cases A–I and the Southbank properties R-A to R-H in
 [verification.md](verification.md).
 
 **Prediction:** every check is met.
 
-### 1.4 Fault injection
+#### 1.4 Fault injection
 
 Each fault below breaks one safety rule on purpose; the whole test suite (unit tests and the test
 town cases) then runs against the broken code. A test suite that misses a fault would not notice
@@ -58,9 +63,9 @@ that rule breaking in a real change.
 
 **Prediction:** every fault makes at least one test fail.
 
-## 2. Continuous pedestrian safety
+### Pedestrian safety
 
-### 2.1 Safety and what it costs
+#### 2.1 Safety and what it costs
 
 100 random trips (fixed seed) at each flood level, for four travellers: an adult with an ankle
 limit, an adult with a mid-calf limit, a child with a mid-calf limit, and a manual wheelchair at
@@ -71,7 +76,7 @@ the limit it avoids; and for trips with no route, what is offered instead.
 **Prediction:** no recommended route crosses water over the traveller's limit. The rest is a
 measurement.
 
-### 2.2 Rising flood: rerouting on the way
+#### 2.2 Rising flood: rerouting on the way
 
 100 random trips for an adult with a mid-calf limit, walking at 1.3 m/s while the flood rises:
 light flooding at the start, moderate after 4 minutes, heavy after 8. At every rise the trip is
@@ -87,9 +92,9 @@ the way to a shelter, or staying where they are.
 
 The number of reroutes, the outcomes and the extra distance are measurements.
 
-## 3. Public area accessibility
+### Public area accessibility
 
-### 3.1 Step-free connectivity
+#### 3.1 Step-free connectivity
 
 300 random pairs of buildings inside Southbank, normal conditions: the walking route and the
 step-free route a manual wheelchair user gets.
@@ -102,7 +107,9 @@ route and how much longer it is are measurements.
 prediction confused length with cost: routes minimise walking cost, with a carriageway counted three
 times its length, so a step-free route may be shorter while costing more (see Results).
 
-### 3.2 Field inspection (ground truthing)
+## Data layer
+
+### 4. Field inspection (ground truthing)
 
 The network and entrances come from OpenStreetMap, which can miss steps, kerbs, barriers and
 closures, or mark an entrance that is not open to the public. Only an inspection on site can tell.
@@ -121,11 +128,6 @@ closures, or mark an entrance that is not open to the public. Only an inspection
 
 No prediction: the results appear on `/benchmark` once an inspection has been filed as
 `data/ground_truth/inspected.csv`.
-
-## 4. Performance
-
-Time to plan a whole trip (routes, least water, downgrade, refuge, emergency) on the Southbank
-network, from the trips in 2.1: median and 95th percentile by flood level. A measurement.
 
 ## Results
 
@@ -161,6 +163,4 @@ completed, and a clean rerun on commit `4add2c3` gave the same figures.
   costs more (1,968 against 1,944) while being shorter. Revised prediction, by cost: **0 of 299**
   cost less. Measured: a step-free route exists for 299 of 300 pairs and is the walking route itself
   for 279; it is 39.8% longer at most.
-- **3.2** No inspection filed yet.
-- **4** A whole trip plan takes 25 ms at the median under light flooding and about 50 ms under
-  moderate to extreme flooding; the 95th percentile is under 70 ms.
+- **4** No inspection filed yet.

@@ -1,7 +1,7 @@
 """Draw a stratified sample of footpath sections and building entrances to inspect on site.
 
 Writes a checklist (CSV) with what the model says about each item and empty field_ columns for the
-inspector; see docs/benchmarks.md (3.2) and floodroute.benchmark.ground_truth for the answers
+inspector; see docs/benchmarks.md (4) and floodroute.benchmark.ground_truth for the answers
 expected. File the completed checklist as data/ground_truth/inspected.csv.
 
 Run:  uv run python scripts/ground_truth_sample.py [--per-kind 15] [--out data/ground_truth/sample.csv]
