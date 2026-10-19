@@ -8,7 +8,7 @@ usable or step-free that are not (the false accessible rate).
 
 Paths steeper than 1:14 are rare inside Southbank (most are on the north bank and the bridge
 approaches), so the ``steep`` kind is also drawn from the network's margin, which routes use to
-cross the river.
+cross the river, after every steep path inside Southbank.
 
 Field answers are ``yes``, ``no`` or ``unknown`` unless stated; ``field_gradient`` is ``flat`` (no
 noticeable slope), ``gentle`` (a noticeable slope up to 1:14, about 4°) or ``steep`` (steeper than
@@ -93,7 +93,7 @@ def sample(world: World, per_kind: int = 15, seed: int = 2026) -> list[dict]:
             by_kind[kind].append(d)
     rows = []
     for kind in PATH_KINDS:
-        for d in rng.sample(by_kind[kind], min(per_kind, len(by_kind[kind]))):
+        for d in _draw(rng, by_kind[kind], per_kind):
             lat, lon = latlon(d["geometry"].interpolate(0.5, normalized=True))
             rows.append(
                 {
@@ -142,6 +142,14 @@ def sample(world: World, per_kind: int = 15, seed: int = 2026) -> list[dict]:
     for row in rows:
         row.update(dict.fromkeys(FIELD_COLUMNS, ""))
     return rows
+
+
+def _draw(rng: random.Random, sections: list[dict], n: int) -> list[dict]:
+    """``n`` sections, those inside Southbank first (only steep paths are drawn from the margin)."""
+    inside = [d for d in sections if d.get("in_study_area")]
+    margin = [d for d in sections if not d.get("in_study_area")]
+    picked = rng.sample(inside, min(n, len(inside)))
+    return picked + rng.sample(margin, min(n - len(picked), len(margin)))
 
 
 def write_csv(rows: list[dict], path: Path) -> None:
