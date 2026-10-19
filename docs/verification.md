@@ -257,3 +257,10 @@ a manual wheelchair at 5 cm and 7.5 cm and a mobility scooter at 2.5 cm. Result:
 checks met**, including all 15 in H. The one random trip whose plain shortest way has steps is
 now counted once for each of the four mobility aid travellers (4), and none of their routes uses
 steps. No manual wheelchair trip is possible at a lower level but not a higher one.
+
+**Ninth run, after travellers cut off inside a building got emergency help.** Case I (test town)
+was derived and committed before the change; against the code before it, 14 of its 17 checks
+already held, and the three emergency checks (I2, I4, I6) failed, as predicted. Result: **138 of
+138 checks met**, including all 17 in I. Calling for help (000, VICSES 132 500, an alert to
+people nearby) is now always available in both clients; these rules decide only when the results
+put it first.

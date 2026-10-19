@@ -294,7 +294,8 @@ export default function App() {
         <footer className="footnote">
           <p>
             Routes are guidance based on modelled conditions, which can be incomplete or wrong, and floods change quickly. Never walk
-            through floodwater you do not have to, follow directions from emergency services, and in an emergency call 000.
+            through floodwater you do not have to, follow directions from emergency services, and in an emergency call 000 (VICSES
+            132 500 for flood or storm help).
           </p>
           <p>Map data © OpenStreetMap contributors. Flood scenarios: see Sources under each level.</p>
         </footer>

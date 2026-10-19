@@ -142,8 +142,8 @@ export function ReferencePage() {
       <section id="not-covered">
         <h2>Not covered</h2>
         <p className="notice">
-          This is not an official flood warning service. Follow warnings from VICSES and the Bureau of Meteorology, and call 000 in an
-          emergency.
+          This is not an official flood warning service. Follow warnings from VICSES and the Bureau of Meteorology, call 000 in an
+          emergency, and call VICSES on 132 500 for flood or storm help.
         </p>
         <ul>
           {LIMITS.map((limit) => (

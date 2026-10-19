@@ -13,8 +13,9 @@ and shallower water costs more the closer it is to that limit.
 
 From Boyd Village to Crown Melbourne with a mid-calf limit (28 cm): under light flooding the plain
 route is dry; under moderate flooding no route fits, so the app offers accepting water up to the
-knee or staying inside; taking the knee limit gives a route. Last, under heavy flooding, a start in
-67 cm of water brings up emergency help and the shallowest way to shelter.
+knee or staying inside; taking the knee limit gives a route. Under heavy flooding, a start in
+67 cm of water brings up emergency help and the shallowest way to shelter. Last, the Get help
+button, always on the map, opens calls to 000 and VICSES and the SOS alert.
 
 ## Screenshots
 
@@ -50,6 +51,11 @@ from, the documents each flood level and limit rests on, and which values are ju
 values are read from the running API.
 
 ![The sources and references page](docs/images/reference.jpg)
+
+**Help at any time.** A Get help button stays on the map, whatever the trip says: call 000 if
+anyone's life is in danger, VICSES 132 500 for flood or storm help, or alert people nearby (the
+alert is simulated). When the trip finds the traveller in danger, or cut off by deep water inside
+a building, emergency help also opens the results.
 
 **On a phone.** The map sits above a sheet that slides up; the legend starts folded.
 
@@ -149,7 +155,7 @@ before opening a pull request.
 Routes are guidance based on modelled or reported conditions, which can be incomplete, out of date
 or wrong, and flood conditions can change quickly. A suggested route is not a guarantee that it is
 safe. Never walk, ride or drive through floodwater you do not have to, follow directions from
-emergency services, and in an emergency call 000.
+emergency services, and in an emergency call 000; for flood or storm help, call VICSES on 132 500.
 
 ## Licence
 
