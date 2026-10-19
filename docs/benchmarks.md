@@ -134,7 +134,7 @@ No prediction: the results appear on `/benchmark` once an inspection has been fi
 Written after each run; the full figures are in `docs/benchmark.json` and on `/benchmark`.
 
 **First runs.** The first attempt stopped with an error in 2.2 (below); after that fix the run
-completed, and a clean rerun on commit `4add2c3` gave the same figures.
+completed; clean reruns on commits `4add2c3` and `1fac09a` gave the same figures.
 
 - **1.1** Same cost for **1,000 of 1,000** node pairs and same length for **300 of 300** trips. As
   predicted.

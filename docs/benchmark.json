@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-10-19T05:33:53+00:00",
- "commit": "4add2c3",
+ "generated_at": "2026-10-19T06:03:26+00:00",
+ "commit": "1fac09a",
  "network": {
   "nodes": 2900,
   "edges": 3928
@@ -17,12 +17,12 @@
     "max": 2899
    },
    "ours_ms": {
-    "median": 1.2581,
-    "p95": 2.331
+    "median": 1.2221,
+    "p95": 2.2221
    },
    "reference_ms": {
-    "median": 0.9033,
-    "p95": 1.666
+    "median": 0.8914,
+    "p95": 1.6251
    }
   },
   "dijkstra_end_to_end": {
@@ -32,8 +32,8 @@
    "both_none": 2,
    "mismatches": [],
    "route_ms": {
-    "median": 6.09,
-    "p95": 15.6383
+    "median": 5.8534,
+    "p95": 14.7838
    }
   },
   "minimax_brute_force": {
@@ -557,28 +557,6 @@
       }
      }
     }
-   },
-   "plan_ms": {
-    "light-flooding": {
-     "median": 24.7104,
-     "p95": 54.7646,
-     "plans": 400
-    },
-    "moderate-flooding": {
-     "median": 48.4135,
-     "p95": 68.216,
-     "plans": 400
-    },
-    "heavy-flooding": {
-     "median": 50.1302,
-     "p95": 67.8824,
-     "plans": 400
-    },
-    "extreme-flooding": {
-     "median": 52.2028,
-     "p95": 67.0282,
-     "plans": 400
-    }
    }
   },
   "rising_flood": {
@@ -629,40 +607,16 @@
   }
  },
  "field": null,
- "performance": {
-  "plan_ms": {
-   "light-flooding": {
-    "median": 24.7104,
-    "p95": 54.7646,
-    "plans": 400
-   },
-   "moderate-flooding": {
-    "median": 48.4135,
-    "p95": 68.216,
-    "plans": 400
-   },
-   "heavy-flooding": {
-    "median": 50.1302,
-    "p95": 67.8824,
-    "plans": 400
-   },
-   "extreme-flooding": {
-    "median": 52.2028,
-    "p95": 67.0282,
-    "plans": 400
-   }
-  },
-  "seconds": {
-   "loading": 0.4171,
-   "dijkstra node pairs": 2.2011,
-   "dijkstra end to end": 4.0196,
-   "minimax": 0.2033,
-   "test town": 0.0667,
-   "southbank properties": 230.76,
-   "fault injection": 294.8805,
-   "safety cost": 69.9827,
-   "rising flood": 7.7154,
-   "step-free pairs": 5.1644
-  }
+ "seconds": {
+  "loading": 0.4034,
+  "dijkstra node pairs": 2.1444,
+  "dijkstra end to end": 3.8507,
+  "minimax": 0.2003,
+  "test town": 0.0651,
+  "southbank properties": 239.5803,
+  "fault injection": 298.1509,
+  "safety cost": 69.3697,
+  "rising flood": 7.5169,
+  "step-free pairs": 5.0738
  }
 }
