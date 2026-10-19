@@ -130,3 +130,37 @@ network, from the trips in 2.1: median and 95th percentile by flood level. A mea
 ## Results
 
 Written after each run; the full figures are in `docs/benchmark.json` and on `/benchmark`.
+
+**First runs.** The first attempt stopped with an error in 2.2 (below); after that fix the run
+completed, and a clean rerun on commit `4add2c3` gave the same figures.
+
+- **1.1** Same cost for **1,000 of 1,000** node pairs and same length for **300 of 300** trips. As
+  predicted.
+- **1.2** **891 of 891** connected pairs agree with brute force. As predicted.
+- **1.3** Test town **104 of 104**, Southbank properties **34 of 34**. As predicted.
+- **1.4** Every fault is caught. Tests failed, of 241: F1 27, F2 3, F3 6, F4 12, F5 8, F6 8, F7 4,
+  F8 9, F9 2. The test town cases that fail are those predicted, and F3 is caught by unit tests
+  only, not by the test town, as predicted. As written, the suite has no failures.
+- **2.1** No recommended route crosses water over the limit in **1,600** plans. As predicted.
+  Measured, for example: under light flooding an adult with an ankle limit has a route for 86 of 100
+  trips; for the 36 whose shortest way crosses water over the limit, the recommended route is 0.8%
+  longer at the median and avoids 66 m of it. Under extreme flooding 2–3 of 100 trips have a route,
+  and a shelter is offered for 96–98 of the rest.
+- **2.2** **0 m** walked over the limit on routes given as within it, and every trip ends with
+  advice (arrived 31, at a shelter 67, a higher limit offered 2). As predicted. 141 reroutes in 97
+  trips; 21 times the water had risen over the limit where the traveller stood, and the safest ways
+  out crossed 679 m of it in all.
+  **Not foreseen:** the first attempt stopped because 6 times the flood rose while a route ran
+  through the network's margin outside Southbank, where no trip can be planned (a start must lie
+  inside). The simulation now keeps the traveller on the route they have and counts it: they walked
+  **1,435 m** over the limit there in all. This is a gap in the app as well: replanning should work
+  wherever a route can go.
+- **3.1** No step-free route uses steps. **Not as predicted:** 1 of 299 step-free routes is shorter
+  than the walking route (1,887 m against 1,905 m). The prediction was wrong, not the router: routes
+  minimise walking cost, with a carriageway counted three times its length, and that step-free route
+  costs more (1,968 against 1,944) while being shorter. Revised prediction, by cost: **0 of 299**
+  cost less. Measured: a step-free route exists for 299 of 300 pairs and is the walking route itself
+  for 279; it is 39.8% longer at most.
+- **3.2** No inspection filed yet.
+- **4** A whole trip plan takes 25 ms at the median under light flooding and about 50 ms under
+  moderate to extreme flooding; the 95th percentile is under 70 ms.
