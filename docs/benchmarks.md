@@ -38,7 +38,7 @@ random lengths and depths, 3 node pairs each.
 
 #### 1.3 Hand-derived predictions
 
-The test town cases A–I and the Southbank properties R-A to R-H in
+The test town cases A–J and the Southbank properties R-A to R-I in
 [verification.md](verification.md).
 
 **Prediction:** every check is met.
@@ -60,6 +60,7 @@ that rule breaking in a real change.
 | F7 | No emergency help when cut off inside a building | I2, I4, I6 |
 | F8 | No emergency help at all | E4, E5, E6, E8, G3, I2 |
 | F9 | The recommended route ignores water within the limit (α = 0) | C, D, H2 |
+| F10 | Mobility aid users may use paths steeper than 1:14 | J; unit tests of the gradient rule. G does **not** catch it: steps are a separate rule |
 
 **Prediction:** every fault makes at least one test fail.
 
@@ -106,6 +107,11 @@ route and how much longer it is are measurements.
 **Revised after the first run:** no step-free route **costs** less than the walking route. The first
 prediction confused length with cost: routes minimise walking cost, with a carriageway counted three
 times its length, so a step-free route may be shorter while costing more (see Results).
+
+**Added with footpath gradients** (written before the run with gradients): the route a manual
+wheelchair user gets also leaves out paths steeper than 1:14, so no step-free route uses one, none
+costs less than the walking route, and the share of pairs with a step-free route is no higher than
+before (a rule that only removes edges cannot connect more pairs).
 
 ## Data layer
 

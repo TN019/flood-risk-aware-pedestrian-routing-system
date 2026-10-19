@@ -1,4 +1,4 @@
-"""Verification harness: run cases A–G and compare with the predictions in docs/verification.md.
+"""Verification harness: run cases A–J and compare with the predictions in docs/verification.md.
 
 Part 1 builds the small "test town" from that document, where every expected number was worked out
 by hand, and checks the program's results against those numbers. Part 2 checks properties that
@@ -32,6 +32,7 @@ from floodroute.trip import ONLY_OPTION, plan_trip
 
 LENGTH_TOL_M = 0.01
 ADULT, CHILD, TALL = 1.70, 1.20, 1.90
+STEEPEST_RAMP = 1 / 14  # AS 1428.1; the limit the predictions in case J and R-I were derived with
 
 
 @dataclass(frozen=True)
@@ -81,7 +82,10 @@ SHELTER_DOOR = (-10, 25)
 START, END = Point(0, 0), Point(300, 0)
 
 
-def test_town(with_shelter: bool = True, steps: tuple[str, ...] = ()) -> tuple[Router, PlaceResolver, RefugeIndex]:
+def test_town(
+    with_shelter: bool = True, steps: tuple[str, ...] = (), gradients: dict[str, float | None] | None = None
+) -> tuple[Router, PlaceResolver, RefugeIndex]:
+    gradients = gradients or {}
     g = nx.Graph(crs=config.METRIC_CRS)
     for n, (x, y) in NODES.items():
         g.add_node(n, x=x, y=y, kind="junction", in_study_area=True)
@@ -96,6 +100,7 @@ def test_town(with_shelter: bool = True, steps: tuple[str, ...] = ()) -> tuple[R
             cost_factor=1.0,
             in_study_area=True,
             is_steps=eid in steps,
+            gradient=gradients.get(eid),
         )
     router = Router(g)
     names, shapes, doors = (["Shelter"], [SHELTER], [SHELTER_DOOR]) if with_shelter else ([], [], [(9e5, 9e5)])
@@ -117,8 +122,8 @@ def adult(part: BodyPart = BodyPart.ANKLE, **kw) -> TravellerProfile:
     return TravellerProfile(ADULT, part, **kw)
 
 
-def _trip(snapshot, profile, alpha=2.0, start=START, end=END, with_shelter=True, steps=()):
-    router, resolver, refuges = test_town(with_shelter, steps)
+def _trip(snapshot, profile, alpha=2.0, start=START, end=END, with_shelter=True, steps=(), gradients=None):
+    router, resolver, refuges = test_town(with_shelter, steps, gradients)
     o = resolver.resolve(start, "start", role="origin")
     d = resolver.resolve(end, "end")
     return plan_trip(router, refuges, o, d, snapshot, profile, alpha)
@@ -505,7 +510,86 @@ def run_test_town() -> list[Check]:
     add("I6", "least water (m), its route (m)", (0.10, 335.0), least(t))
     add("I6", "downgrade", None, t.downgrade)
     add("I6", "emergency advice, reason", ("available", "cut_off"), emergency(t))
+
+    # J — steep paths and mobility aid users
+    steep = {"b12": 1 / 10}
+    t = _trip(flood(), adult(), gradients=steep)
+    r = t.routes
+    add("J1", "adult: shortest / within limit / recommended (m)", (300.0, 300.0, 300.0), tuple(map(_len, r.options)))
+    add("J1", "adult: every route through b12, steep avoided", (True, False), (_all_use(r, "b12"), _steep_avoided(r)))
+    t = _trip(flood(), aid(manual), gradients=steep)
+    r = t.routes
+    add(
+        "J1",
+        "manual: shortest / within limit / recommended (m)",
+        (400.0, 400.0, 400.0),
+        tuple(map(_len, r.options)),
+    )
+    add(
+        "J1",
+        "manual: any route through b12, steep avoided, steps avoided",
+        (False, True, False),
+        (any("b12" in _sources(o) for o in r.options), _steep_avoided(r), r.steps_avoided),
+    )
+    add("J1", "manual: edges over the limit", 0, r.blocked_edges)
+    add(
+        "J1",
+        "powered / scooter: recommended (m)",
+        (400.0, 400.0),
+        tuple(_len(_trip(flood(), aid(device), gradients=steep).routes.recommended) for device in (powered, scooter)),
+    )
+
+    add(
+        "J2",
+        "manual: recommended at 1:14 / 1:13 / no gradient (m)",
+        (300.0, 400.0, 300.0),
+        tuple(
+            _len(_trip(flood(), aid(manual), gradients={"b12": g}).routes.recommended)
+            for g in (STEEPEST_RAMP, 1 / 13, None)
+        ),
+    )
+
+    t = _trip(flood(t12=0.04), adult(), gradients=steep)
+    add("J3", "adult: recommended (m)", 300.0, _len(t.routes.recommended))
+    t = _trip(flood(t12=0.04), aid(powered), gradients=steep)
+    add("J3", "powered: route within limit", False, t.has_safe_route)
+    add(
+        "J3",
+        "powered: shortest ignoring flooding (m), steep avoided",
+        (400.0, True),
+        (_len(t.routes.shortest), _steep_avoided(t.routes)),
+    )
+    add("J3", "powered: least water (m), its route (m)", (0.04, 400.0), least(t))
+    add(
+        "J3",
+        "powered: downgrade to, least water (m), route (m)",
+        ("well below the chassis", 0.04, 400.0),
+        downgrade(t),
+    )
+    add("J3", "powered: refuge, length (m), within limit", ("Shelter", 35.0, True), refuge(t))
+    add("J3", "powered: emergency", None, t.emergency)
+    t = _trip(flood(t12=0.04), aid(scooter), gradients=steep)
+    add("J3", "scooter: route within limit", False, t.has_safe_route)
+    add("J3", "scooter: least water (m)", 0.04, t.least_water.required_depth_m if t.least_water else None)
+    add("J3", "scooter: downgrade", None, t.downgrade)
+    add("J3", "scooter: refuge, length (m), within limit", ("Shelter", 35.0, True), refuge(t))
+
+    steep_c0 = {"c0": 1 / 10}
+    t = _trip(flood(b12=0.10, t12=0.10), adult(), gradients=steep_c0)
+    add("J4", "adult: route within limit", False, t.has_safe_route)
+    add("J4", "adult: downgrade to, least water (m), route (m)", ("lower calf", 0.10, 300.0), downgrade(t))
+    add("J4", "adult: refuge, length (m), within limit", ("Shelter", 35.0, True), refuge(t))
+    add("J4", "adult: emergency", None, t.emergency)
+    t = _trip(flood(b12=0.10, t12=0.10), aid(manual), gradients=steep_c0)
+    add("J4", "manual: route within limit", False, t.has_safe_route)
+    add("J4", "manual: least water (m), its route (m)", (0.10, 300.0), least(t))
+    add("J4", "manual: downgrade, refuge", (None, None), (t.downgrade, t.refuge))
+    add("J4", "manual: emergency advice", ONLY_OPTION, t.emergency.advice if t.emergency else None)
     return checks
+
+
+def _steep_avoided(plan) -> bool | None:
+    return getattr(plan, "steep_avoided", None)
 
 
 def _sources(option) -> set[str]:
@@ -572,6 +656,7 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
         ADULT, mobility_aid=MobilityAid.MOBILITY_SCOOTER, aid_level=1
     )
     model = DepthRelativeRisk()
+    steep = {d["edge_id"] for *_, d in g.edges(data=True) if (d.get("gradient") or 0) > STEEPEST_RAMP}
 
     checks: list[Check] = []
     blocked_by_level, blocked_no_wading, feasible_by_level = [], [], []
@@ -579,6 +664,7 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
         snap = load_hazard(scenario).snapshot(g)
         level = f"{scenario.order} {scenario.title}"
         same, over, cost_bad, monotone_bad, no_way_forward, on_steps, steps_avoided = 0, 0, 0, 0, 0, 0, 0
+        on_steep, steep_avoided = 0, 0
         aid_monotone_bad = 0
         feasible_ankle = 0
         for o, d in pairs:
@@ -617,6 +703,12 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
                     ]
                     on_steps += sum(1 for route in planned if route is not None and route.uses_steps)
                     steps_avoided += plan.steps_avoided
+                    on_steep += sum(
+                        1
+                        for route in planned
+                        if route is not None and any(seg.source_edge_id in steep for seg in route.segments)
+                    )
+                    steep_avoided += bool(_steep_avoided(plan))
                 way_forward = trip is not None and (
                     trip.downgrade or trip.refuge or trip.origin.sheltered or trip.emergency
                 )
@@ -640,6 +732,12 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
         )
         checks.append(
             Check("R-G", f"{level}: wheelchair trips whose plain shortest way has steps", "—", steps_avoided, True)
+        )
+        checks.append(Check("R-I", f"{level}: mobility aid routes using a path steeper than 1:14", 0, on_steep))
+        checks.append(
+            Check(
+                "R-I", f"{level}: wheelchair trips whose plain shortest way has a steep path", "—", steep_avoided, True
+            )
         )
 
         def over_limit(profile: TravellerProfile, snap=snap) -> int:
