@@ -1,13 +1,12 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { api } from "../api";
-import type { BenchmarkResults, Rate } from "./types";
+import type { BenchmarkResults } from "./types";
 
 const REPOSITORY = "https://github.com/TN019/flood-risk-aware-pedestrian-routing-system";
 
 const pct = (x: number | null | undefined, digits = 0) => (x === null || x === undefined ? "—" : `${(x * 100).toFixed(digits)}%`);
 const metres = (x: number | null) => (x === null ? "—" : `${Math.round(x)} m`);
 const share = (n: number, of: number) => `${n} of ${of}`;
-const rate = (r: Rate) => (r.of === 0 ? "—" : `${pct(r.rate, 1)} (${r.count} of ${r.of})`);
 
 /** Whether a result came out as docs/benchmarks.md predicted, or is a measurement. */
 function Verdict({ ok }: { ok?: boolean }) {
@@ -47,9 +46,8 @@ export function BenchmarkPage() {
         </a>
         <h1>Benchmarks</h1>
         <p>
-          Two layers. The <strong>algorithm layer</strong>: whether routes follow their rules on the data they are given, checked
-          automatically on made-up data (a small test town) and on the real Southbank network. The <strong>data layer</strong>: whether that
-          data matches the streets, which only an inspection on site can tell. The predictions were written before the first run, in{" "}
+          Whether routes follow their rules on the data they are given, checked automatically on made-up data (a small test town) and
+          on the real Southbank network. The predictions were written before the first run, in{" "}
           <a href={`${REPOSITORY}/blob/main/docs/benchmarks.md`}>docs/benchmarks.md</a>.
         </p>
         {results && (
@@ -58,10 +56,6 @@ export function BenchmarkPage() {
             {results.network.nodes.toLocaleString()} junctions and {results.network.edges.toLocaleString()} sections.
           </p>
         )}
-        <nav aria-label="Sections">
-          <a href="#algorithm">Algorithm layer</a>
-          <a href="#data">Data layer</a>
-        </nav>
       </header>
 
       {error && <p className="notice">The benchmark results could not be loaded: {error}</p>}
@@ -248,50 +242,6 @@ function Results({ r }: { r: BenchmarkResults }) {
         </Result>
       </section>
 
-      <section id="data">
-        <h2>Data layer</h2>
-        {r.field ? (
-          <Result title="Model against the inspection">
-            <ul>
-              <li>
-                Paths inspected: {r.field.paths.inspected}. Treated as walkable but not passable on site:{" "}
-                <strong>{rate(r.field.paths.false_accessible)}</strong>. Treated as step-free but not: <strong>{rate(r.field.paths.false_step_free)}</strong>.
-              </li>
-              <li>
-                Steps: the model agrees for {rate(r.field.paths.steps_agree)}; it misses steps on {rate(r.field.paths.steps_missed)} of sections it
-                shows without them.
-              </li>
-              <li>
-                Gradient: the model agrees for {rate(r.field.paths.steep_agree)}. Treated as no steeper than 1:14 (or not measured) but steep on
-                site: <strong>{rate(r.field.paths.steep_missed)}</strong>. Treated as steeper but not steep: {rate(r.field.paths.steep_not_steep)}.
-              </li>
-              <li>
-                Entrances inspected: {r.field.entrances.inspected}. Not there or not open to the public: {rate(r.field.entrances.not_usable)}; not
-                step-free: {rate(r.field.entrances.not_step_free)}.
-              </li>
-            </ul>
-          </Result>
-        ) : (
-          <>
-            <p>
-              No inspection has been filed yet. The paths and entrances come from OpenStreetMap, which can miss steps, kerbs, barriers and
-              closures, or mark an entrance that is not open to the public, and the gradients from the City of Melbourne's footpath survey,
-              which leaves out many paths; only an inspection on site can tell.
-            </p>
-            <ol>
-              <li>
-                <code>uv run python scripts/ground_truth_sample.py</code> draws footpath sections of each kind and building entrances, and writes a
-                checklist with what the model says about each.
-              </li>
-              <li>On site, fill in each item: passable, steps, kerb ramp, gradient, width, surface, barriers, entrance step-free and open.</li>
-              <li>
-                File it as <code>data/ground_truth/inspected.csv</code>; <code>scripts/ground_truth_compare.py</code> and the next benchmark run
-                report the agreement, and above all the share the model treats as usable that is not.
-              </li>
-            </ol>
-          </>
-        )}
-      </section>
 
     </>
   );

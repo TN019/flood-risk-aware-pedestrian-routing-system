@@ -2,8 +2,8 @@
 
 Reads a checklist written by ground_truth_sample.py with its field_ columns filled in, and prints the
 agreement and the false accessible rates (items the model treats as usable or step-free that are
-not). The same comparison appears on /benchmark once the checklist is filed as
-data/ground_truth/inspected.csv and scripts/benchmark.py has run.
+not). Filed as data/ground_truth/inspected.csv, the same comparison is written to docs/benchmark.json
+by the next run of scripts/benchmark.py.
 
 Run:  uv run python scripts/ground_truth_compare.py data/ground_truth/inspected.csv
 """
