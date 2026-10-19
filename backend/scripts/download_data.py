@@ -1,6 +1,6 @@
 """Download the raw input data into data/raw/.
 
-Run:  uv run python scripts/download_data.py [--only osm|buildings|context|com|boundary|dem|overlays|pits ...]
+Run:  uv run python scripts/download_data.py [--only osm|buildings|context|com|boundary|dem|overlays|pits|steepness ...]
 
 - osm        OpenStreetMap walking network (unsimplified GraphML)
 - buildings  OpenStreetMap building footprints and entrances
@@ -10,13 +10,14 @@ Run:  uv run python scripts/download_data.py [--only osm|buildings|context|com|b
 - dem        Geoscience Australia 5 m LiDAR DEM (ground elevation, m AHD)
 - overlays   Vicmap Planning flood overlays (LSIO / SBO / FO extents)
 - pits       City of Melbourne stormwater pits (drain inlets)
+- steepness  City of Melbourne footpath steepness (gradients of footpath sections)
 """
 
 from __future__ import annotations
 
 import argparse
 
-from floodroute.sources import com, drainage, osm, terrain
+from floodroute.sources import com, drainage, osm, steepness, terrain
 
 STEPS = {
     "boundary": com.download_clue_boundary,
@@ -27,6 +28,7 @@ STEPS = {
     "dem": terrain.download_dem,
     "overlays": terrain.download_flood_overlays,
     "pits": drainage.download_stormwater_pits,
+    "steepness": steepness.download_footpath_steepness,
 }
 
 
