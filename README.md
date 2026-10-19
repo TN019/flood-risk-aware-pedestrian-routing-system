@@ -7,72 +7,7 @@ sets the deepest water they accept as a body part, converted to a depth from the
 a wheelchair or mobility scooter, a level of their device); deeper water is never routed through,
 and shallower water costs more the closer it is to that limit.
 
-## Walkthrough
-
-Each trip opens with the next step to take, and the map highlights the route it refers to. Water
-the traveller can walk through is blue; water over their limit, or of unknown depth, is dashed red.
-Every route shows its length, time, deepest water, and its steepest and gentlest gradient where the
-City of Melbourne has measured the footpaths.
-The sources behind every flood level and depth limit, and which values are judgements, are on the
-`/reference` page, reached only by its address.
-
-**Flood levels.** From none to extreme: the typical water on flooded footpaths rises from the
-ankle (6 cm) to the calf (32 cm), the thigh (54 cm) and above the hip (99 cm).
-
-![The water on the map rising from light to extreme flooding](docs/images/flood-levels.gif)
-
-**A route that fits, around the water.** Light flooding, ankle limit: the shortest way crosses
-water of unknown depth, so the recommended route walks 12 m further to stay within the limit.
-
-![The recommended route, then the flood-ignoring shortest way it avoids](docs/images/detour.gif)
-
-**No route fits: a choice.** Moderate flooding, Boyd Village to Crown Melbourne, mid-calf limit
-(28 cm): every way crosses at least 32 cm, so the choices are to accept water up to the knee or to
-stay inside. Taking the knee limit gives a route.
-
-![Two choices, then the route with the knee limit](docs/images/choose.gif)
-
-**Go to a shelter.** Heavy flooding, from dry ground: every way to the destination crosses at
-least 68 cm, more than the 50 cm anyone is routed through, so the next step is the nearest shelter,
-140 m away and dry all the way.
-
-![The way to the nearest shelter when the destination is out of reach](docs/images/shelter.gif)
-
-**Standing in deep water.** Heavy flooding, starting in 67 cm: emergency help comes first, then the
-nearest shelter by the shallowest way out.
-
-![Emergency help and the shallowest way to shelter from deep water](docs/images/deep-water.gif)
-
-**Cut off inside a building.** Extreme flooding, inside Boyd Village: every way to Crown Melbourne
-crosses at least 147 cm. Staying inside is the advice, and emergency help is available, with a
-reminder to move to a higher floor if water comes in.
-
-![Emergency help for a traveller cut off by deep water inside a building](docs/images/cut-off.gif)
-
-**With a wheelchair.** Light flooding, a manual wheelchair at its lowest level (no water, 2 cm),
-from inside the Crown Entertainment Complex to Boyd Village: every step-free way crosses 3 cm, so
-the choices are the device's next level, below a 4-inch castor axle (5 cm), or staying inside.
-Each device has its own levels and cap (manual wheelchair 7.5 cm, powered wheelchair 5 cm,
-mobility scooter 2.5 cm), and routes never use steps or footpaths measured steeper than 1:14.
-
-![The next level of the device, then the step-free route with it](docs/images/wheelchair.gif)
-
-**Steep paths.** No flooding, on the promenade between Southgate Avenue and Southbank Boulevard:
-on foot the route is 109 m and its steepest part is a path at 8.3%. With a manual wheelchair it
-goes round that path, 429 m, and its steepest part is 6.9%: wheelchair and scooter routes never use
-a path steeper than 1:14 (7.1%).
-
-![The route on foot over an 8.3% path, then the wheelchair route around it](docs/images/steep-path.gif)
-
-**Help at any time.** A Get help button stays on the map, whatever the trip says: call 000 if
-anyone's life is in danger, VICSES 132 500 for flood or storm help, or alert people nearby (the
-alert is simulated, with a few seconds to undo it).
-
-![Get help: calls to 000 and VICSES, and an SOS alert with undo](docs/images/get-help.gif)
-
-**On a phone.** The map sits above a sheet that slides up; the legend starts folded.
-
-<img src="docs/images/phone.gif" alt="A choice on a phone, with the sheet slid up" width="300">
+See the [walkthrough](docs/walkthrough.md) for each situation the app handles, in a short clip.
 
 ## Repository layout
 

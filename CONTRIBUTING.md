@@ -52,9 +52,11 @@ and the interfaces new code should plug into.
    npm test                       # unit tests
    ```
 
-   If a change adds a feature or changes what the app shows, refresh the README images in the same
-   pull request: with the API (port 8010) and `npm run dev` running, `npm run capture` rewrites the
-   screenshots and the walkthrough in `docs/images/` (needs Google Chrome and ffmpeg).
+   If a change adds a feature or changes what the app shows, refresh the walkthrough in the same
+   pull request: re-record the clips whose screens change and add one for anything new, in
+   [docs/walkthrough.md](docs/walkthrough.md). With the API (port 8010) and `npm run dev` running,
+   `npm run capture -- <clip names>` rewrites those clips in `docs/images/` (`npm run capture` alone
+   records them all; needs Google Chrome and ffmpeg).
 
    If you change path finding, also run `uv run python scripts/compare_pathfinders.py`; it must
    report no mismatches against the NetworkX reference.
