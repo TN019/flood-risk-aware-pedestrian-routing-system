@@ -1,6 +1,9 @@
 # Walkthrough
 
 Each situation the app handles, in a short clip of the web client. Back to the [README](../README.md).
+To present them, the web client shows the same clips as slides at `/slides` (arrow keys, Space or a
+swipe to move on); opened through a public link (`deploy/share.sh`), they end with QR codes of the
+app.
 
 Each trip opens with the next step to take, and the map highlights the route it refers to. Water
 the traveller can walk through is blue; water over their limit, or of unknown depth, is dashed red.

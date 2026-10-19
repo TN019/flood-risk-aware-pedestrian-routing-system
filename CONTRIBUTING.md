@@ -54,7 +54,9 @@ and the interfaces new code should plug into.
 
    If a change adds a feature or changes what the app shows, refresh the walkthrough in the same
    pull request: re-record the clips whose screens change and add one for anything new, in
-   [docs/walkthrough.md](docs/walkthrough.md). With the API (port 8010) and `npm run dev` running,
+   [docs/walkthrough.md](docs/walkthrough.md) and in the `/slides` page's
+   `frontend/src/slides/content.ts` (a test checks that both list the same clips in the same
+   order). With the API (port 8010) and `npm run dev` running,
    `npm run capture -- <clip names>` rewrites those clips in `docs/images/` (`npm run capture` alone
    records them all; needs Google Chrome and ffmpeg).
 

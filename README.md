@@ -7,7 +7,8 @@ sets the deepest water they accept as a body part, converted to a depth from the
 a wheelchair or mobility scooter, a level of their device); deeper water is never routed through,
 and shallower water costs more the closer it is to that limit.
 
-See the [walkthrough](docs/walkthrough.md) for each situation the app handles, in a short clip.
+See the [walkthrough](docs/walkthrough.md) for each situation the app handles, in a short clip;
+the web client shows the same clips as slides to present at `/slides`.
 
 ## Repository layout
 
@@ -73,7 +74,8 @@ It needs the processed data from the steps above, Node.js, and `cloudflared` (`b
 cloudflared` on macOS, `winget install --id Cloudflare.cloudflared` on Windows).
 The address is public, so anyone who has it can open the app; it changes on every run and works
 only while your computer is on and the script is running. It serves your local files, so pull
-first if you want the latest commits.
+first if you want the latest commits. Opened at that address, the `/slides` page ends with QR codes
+of the app, `/reference` and `/benchmark` for an audience to scan.
 
 `scripts/build_network.py --source com` builds the alternative City of Melbourne network, and
 `scripts/validate_com_network.py` reports its topology and coverage against OpenStreetMap.
