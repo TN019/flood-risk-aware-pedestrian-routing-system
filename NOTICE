@@ -7,7 +7,8 @@ It uses data that is not covered by that licence:
 - OpenStreetMap data © OpenStreetMap contributors, available under the Open Database
   License (ODbL) 1.0. Databases derived from it (e.g. processed network files) must be
   shared under the ODbL and credit OpenStreetMap.
-- City of Melbourne open data, licensed under Creative Commons Attribution (CC BY).
+- City of Melbourne open data (CLUE small areas, Pedestrian Network, Stormwater Pits, Footpath
+  steepness), licensed under Creative Commons Attribution (CC BY).
 - Elevation data © Commonwealth of Australia (Geoscience Australia), 5 m LiDAR digital
   elevation model, licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
 - Vicmap Planning flood overlays © State of Victoria (Department of Transport and Planning),

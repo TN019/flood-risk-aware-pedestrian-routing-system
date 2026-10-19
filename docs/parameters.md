@@ -29,7 +29,8 @@ Basis:
 | Powered wheelchair level and cap | 5 cm ("well below the chassis") | `risk.profile.MobilityAid.POWERED_WHEELCHAIR` | Cited: about 7.5 cm ground clearance (Quickie Q500 M brochure, 3 inches; Permobil M3 Corpus, 75 mm from retailers), and electrics tested only for spray (Invacare Storm⁴ manual, IPX4 under EN 60529). **Judgement**: the 2.5 cm margin below the clearance |
 | Mobility aid caps, not the 50 cm | as above | `risk.profile.MobilityAid.cap_m` | Cited: no study measures the stability of an occupied wheelchair or scooter in floodwater, and Smith, Davey & Cox (2014) advise that vulnerable people avoid flowing floodwater under all conditions; the walker thresholds (30 cm vulnerable use, 50 cm H2) are therefore not applied. A downgrade offers only the next level of the same device, never above its cap |
 | Steps for wheelchair users | impassable | `risk.access.can_use` | Cited: AS 1428.1 (Design for access and mobility) requires an accessible path of travel without steps; stairways are not part of it. Edges come from OSM `highway=steps` (`is_steps`) |
-| Steepest path for wheelchair users | 1:14 (7.1%), **not applied** | — | Cited: AS 1428.1 allows ramps up to 1:14 and walkways up to 1:20 (5%); 1:14 would be the hard limit. Measured: of 39,710 directed ways in the raw OSM walking network, 1,024 carry `incline`, all `up` (612), `down` (346) or `yes` (66), 818 of them on steps, none with a gradient. Known limit: steep paths are not detected; a gradient could later come from surveyed levels or the terrain model |
+| Steepest path for mobility aid users | 1:14 (7.1%); steeper is impassable | `risk.access.MAX_GRADIENT`, `network.gradient.STEEPEST_RAMP` | Cited: AS 1428.1 allows ramps up to 1:14 and walkways up to 1:20 (5%); a gradient of exactly 1:14 is allowed. Gradients come from the City of Melbourne's footpath steepness data (see Footpath gradients below); OSM's `incline` gives none in Southbank (of 1,024 tagged ways, all `up`, `down` or `yes`). An edge without a measured gradient counts as passable |
+| The same limit for powered wheelchairs and mobility scooters | 1:14 | `risk.access.MAX_GRADIENT` | **Judgement**: powered devices are rated for more (Invacare Storm⁴ manual: dynamic stability 6°, 10.5%, under ISO 7176-2; maximum safe slope 8° to 11.3° depending on the seat lifter), but ratings are for a dry surface and a set seating position, routes are planned for rain and floods, and AS 1428.1 sets the path for every wheeled aid. One limit for all three devices; a separate one for powered devices is the first value to revisit |
 | Accepted heights | 0.5–2.5 m | `risk.profile.TravellerProfile` | Chosen: input check |
 | Walking speed | 1.3 m/s | `risk.profile.DEFAULT_WALKING_SPEED_M_S` | Chosen: a typical adult pace; only used for travel times |
 
@@ -64,6 +65,25 @@ Basis:
 | Building without mapped entrances | outline points nearest the footpaths within 60 m, at least 15 m apart | `places.resolver` | Chosen |
 | Access points per place | at most 8 | `places.resolver.MAX_ACCESS_POINTS` | Chosen: bounds the search |
 | Refuge search | 800 m straight line, nearest 25 buildings | `places.refuges` | Chosen: about ten minutes' walk; beyond it, emergency help is offered instead |
+
+## Footpath gradients
+
+City of Melbourne open data, *Footpath steepness*: one gradient per footpath section, the rise
+between its lowest and highest surveyed levels over the distance between them
+(`sources.steepness`). How an edge takes its gradient is set in `network.gradient`. Measured
+figures are for the download area (`config.SOUTHBANK_BBOX`) and the current network.
+
+| Parameter | Value | Where | Basis |
+|---|---|---|---|
+| Duplicate records | merged into one section per footpath asset and set of values | `sources.steepness` | Measured: the export splits sections into polygon pieces that repeat the same values (7,444 records, 2,122 sections with a gradient) |
+| Shortest section used | 5 m run | `network.gradient.MIN_RUN_M` | Cited and chosen: AS 1428.1 allows kerb ramps up to 1:8 over at most 1.52 m and step ramps 1:10 over 1.9 m, so a short section can be steep and still accessible; over a few metres the levels' precision also dominates. Measured: 680 of the 2,122 sections run less than 5 m |
+| Section near a bridge | not trusted | `network.gradient.MATCH_M` | Chosen: a footpath polygon at a bridge can take in the deck and the bank below it (e.g. Flinders Walk at Princes Bridge, 58% over 15 m, from 1.4 to 10.3 m AHD). Measured: 30 sections |
+| Section joining two levels | steeper than 1:14 and rising more than 2 m: not trusted | `network.gradient.TWO_LEVEL_RISE_M` | Chosen: most are a footpath beside a road climbing onto an overpass (Montague Street at the West Gate Freeway, 96% over 8.5 m, 1.2 to 9.4 m AHD) or the top and bottom of a flight of steps; no accessible ramp rises that much that steeply. Gentle sections that rise more than 2 m over a long run are kept. Measured: 73 sections |
+| Edge runs along a section | within 2 m of its polygon | `network.gradient.MATCH_M` | Chosen: OSM lines and the council's polygons are drawn a little apart. Measured: the share of footpath length within reach of a section (5 m or longer) is 46% at 0 m, 52% at 1 m and 55% at 2 m, then grows slowly (57% at 3 m, 59% at 5 m) while a wider reach takes in more neighbouring paths |
+| Overlapping sections | the gentlest applies | `network.gradient` | Chosen: a stretch counts as steep only when every section along it agrees, so a section matched by mistake (a parallel path, a corner) cannot make a path impassable |
+| Shortest steep stretch | 5 m, sampled every 1 m (the whole edge if shorter) | `network.gradient.MIN_STRETCH_M`, `SAMPLE_SPACING_M` | Chosen: the same length as the shortest section used |
+| Bridges and tunnels | no gradient | `network.gradient` | Chosen: the sections beside or under them are at another level |
+| Result | 829 of 3,928 edges have a gradient, 23 are steeper than 1:14 (7 of them steps), 1 of those 16 other paths inside Southbank | `scripts/build_network.py` | Measured: 55% of footpath length has a gradient, 68% inside Southbank. Carriageways, private paths and many park paths are not in the data |
 
 ## Flood levels
 

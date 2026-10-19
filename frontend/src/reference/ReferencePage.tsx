@@ -207,7 +207,8 @@ function Limits({ options }: { options: Options }) {
 
       <h3>Wheelchairs and mobility scooters</h3>
       <p>
-        Travellers with a wheeled mobility aid choose a level of their device instead, and are never routed over steps. {AID_CAP_NOTE}
+        Travellers with a wheeled mobility aid choose a level of their device instead, and are never routed over steps or paths steeper than
+        1:14. {AID_CAP_NOTE}
       </p>
       <div className="table-wrap">
         <table>

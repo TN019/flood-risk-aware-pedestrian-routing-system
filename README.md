@@ -51,7 +51,7 @@ reminder to move to a higher floor if water comes in.
 from inside the Crown Entertainment Complex to Boyd Village: every step-free way crosses 3 cm, so
 the choices are the device's next level, below a 4-inch castor axle (5 cm), or staying inside.
 Each device has its own levels and cap (manual wheelchair 7.5 cm, powered wheelchair 5 cm,
-mobility scooter 2.5 cm), and routes never use steps.
+mobility scooter 2.5 cm), and routes never use steps or footpaths measured steeper than 1:14.
 
 ![The next level of the device, then the step-free route with it](docs/images/wheelchair.gif)
 
@@ -93,7 +93,7 @@ uv run python scripts/make_scenarios.py    # build the flood scenario depth grid
 uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
-uv run python scripts/verify.py            # cases A–I vs the predictions in docs/verification.md
+uv run python scripts/verify.py            # cases A–J vs the predictions in docs/verification.md
 uv run streamlit run streamlit_app.py      # open the Streamlit map UI
 ```
 
@@ -150,13 +150,13 @@ Approach: scenario-based algorithm testing and quantitative evaluation. It verif
 avoid water over the traveller's limit throughout a trip, that trips are planned again correctly
 when conditions change, and that the safety constraints hold under simulated flood events.
 
-- **Scenario tests (made-up data).** A small test town, cases A–I: every prediction is worked out
-  by hand before the program runs, and 138 of 138 are met. Case F checks that switching between
+- **Scenario tests (made-up data).** A small test town, cases A–J: every prediction is worked out
+  by hand before the program runs, and 130 of 130 are met. Case F checks that switching between
   normal and flood conditions gives the right plan each time.
 - **Quantitative evaluation (real data).** 100 random Southbank trips at each of the 5 flood levels,
-  checked against properties R-A to R-H, with 0 violations: for example, no route crosses water
+  checked against properties R-A to R-I, with 0 violations: for example, no route crosses water
   over the traveller's limit, a looser limit never makes fewer trips possible, and wheelchair
-  routes never use steps.
+  routes never use steps or paths steeper than 1:14.
 - **Benchmarks.** Rerouting while the flood rises during a walk, planned again from where the
   traveller is; the safety each route gives and what it costs (detour, water avoided) at each
   level for several travellers; and fault injection, which breaks each safety rule on purpose to
@@ -169,12 +169,13 @@ Approach: scenario-based algorithm testing, quantitative evaluation and on-site 
 connected the paths really are, physical barriers, and access to public building entrances.
 
 - **Algorithm (automated).**
-  - Cases G (steps) and H (wheelchair and scooter levels) in the test town, and R-G on Southbank (no
-    wheelchair route uses steps).
+  - Cases G (steps), H (wheelchair and scooter levels) and J (paths steeper than 1:14) in the test
+    town, and R-G and R-I on Southbank (no wheelchair route uses steps or a steep path).
   - The share of pairs of buildings with a step-free route between them.
   - How much longer the step-free route is than the walking route.
 - **Data (on site only).** The repository provides the tools; the inspection is done by people:
-  - a sampling script draws footpath sections, by kind, and building entrances from the model;
+  - a sampling script draws footpath sections, by kind (steep paths among them), and building
+    entrances from the model;
   - a checklist (CSV): steps, kerb ramps, gradient, width, barriers or closures, whether entrances
     are step-free and open to the public, with photos;
   - a comparison script reads the completed checklist, compares it with the model and gives the
@@ -201,6 +202,7 @@ uv run python scripts/ground_truth_compare.py ../data/ground_truth/inspected.csv
 | Ground elevation | Geoscience Australia, 5 m LiDAR DEM (2025) | CC BY 4.0 |
 | Flood overlays (LSIO, SBO, FO) | Vicmap Planning, Department of Transport and Planning | CC BY 4.0 |
 | Stormwater pits | City of Melbourne, Stormwater Pits | CC BY |
+| Footpath gradients | City of Melbourne, Footpath steepness | CC BY |
 | Flood mechanisms, tide levels and checks | Melbourne Water Southbank Local Floodplain Development Plan (2026); GHD for Melbourne Water (2017); Port Phillip Bay Coastal Hazard Assessment (2023); City of Melbourne flood and storm sub-plan (2025); VICSES Southbank Local Flood Guide (2021) | cited, not redistributed |
 | Flood level boundaries | Feng, Brenner & Sester (2020); Drillis & Contini (1966); Smith, Davey & Cox (2014); ABS Australian Health Survey 2011–12 | cited |
 

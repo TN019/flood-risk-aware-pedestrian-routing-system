@@ -53,6 +53,14 @@ export const DATASETS: Dataset[] = [
     licenceUrl: CC_BY_4,
   },
   {
+    name: "Footpath steepness",
+    publisher: "City of Melbourne",
+    use: "The gradient of each council footpath section, so wheelchair and scooter routes leave out paths steeper than 1:14.",
+    licence: "CC BY 4.0",
+    url: "https://data.melbourne.vic.gov.au/explore/dataset/footpath-steepness/",
+    licenceUrl: CC_BY_4,
+  },
+  {
     name: "Pedestrian Network",
     publisher: "City of Melbourne",
     use: "An alternative walking network, used to check the OpenStreetMap one.",
@@ -153,7 +161,7 @@ export const PEOPLE_DOCUMENTS: Work[] = [
   {
     citation: "Standards Australia (2021). AS 1428.1:2021 Design for access and mobility, Part 1: General requirements for access – New building work.",
     url: "https://store.standards.org.au/product/as-1428-1-2021",
-    use: "An accessible path of travel has no steps, so wheelchair routes never use them.",
+    use: "An accessible path of travel has no steps and no ramp steeper than 1:14 (kerb ramps up to 1:8 over 1.52 m), so wheelchair and scooter routes use neither.",
   },
 ];
 
@@ -189,7 +197,7 @@ export const MOBILITY_DOCUMENTS: Work[] = [
   {
     citation: "Invacare (2014). Storm⁴ power wheelchair user manual.",
     url: "https://finnhjelpemiddel.nav.no/imageproxy/file/brugsvejl/44776.pdf",
-    use: "Electrics tested to IPX4 (EN 60529): splashing water, not immersion.",
+    use: "Electrics tested to IPX4 (EN 60529): splashing water, not immersion. Dynamic stability 6° (10.5%) under ISO 7176-2: more than 1:14, which is still applied to powered chairs (a judgement).",
   },
 ];
 
@@ -230,5 +238,6 @@ export const LIMITS: string[] = [
   "Rain-driven surcharge at a normal tide is missed, because pit and pipe levels are not published; a short storm can leave deeper water than the light flooding scenario shows.",
   "River levels are the bay's tide levels; river flows can raise them, so river depths are a lower bound.",
   "Every building with a way in counts as a shelter; whether it is open to the public is not known from the data.",
-  "Steep paths are not avoided for wheelchair users: OpenStreetMap gives no gradients in Southbank.",
+  "Gradients are known only where the City of Melbourne has surveyed the footpath (about two thirds of footpath length in Southbank); a path without one, such as a carriageway or a private path, is not treated as steep.",
+  "A footpath section's gradient is an average between its lowest and highest points, so a short steep part of a long section can be missed; sections that seem to join two levels (at bridges and overpasses) are left out.",
 ];

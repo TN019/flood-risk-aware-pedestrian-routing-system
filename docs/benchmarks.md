@@ -121,16 +121,21 @@ The network and entrances come from OpenStreetMap, which can miss steps, kerbs, 
 closures, or mark an entrance that is not open to the public. Only an inspection on site can tell.
 
 1. `uv run python scripts/ground_truth_sample.py` draws a sample, stratified by kind: footpaths,
-   crossings, steps and paths beside a carriageway, and building entrances used as shelters. It
-   writes a checklist (CSV) with what the model says about each item and empty columns for the
-   inspector.
+   crossings, steps, paths steeper than 1:14 and paths beside a carriageway, and building entrances
+   used as shelters. Steep paths are rare inside Southbank (one in the current network), so that
+   kind is also drawn from the network's margin, which routes use to cross the river. It writes a
+   checklist (CSV) with what the model says about each item, its measured gradient among them, and
+   empty columns for the inspector.
 2. On site, for each item: is it passable, are there steps, is there a kerb ramp, how steep is it,
    how wide, the surface, any barrier or closure, is the entrance step-free and open to the public;
-   with a photo reference.
+   with a photo reference. The gradient is recorded as flat, gentle or steep (steeper than 1:14,
+   about 4°; a phone's level app is enough).
 3. `uv run python scripts/ground_truth_compare.py <filled.csv>` compares the inspection with the
    model: agreement on each attribute, and above all the **false accessible rate**, the share of
    items the model treats as usable (or step-free) that are not. That is the error that could send
-   someone where they cannot go.
+   someone where they cannot go. For gradients it is the share of paths treated as no steeper than
+   1:14 (or not measured) that are steep on site; the share of paths treated as steep that are not
+   shows the detours wheelchair users are sent on for nothing.
 
 No prediction: the results appear on `/benchmark` once an inspection has been filed as
 `data/ground_truth/inspected.csv`.

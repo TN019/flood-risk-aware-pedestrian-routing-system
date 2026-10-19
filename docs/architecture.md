@@ -7,7 +7,8 @@ Every number used below is listed with its source or reason in [parameters.md](p
 The `floodroute` package is organised bottom-up. Each layer depends only on the layers below it.
 
 ```
-sources     external data: OpenStreetMap, City of Melbourne (incl. stormwater pits), Nominatim
+sources     external data: OpenStreetMap, City of Melbourne (incl. stormwater pits, footpath
+            steepness), Nominatim
             place search, Geoscience Australia elevation, Vicmap Planning flood overlays
 network     routing graph construction, schema, storage
 hazard      flood conditions on network edges        ── HazardProvider
@@ -76,7 +77,9 @@ in GDA2020 / MGA zone 55 (EPSG:7855), with `edge_id`, `geometry`, `length_m`, `c
   tagged `foot=use_sidepath` are excluded. Carriageways with a separately mapped sidewalk alongside
   are kept, because many sidewalks only join the road at junctions, but cost three times their
   length to walk along, so routes use sidewalks and only cross roads where needed. Ways connect
-  only at shared OSM nodes, so bridges and underpasses never join the paths they cross.
+  only at shared OSM nodes, so bridges and underpasses never join the paths they cross. Edges carry
+  a `gradient` from the City of Melbourne's footpath steepness data (`network.gradient`; see
+  [Footpath gradients](#footpath-gradients)).
 - **City of Melbourne (alternative)** — `network.com_builder`. A centreline network; property
   parcels are terminal-only so routes cannot cut through them. Kept for comparison: it misses
   footpaths along several arterials (e.g. Kings Way between City Road and Whiteman Street).
@@ -171,13 +174,17 @@ caps replace the 50 cm for walkers: the device's cap is the hard limit in every 
 least-water report and in the downgrade. The origin alert tiers still use the traveller's height
 (known limit).
 
-Every mobility aid user gets **no steps** whatever the level. `risk.access.can_use`
-makes an edge with `is_steps` (OSM `highway=steps`, 100 network edges) impassable for them,
-whatever the water, and every search made for them applies it: `risk_cost` (shortest within limit,
-recommended, refuge), `walking_cost_for` (shortest ignoring flooding, least water, safest way to a
-refuge) and the depth used by the minimax search. So their "shortest" is the shortest step-free
-way, a refuge whose entrances can only be reached by steps is not offered, and the least water is
-the least over step-free ways. For everyone else steps are ordinary paths, and nothing changes.
+Every mobility aid user gets **no steps and no path steeper than 1:14** whatever the level.
+`risk.access.can_use` makes an edge with `is_steps` (OSM `highway=steps`, 100 network edges) or a
+`gradient` steeper than 1:14 (AS 1428.1's steepest ramp; 23 network edges, 7 of them steps)
+impassable for them, whatever the water, and every search made for them applies it: `risk_cost`
+(shortest within limit, recommended, refuge), `walking_cost_for` (shortest ignoring flooding, least
+water, safest way to a refuge) and the depth used by the minimax search. So their "shortest" is the
+shortest way without steps or steep paths, a refuge whose entrances can only be reached that way is
+not offered, and the least water is the least over the ways they can use. The same 1:14 applies to
+manual and powered wheelchairs and to scooters, although powered devices are rated for steeper
+slopes (a judgement; see [parameters.md](parameters.md)). For everyone else steps and steep paths
+are ordinary paths, and nothing changes.
 
 The straight access leg from a point to a footpath could otherwise skip a short flight: from the
 bottom of a 6 m flight, the footpath at its top is within the 15 m snapping reach. So the router
@@ -185,18 +192,45 @@ marks an access leg as steps when it runs alongside or across the middle of a fl
 0.5 m of it, leaving out a metre at each end where legs may meet it) or passes within a metre of
 both its ends (a flight that turns back on itself; one in Southbank has its ends 2 m apart).
 Level changes not mapped as steps, such as a footpath on a deck just above, are not known and can
-still be bridged by an access leg, for every traveller.
+still be bridged by an access leg, for every traveller; so can the slope of a steep path, since
+access legs carry no gradient.
 
-Each route reports whether it uses steps, access legs included (`Route.uses_steps`, `uses_steps` in the API), and the
-plan reports `step_free` and `steps_avoided` (the plain shortest way has steps that the routes
-avoid). When no step-free way connects the two places at all, every option carries the error "No
-step-free route connects these places."
+Each route reports whether it uses steps, access legs included (`Route.uses_steps`, `uses_steps` in
+the API), and its steepest measured gradient (`Route.max_gradient`, `max_gradient`). The plan
+reports `step_free`, `steps_avoided` (the plain shortest way has steps that the routes avoid) and
+`steep_avoided` (the same for a path steeper than 1:14). When no way without steps or steep paths
+connects the two places at all, every option carries the error "No route without steps or steep
+paths connects these places." Kerbs, ways tagged `wheelchair=no` and surface are not used.
 
-Steep paths are **not** filtered yet. The intended rule is a gradient steeper than 1:14 (AS 1428.1's
-steepest ramp; see [parameters.md](parameters.md)), but OSM's `incline` tag in Southbank never gives
-a gradient: it is set on 2.6% of the raw network edges, always as `up`, `down` or `yes`, and mostly on steps.
-The processed network therefore does not keep it. Kerbs, ways tagged `wheelchair=no` and surface
-are not used either.
+#### Footpath gradients
+
+OSM's `incline` tag in Southbank never gives a gradient (it is set on 2.6% of the raw network edges,
+always as `up`, `down` or `yes`, and mostly on steps), so gradients come from the City of
+Melbourne's *Footpath steepness* data (`sources.steepness`): a polygon for each council footpath
+section with one gradient, the rise between its lowest and highest surveyed levels over the
+distance between them. `network.gradient` joins the sections to the network when it is built:
+
+1. **Merge.** The export splits sections into polygon pieces that repeat the same values; pieces
+   of the same footpath with the same values are merged (7,444 records, 2,122 sections with a
+   gradient).
+2. **Leave out what cannot be trusted.** Sections with a run under 5 m (kerb ramps, which AS 1428.1
+   allows up to 1:8 over 1.52 m, and survey precision); sections within 2 m of a bridge, where a
+   polygon can take in both the deck and the bank below it; and sections steeper than 1:14 that rise
+   more than 2 m, which mostly join two levels (a road climbing onto an overpass beside a footpath
+   at ground level, or the top and bottom of a flight of steps). 1,339 sections are used.
+3. **Agree along the edge.** Every metre along an edge, the gradient there is the gentlest of the
+   sections within 2 m. An edge's `gradient` is the steepest gradient held over 5 m in a row (over
+   the whole edge if shorter). Where sections overlap they must all be steep for the stretch to
+   count, so a section matched by mistake cannot block a path. Bridges and tunnels take none.
+
+829 of the 3,928 edges get a gradient (55% of footpath length, 68% inside Southbank), and 23 are
+steeper than 1:14: 7 flights of steps and 16 other paths, only one of them inside Southbank (a
+21 m path on the promenade between Southgate Avenue and Southbank Boulevard, 8.3%); the rest lie on the north bank and the
+approaches to the bridges. Limits: an edge without a gradient (carriageways, private and many park
+paths) counts as passable; a section's gradient is an average between its lowest and highest
+points, so a short steep part of a long section is diluted; a level change the cleaning rules miss
+can still mark a path as steep, and a two-level section the rules discard can hide a real slope.
+The ground-truthing sample includes the steep paths so these errors can be measured on site.
 
 ### Route preferences
 
@@ -368,7 +402,7 @@ experiments.
 
 When water is the obstacle, the safe and recommended options carry an error instead of a route;
 the shortest option is still returned so the exposure it would involve can be shown. For
-mobility aid users all three leave out steps.
+mobility aid users all three leave out steps and paths steeper than 1:14.
 
 ## When no safe route exists
 
@@ -412,7 +446,7 @@ route fits.
 **Downgrade.** From the least water, the smallest body part covering it (never above 50 cm) is
 offered with that route. A mobility aid user is offered the lowest higher level of the same device
 that covers it, never above the device's cap. For mobility aid users the least water and the
-refuge route are searched over step-free ways only.
+refuge route are searched only over ways without steps or steep paths.
 
 **Refuges.** In this version every building with a way in counts as a sheltered refuge
 (`places.refuges`); whether it is open to the public is not known from the data. The nearest 25
