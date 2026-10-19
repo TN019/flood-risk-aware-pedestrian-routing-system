@@ -190,6 +190,8 @@ export interface TripPlan {
   } | null;
   emergency: {
     advice: "available" | "recommended" | "strongly recommended" | "only option";
+    // Why: the water where they stand, outside with no refuge, or inside and cut off by deep water.
+    reason: "depth" | "no_refuge" | "cut_off";
     sos: LatLon & {
       depth_m: number | null;
       depth_label: string;

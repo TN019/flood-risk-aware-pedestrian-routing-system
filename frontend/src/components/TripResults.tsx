@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
 import { cm, depthSummary, distance, minutes } from "../format";
 import type { RouteKind } from "../routeStyles";
 import type { Options, TripPlan } from "../types";
 import { NextStep } from "./NextStep";
+import { SosControl, type SosState } from "./Sos";
 import { RouteSwatch } from "./Swatch";
 
 interface Props {
   trip: TripPlan;
   options: Options;
-  sosSentAt: number | null;
-  onSos: (sentAt: number | null) => void;
+  sos: SosState | null;
+  onSos: (sos: SosState | null) => void;
   onUseLimit: (downgrade: NonNullable<TripPlan["downgrade"]>) => void;
   selected: RouteKind | null;
   onSelect: (kind: RouteKind | null) => void;
@@ -38,42 +38,28 @@ function OriginAlert({ trip }: { trip: TripPlan }) {
   }
 }
 
-function Emergency({ trip, options, sosSentAt, onSos }: Pick<Props, "trip" | "options" | "sosSentAt" | "onSos">) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (sosSentAt === null) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 500);
-    return () => window.clearInterval(timer);
-  }, [sosSentAt]);
+function Emergency({ trip, options, sos, onSos }: Pick<Props, "trip" | "options" | "sos" | "onSos">) {
   if (!trip.emergency) return null;
-  const { advice, sos } = trip.emergency;
-  const only = advice === "only option";
-  const elapsed = sosSentAt === null ? 0 : Math.max(0, (now - sosSentAt) / 1000);
-  const depth = sos.depth_m === null ? "unknown" : cm(sos.depth_m);
+  const { advice, reason, sos: request } = trip.emergency;
+  const depth = request.depth_m === null ? "" : ` and ${cm(request.depth_m)} water depth`;
   return (
     <section className={`card emergency ${advice === "available" ? "" : "emergency-urgent"}`} aria-labelledby="emergency-title">
-      <h2 id="emergency-title">Emergency help — {only ? "your only option" : advice}</h2>
+      <h2 id="emergency-title">Emergency help — {advice === "only option" ? "your only option" : advice}</h2>
+      {reason === "cut_off" && (
+        <p className="emergency-why">
+          You are cut off by deep water. Stay inside, and move to a higher floor if water comes into the building.
+        </p>
+      )}
       <div className="emergency-actions">
         <a className="button button-danger" href="tel:000">
           📞 Call 000
         </a>
-        {sosSentAt === null ? (
-          <button type="button" className="button" onClick={() => onSos(Date.now())}>
-            📣 Alert people nearby (SOS)
-          </button>
-        ) : (
-          <div className="sos-sent" role="status">
-            <span>
-              SOS sent {Math.round(elapsed)} s ago with your location and {depth} water depth (simulated).
-            </span>
-            {elapsed < options.sos_undo_seconds && (
-              <button type="button" className="link" onClick={() => onSos(null)}>
-                Undo ({Math.ceil(options.sos_undo_seconds - elapsed)} s)
-              </button>
-            )}
-          </div>
-        )}
+        <a className="button" href="tel:132500">
+          📞 VICSES 132 500
+        </a>
+        <SosControl sos={sos} shared={`your location${depth}`} undoSeconds={options.sos_undo_seconds} onSos={onSos} />
       </div>
+      <p className="small muted">000 if anyone's life is in danger; VICSES for flood help, such as being trapped or water coming in.</p>
     </section>
   );
 }
