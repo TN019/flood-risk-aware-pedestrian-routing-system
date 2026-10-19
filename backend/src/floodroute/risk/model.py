@@ -11,8 +11,8 @@ no flood is identical to routing without the risk layer. α sets how many extra 
 are worth avoiding one metre of water at the traveller's limit (R = 1).
 
 Only the deepest point of an edge is used for R and for the safety check, never an average.
-Edges the traveller cannot use at all (steps, for wheelchair users; ``risk.access``) are
-impassable whatever the water.
+Edges the traveller cannot use at all (steps and paths steeper than 1:14, for mobility aid users;
+``risk.access``) are impassable whatever the water.
 """
 
 from __future__ import annotations

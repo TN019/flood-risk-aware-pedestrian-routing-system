@@ -380,7 +380,10 @@ with st.sidebar:
             key="aid_level",
             format_func=lambda i: f"{aid.levels[i].label} ({aid.levels[i].depth_m * 100:g} cm)",
         )
-        st.caption("Limits for wheeled aids follow the device, not your height. Routes never use steps.")
+        st.caption(
+            "Limits for wheeled aids follow the device, not your height. "
+            "Routes never use steps or footpaths measured steeper than 1:14."
+        )
         profile = TravellerProfile(height_cm / 100, mobility_aid=aid, aid_level=level)
     st.caption(
         f"Your limit: **{profile.depth_limit_m * 100:g} cm** (never more than {profile.hard_limit_m * 100:g} cm)"

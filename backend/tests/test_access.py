@@ -1,4 +1,4 @@
-"""Wheelchair users never use steps; everyone else may."""
+"""Mobility aid users never use steps or paths steeper than 1:14; everyone else may."""
 
 import math
 
@@ -11,7 +11,17 @@ from floodroute import config
 from floodroute.hazard import DRY, EdgeCondition, HazardSnapshot
 from floodroute.places import PlaceResolver
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import BodyPart, TravellerProfile, can_use, risk_cost, walking_cost, walking_cost_for
+from floodroute.risk import (
+    MAX_GRADIENT,
+    BodyPart,
+    MobilityAid,
+    TravellerProfile,
+    can_use,
+    risk_cost,
+    too_steep,
+    walking_cost,
+    walking_cost_for,
+)
 from floodroute.risk.alerts import AlertLevel
 from floodroute.routing import Router, plan_routes
 from floodroute.routing.minimax import snapshot_depth
@@ -27,7 +37,7 @@ PATH = {"length_m": 20.0, "cost_factor": 1.0, "edge_id": "p", "is_steps": False}
 A, B = (0.0, 0.0), (300.0, 0.0)
 
 
-def three_streets(steps=()):
+def three_streets(steps=(), gradients=None):
     """Three ways from A to B: 300 m straight (e0), 350 m (e1, e2) and 420 m (e3, e4)."""
     g = nx.Graph(crs=config.METRIC_CRS)
     xy = {"A": A, "B": B, "M2": (150.0, math.sqrt(175**2 - 150**2)), "M3": (150.0, math.sqrt(210**2 - 150**2))}
@@ -45,12 +55,13 @@ def three_streets(steps=()):
             cost_factor=1.0,
             in_study_area=True,
             is_steps=eid in steps,
+            gradient=(gradients or {}).get(eid),
         )
     return g
 
 
-def plan(profile, steps=(), snapshot=DRY_SNAPSHOT):
-    return plan_routes(Router(three_streets(steps)), Point(*A), Point(*B), snapshot, profile)
+def plan(profile, steps=(), snapshot=DRY_SNAPSHOT, gradients=None, start=A):
+    return plan_routes(Router(three_streets(steps, gradients)), Point(*start), Point(*B), snapshot, profile)
 
 
 def test_steps_are_unusable_for_wheelchair_users_only():
@@ -90,7 +101,7 @@ def test_step_free_route_within_the_limit_is_reported_as_such():
     flood = HazardSnapshot("f", conditions={"e1": EdgeCondition(0.10)}, default=DRY)
     p = plan(CHAIR, steps=("e0", "e4"), snapshot=flood)  # dry ways have steps; the step-free one is wet
     assert p.shortest.route.length_m == pytest.approx(350) and not p.shortest.route.uses_steps
-    assert not p.recommended.found and "step-free" in p.recommended.error
+    assert not p.recommended.found and "without steps or steep paths" in p.recommended.error
 
 
 # A ladder: low street y=0 (e0: x 0..150, e1: x 150..300), connectors at x=0 (e2) and x=300 (e4),
@@ -201,3 +212,40 @@ def test_an_access_leg_cannot_skip_a_flight_that_turns_back():
     chair = plan_routes(router, Point(0, 0), Point(2, 0), DRY_SNAPSHOT, CHAIR)
     assert {round(o.route.length_m, 6) for o in chair.options} == {62.0}
     assert not any(o.route.uses_steps for o in chair.options)
+
+
+STEEP = {"length_m": 20.0, "cost_factor": 1.0, "edge_id": "s", "gradient": 0.10}
+RAMP = {"length_m": 20.0, "cost_factor": 1.0, "edge_id": "r", "gradient": MAX_GRADIENT}
+UNMEASURED = {"length_m": 20.0, "cost_factor": 1.0, "edge_id": "u", "gradient": None}
+
+
+def test_paths_steeper_than_1_in_14_are_unusable_for_mobility_aid_users_only():
+    assert abs(MAX_GRADIENT - 1 / 14) < 1e-12
+    assert too_steep(0.0715) and not too_steep(1 / 14) and not too_steep(None)
+    assert can_use(WALKER, STEEP) and can_use(CHAIR, RAMP) and can_use(CHAIR, UNMEASURED)
+    for aid in (MobilityAid.MANUAL_WHEELCHAIR, MobilityAid.POWERED_WHEELCHAIR, MobilityAid.MOBILITY_SCOOTER):
+        for level in range(len(aid.levels)):
+            assert not can_use(TravellerProfile(ADULT, mobility_aid=aid, aid_level=level), STEEP)
+    assert walking_cost_for(CHAIR)(0, 1, STEEP) is None and walking_cost_for(CHAIR)(0, 1, RAMP) == 20.0
+    assert risk_cost(DRY_SNAPSHOT, CHAIR)(0, 1, STEEP) is None
+    assert risk_cost(DRY_SNAPSHOT, WALKER)(0, 1, STEEP) == 20.0
+    assert snapshot_depth(DRY_SNAPSHOT, CHAIR)(0, 1, STEEP) is None
+    assert snapshot_depth(DRY_SNAPSHOT, WALKER)(0, 1, STEEP) == 0.0
+
+
+def test_mobility_aid_users_get_the_detour_round_a_steep_path_and_walkers_do_not():
+    gradients = {"e0": 0.10, "e1": 0.03}
+    walker = plan(WALKER, gradients=gradients)
+    assert {round(o.route.length_m, 6) for o in walker.options} == {300.0}
+    assert all(o.route.max_gradient == pytest.approx(0.10) for o in walker.options) and not walker.steep_avoided
+    chair = plan(CHAIR, gradients=gradients)
+    assert {round(o.route.length_m, 6) for o in chair.options} == {350.0}
+    assert all(o.route.max_gradient == pytest.approx(0.03) for o in chair.options)
+    assert chair.step_free and chair.steep_avoided and not chair.steps_avoided
+
+
+def test_both_pieces_of_a_steep_path_split_by_a_start_point_are_steep():
+    chair = plan(CHAIR, gradients={"e0": 0.10}, start=(150, 0))
+    assert not any(o.found for o in chair.options) and chair.steep_avoided
+    assert all(o.error == NO_STEP_FREE_ROUTE for o in chair.options)
+    assert plan(WALKER, gradients={"e0": 0.10}, start=(150, 0)).recommended.found

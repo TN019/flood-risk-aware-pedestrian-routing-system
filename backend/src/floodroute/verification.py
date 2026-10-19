@@ -516,7 +516,7 @@ def run_test_town() -> list[Check]:
     t = _trip(flood(), adult(), gradients=steep)
     r = t.routes
     add("J1", "adult: shortest / within limit / recommended (m)", (300.0, 300.0, 300.0), tuple(map(_len, r.options)))
-    add("J1", "adult: every route through b12, steep avoided", (True, False), (_all_use(r, "b12"), _steep_avoided(r)))
+    add("J1", "adult: every route through b12, steep avoided", (True, False), (_all_use(r, "b12"), r.steep_avoided))
     t = _trip(flood(), aid(manual), gradients=steep)
     r = t.routes
     add(
@@ -529,7 +529,7 @@ def run_test_town() -> list[Check]:
         "J1",
         "manual: any route through b12, steep avoided, steps avoided",
         (False, True, False),
-        (any("b12" in _sources(o) for o in r.options), _steep_avoided(r), r.steps_avoided),
+        (any("b12" in _sources(o) for o in r.options), r.steep_avoided, r.steps_avoided),
     )
     add("J1", "manual: edges over the limit", 0, r.blocked_edges)
     add(
@@ -557,7 +557,7 @@ def run_test_town() -> list[Check]:
         "J3",
         "powered: shortest ignoring flooding (m), steep avoided",
         (400.0, True),
-        (_len(t.routes.shortest), _steep_avoided(t.routes)),
+        (_len(t.routes.shortest), t.routes.steep_avoided),
     )
     add("J3", "powered: least water (m), its route (m)", (0.04, 400.0), least(t))
     add(
@@ -586,10 +586,6 @@ def run_test_town() -> list[Check]:
     add("J4", "manual: downgrade, refuge", (None, None), (t.downgrade, t.refuge))
     add("J4", "manual: emergency advice", ONLY_OPTION, t.emergency.advice if t.emergency else None)
     return checks
-
-
-def _steep_avoided(plan) -> bool | None:
-    return getattr(plan, "steep_avoided", None)
 
 
 def _sources(option) -> set[str]:
@@ -708,7 +704,7 @@ def run_southbank(trips: int = 100, seed: int = 2026) -> list[Check]:
                         for route in planned
                         if route is not None and any(seg.source_edge_id in steep for seg in route.segments)
                     )
-                    steep_avoided += bool(_steep_avoided(plan))
+                    steep_avoided += plan.steep_avoided
                 way_forward = trip is not None and (
                     trip.downgrade or trip.refuge or trip.origin.sheltered or trip.emergency
                 )
