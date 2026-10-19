@@ -33,7 +33,7 @@ export function ReferencePage() {
   const values = live && "options" in live ? live : null;
 
   return (
-    <main className="reference">
+    <main className="doc-page">
       <header>
         <a className="back" href="/">
           ← Southbank Flood Routes

@@ -1,21 +1,21 @@
-/* The /reference page: a plain, scrolling document on the app's colours. */
+/* The /reference and /benchmark pages: plain, scrolling documents on the app's colours. */
 
-body:has(.reference) {
+body:has(.doc-page) {
   height: auto;
 }
 
-.reference {
+.doc-page {
   max-width: 960px;
   margin: 0 auto;
   padding: 24px 16px 48px;
   line-height: 1.5;
 }
 
-.reference header {
+.doc-page header {
   margin-bottom: 8px;
 }
 
-.reference .back {
+.doc-page .back {
   display: inline-block;
   margin-bottom: 12px;
   color: var(--brand);
@@ -23,30 +23,30 @@ body:has(.reference) {
   font-weight: 600;
 }
 
-.reference h1 {
+.doc-page h1 {
   font-size: 1.8rem;
   margin-bottom: 8px;
 }
 
-.reference h2 {
+.doc-page h2 {
   font-size: 1.3rem;
   margin: 0 0 8px;
 }
 
-.reference h3 {
+.doc-page h3 {
   font-size: 1.05rem;
   margin: 20px 0 6px;
 }
 
-.reference p {
+.doc-page p {
   margin: 0 0 10px;
 }
 
-.reference a {
+.doc-page a {
   color: var(--brand);
 }
 
-.reference nav {
+.doc-page nav {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
@@ -54,7 +54,7 @@ body:has(.reference) {
   font-size: 0.95rem;
 }
 
-.reference section {
+.doc-page section {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -63,88 +63,88 @@ body:has(.reference) {
   scroll-margin-top: 12px;
 }
 
-.reference .muted {
+.doc-page .muted {
   color: var(--muted);
 }
 
-.reference .table-wrap {
+.doc-page .table-wrap {
   overflow-x: auto;
   margin-bottom: 12px;
 }
 
-.reference table {
+.doc-page table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
 
-.reference th,
-.reference td {
+.doc-page th,
+.doc-page td {
   text-align: left;
   vertical-align: top;
   padding: 8px 10px 8px 0;
   border-top: 1px solid var(--line);
 }
 
-.reference th {
+.doc-page th {
   border-top: none;
   color: var(--muted);
   font-weight: 600;
   font-size: 0.85rem;
 }
 
-.reference td strong + .muted {
+.doc-page td strong + .muted {
   display: block;
   font-size: 0.88rem;
 }
 
-.reference td.num {
+.doc-page td.num {
   white-space: nowrap;
 }
 
-.reference tr.group-start td {
+.doc-page tr.group-start td {
   border-top: 2px solid var(--line);
 }
 
-.reference .scenario {
+.doc-page .scenario {
   border-top: 1px solid var(--line);
   padding-top: 10px;
   margin-top: 10px;
 }
 
-.reference .scenario h3 {
+.doc-page .scenario h3 {
   margin-top: 0;
 }
 
-.reference ul {
+.doc-page ul {
   margin: 0 0 12px;
   padding-left: 20px;
 }
 
-.reference li {
+.doc-page li {
   margin-bottom: 6px;
 }
 
-.reference .works {
+.doc-page .works {
   list-style: none;
   padding-left: 0;
 }
 
-.reference .works li {
+.doc-page .works li {
   margin-bottom: 10px;
 }
 
-.reference cite {
+.doc-page cite {
   display: block;
   font-style: normal;
 }
 
-.reference .works .muted {
+.doc-page .works .muted {
   display: block;
   font-size: 0.9rem;
 }
 
-.reference .basis {
+.doc-page .basis {
   display: inline-block;
   padding: 0 7px;
   border-radius: 999px;
@@ -154,44 +154,98 @@ body:has(.reference) {
   white-space: nowrap;
 }
 
-.reference .basis-cited {
+.doc-page .basis-cited {
   background: var(--info-bg);
   color: var(--brand);
 }
 
-.reference .basis-derived {
+.doc-page .basis-derived {
   background: #e7f5ec;
   color: #1e6b3a;
 }
 
-.reference .basis-chosen {
+.doc-page .basis-chosen {
   background: var(--warn-bg);
   color: #8a5300;
   border: 1px solid var(--warn-line);
 }
 
-.reference .notice {
+.doc-page .notice {
   background: var(--warn-bg);
   border: 1px solid var(--warn-line);
   border-radius: 8px;
   padding: 10px 12px;
 }
 
-.reference footer {
+.doc-page .result {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.doc-page .result:first-of-type {
+  border-top: none;
+  margin-top: 0;
+}
+
+.doc-page .result h3 {
+  margin-top: 0;
+}
+
+.doc-page .verdict {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+
+.doc-page .verdict-ok {
+  background: #e7f5ec;
+  color: #1e6b3a;
+}
+
+.doc-page .verdict-bad {
+  background: var(--red-bg);
+  color: var(--danger);
+  border: 1px solid var(--red-line);
+}
+
+.doc-page .verdict-measured {
+  background: var(--info-bg);
+  color: var(--brand);
+}
+
+.doc-page .warn-text {
+  color: var(--danger);
+}
+
+.doc-page code {
+  font-size: 0.88em;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.doc-page footer {
   margin-top: 20px;
   font-size: 0.9rem;
 }
 
 @media (max-width: 600px) {
-  .reference {
+  .doc-page {
     padding: 16px 12px 40px;
   }
 
-  .reference section {
+  .doc-page section {
     padding: 14px 12px 6px;
   }
 
-  .reference h1 {
+  .doc-page h1 {
     font-size: 1.5rem;
   }
 }
