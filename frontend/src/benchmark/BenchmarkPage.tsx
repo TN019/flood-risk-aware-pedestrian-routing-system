@@ -217,13 +217,6 @@ function Results({ r }: { r: BenchmarkResults }) {
               Rerouted {rising.reroutes} times, in {rising.trips_rerouted} trips; {rising.caught_by_rising_water} times the water had risen
               over the limit where they stood, and the safest way out crossed {metres(rising.escape_over_limit_m)} of it in all.
             </li>
-            {rising.not_replanned_outside_area > 0 && (
-              <li>
-                {rising.not_replanned_outside_area} times the rise came while the route ran through the network's margin outside
-                Southbank, where no trip can be planned; they kept to the route they had, and walked {metres(rising.over_limit_outside_area_m)}{" "}
-                over the limit there in all.
-              </li>
-            )}
             <li>
               Outcomes:{" "}
               {Object.entries(rising.outcomes)
@@ -236,6 +229,14 @@ function Results({ r }: { r: BenchmarkResults }) {
               {pct(rising.extra_walk_p90, 1)}).
             </li>
           </ul>
+          {rising.not_replanned_outside_area > 0 && (
+            <p className="notice">
+              <strong>Finding:</strong> {rising.not_replanned_outside_area} times the flood rose while the route ran through the network's
+              margin outside Southbank, where no trip can be planned (a start must lie inside). The traveller kept to the route they had and
+              walked {metres(rising.over_limit_outside_area_m)} over the limit there in all. Replanning should work from anywhere on the
+              network a route can take.
+            </p>
+          )}
         </Result>
       </section>
 
@@ -244,8 +245,9 @@ function Results({ r }: { r: BenchmarkResults }) {
         <Result title="Step-free connectivity between buildings" ok={sf.step_free_using_steps === 0 && sf.step_free_cheaper === 0}>
           <p>
             {sf.pairs} random pairs of buildings connected on foot, normal conditions: a step-free route exists for{" "}
-            <strong>{share(sf.step_free_route, sf.pairs)}</strong>; {sf.same_length} are as short as the walking route. The rest are longer by{" "}
-            {pct(sf.longer_median, 1)} at the median, {pct(sf.longer_p90, 1)} at the 90th percentile and {pct(sf.longer_max, 1)} at most. No
+            <strong>{share(sf.step_free_route, sf.pairs)}</strong>, and for {sf.same_length} it is the walking route itself (no steps on
+            the way). Over all pairs it is longer by {pct(sf.longer_median, 1)} at the median, {pct(sf.longer_p90, 1)} at the 90th
+            percentile and {pct(sf.longer_max, 1)} at most. No
             step-free route uses steps ({sf.step_free_using_steps}) or costs less than the walking route ({sf.step_free_cheaper}).
             {sf.step_free_shorter > 0 &&
               ` ${sf.step_free_shorter} ${sf.step_free_shorter === 1 ? "is" : "are"} shorter in metres but cost more: routes minimise walking cost, with a carriageway counted three times its length.`}
