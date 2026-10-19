@@ -115,6 +115,7 @@ export interface RouteJson {
   geometry: Geometry;
   access_legs: Geometry[];
   uses_steps: boolean;
+  max_gradient: number | null; // steepest measured gradient (rise over run); null when none is measured
   from: LatLon & { label: string };
   to: LatLon & { label: string | null };
   metrics: RouteMetrics;
@@ -161,8 +162,9 @@ export interface TripPlan {
   routes: {
     alpha: number;
     blocked_edges: number;
-    step_free: boolean; // the traveller cannot use steps, so no route uses them
+    step_free: boolean; // the traveller cannot use steps or paths steeper than 1:14, so no route uses them
     steps_avoided: boolean; // the plain shortest way has steps these routes avoid
+    steep_avoided: boolean; // the plain shortest way has a path steeper than 1:14 these routes avoid
     options: RouteOption[];
   } | null;
   downgrade: {

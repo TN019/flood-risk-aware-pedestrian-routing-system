@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cm, contains, describeDepth, distance, groupRoutes } from "./format";
+import { accessNote, cm, contains, describeDepth, distance, groupRoutes } from "./format";
 import type { RouteOption } from "./types";
 
 const options = {
@@ -41,6 +41,7 @@ describe("groupRoutes", () => {
     geometry: { type: "LineString", coordinates: [[0, 0], [x, 0]] },
     access_legs: [],
     uses_steps: false,
+    max_gradient: null,
     from: { lat: 0, lon: 0, label: "" },
     to: { lat: 0, lon: 0, label: null },
     metrics: { length_m: x, travel_time_s: 1, max_depth_m: 0, max_depth_label: "dry", wading_length_m: 0, segments_over_limit: 0, detour_ratio: 0 },
@@ -69,5 +70,20 @@ describe("cm", () => {
     expect(cm(0.0663)).toBe("6.6 cm");
     expect(cm(0.05)).toBe("5 cm");
     expect(cm(0.4845)).toBe("48 cm");
+  });
+});
+
+describe("accessNote", () => {
+  const routes = { step_free: true, steps_avoided: false, steep_avoided: false };
+  it("says nothing for walkers", () => {
+    expect(accessNote({ ...routes, step_free: false })).toBe("");
+  });
+  it("names what the routes avoid", () => {
+    expect(accessNote(routes)).toBe("Every route is step-free.");
+    expect(accessNote({ ...routes, steps_avoided: true })).toBe("Every route avoids the steps on the shortest way.");
+    expect(accessNote({ ...routes, steep_avoided: true })).toBe("Every route avoids the paths steeper than 1:14 on the shortest way.");
+    expect(accessNote({ ...routes, steps_avoided: true, steep_avoided: true })).toBe(
+      "Every route avoids the steps and the paths steeper than 1:14 on the shortest way.",
+    );
   });
 });

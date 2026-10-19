@@ -7,6 +7,7 @@ function line(x: number, metrics: Partial<RouteJson["metrics"]> = {}): RouteJson
     geometry: { type: "LineString", coordinates: [[0, 0], [x, 0]] },
     access_legs: [],
     uses_steps: false,
+    max_gradient: null,
     from: { lat: 0, lon: 0, label: "" },
     to: { lat: 0, lon: 0, label: null },
     metrics: {
@@ -47,6 +48,7 @@ function plan(p: Partial<TripPlan> & { shortest?: RouteJson; recommended?: Route
       blocked_edges: 0,
       step_free: false,
       steps_avoided: false,
+      steep_avoided: false,
       options: [option("shortest", shortest), option("safe_shortest", recommended), option("recommended", recommended)],
     },
     downgrade: null,

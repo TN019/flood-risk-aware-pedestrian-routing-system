@@ -1,4 +1,4 @@
-import type { Geometry, Options, RouteOption } from "./types";
+import type { Geometry, Options, RouteOption, TripPlan } from "./types";
 
 /** Where water of this depth reaches on a person of this height, e.g. "up to the ankle".
  * Mirrors floodroute.risk.profile.describe_depth. */
@@ -62,4 +62,11 @@ export function groupRoutes(options: RouteOption[]): { option: RouteOption; kind
     else groups.push({ option, kinds: [option.kind], key });
   }
   return groups.map(({ option, kinds }) => ({ option, kinds }));
+}
+
+/** What the routes leave out for a mobility aid user, as a sentence (empty for walkers). */
+export function accessNote(routes: Pick<NonNullable<TripPlan["routes"]>, "step_free" | "steps_avoided" | "steep_avoided">): string {
+  const avoided = [routes.steps_avoided && "the steps", routes.steep_avoided && "the paths steeper than 1:14"].filter(Boolean);
+  if (avoided.length > 0) return `Every route avoids ${avoided.join(" and ")} on the shortest way.`;
+  return routes.step_free ? "Every route is step-free." : "";
 }
