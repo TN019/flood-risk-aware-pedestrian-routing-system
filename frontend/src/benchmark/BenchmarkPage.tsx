@@ -1,11 +1,10 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { api } from "../api";
-import type { BenchmarkResults, Rate, Spread } from "./types";
+import type { BenchmarkResults, Rate } from "./types";
 
 const REPOSITORY = "https://github.com/TN019/flood-risk-aware-pedestrian-routing-system";
 
 const pct = (x: number | null | undefined, digits = 0) => (x === null || x === undefined ? "—" : `${(x * 100).toFixed(digits)}%`);
-const ms = (s: Spread) => (s.median === null ? "—" : `${s.median.toFixed(0)} ms (95th percentile ${s.p95?.toFixed(0)} ms)`);
 const metres = (x: number | null) => (x === null ? "—" : `${Math.round(x)} m`);
 const share = (n: number, of: number) => `${n} of ${of}`;
 const rate = (r: Rate) => (r.of === 0 ? "—" : `${pct(r.rate, 1)} (${r.count} of ${r.of})`);
@@ -19,9 +18,9 @@ function Verdict({ ok }: { ok?: boolean }) {
 function Result({ title, ok, children }: { title: string; ok?: boolean; children: ReactNode }) {
   return (
     <article className="result">
-      <h3>
+      <h4>
         {title} <Verdict ok={ok} />
-      </h3>
+      </h4>
       {children}
     </article>
   );
@@ -48,13 +47,10 @@ export function BenchmarkPage() {
         </a>
         <h1>Benchmarks</h1>
         <p>
-          What the routing engine shows about its own correctness, the safety it gives and what that costs, and the accessibility of what it
-          routes over. The predictions were written before the first run, in{" "}
+          Two layers. The <strong>algorithm layer</strong>: whether routes follow their rules on the data they are given, checked
+          automatically on made-up data (a small test town) and on the real Southbank network. The <strong>data layer</strong>: whether that
+          data matches the streets, which only an inspection on site can tell. The predictions were written before the first run, in{" "}
           <a href={`${REPOSITORY}/blob/main/docs/benchmarks.md`}>docs/benchmarks.md</a>.
-        </p>
-        <p className="muted">
-          The algorithms are tested on made-up data (a small test town) and on the real Southbank network. Whether the data matches the
-          streets can only be checked on site: see Field inspection.
         </p>
         {results && (
           <p className="muted small">
@@ -63,11 +59,8 @@ export function BenchmarkPage() {
           </p>
         )}
         <nav aria-label="Sections">
-          <a href="#correctness">Correctness</a>
-          <a href="#safety">Pedestrian safety</a>
-          <a href="#access">Accessibility</a>
-          <a href="#field">Field inspection</a>
-          <a href="#performance">Performance</a>
+          <a href="#algorithm">Algorithm layer</a>
+          <a href="#data">Data layer</a>
         </nav>
       </header>
 
@@ -96,8 +89,9 @@ function Results({ r }: { r: BenchmarkResults }) {
 
   return (
     <>
-      <section id="correctness">
-        <h2>Correctness of the algorithms</h2>
+      <section id="algorithm">
+        <h2>Algorithm layer</h2>
+        <h3 className="group">Correctness</h3>
         <Result title="Path finder against NetworkX" ok={np.cost_match === np.pairs && e2e.length_match === e2e.routes}>
           <p>
             Node to node: same cost for <strong>{share(np.cost_match, np.pairs)}</strong> random pairs ({np.same_path} with the identical
@@ -156,10 +150,7 @@ function Results({ r }: { r: BenchmarkResults }) {
             </div>
           </Result>
         )}
-      </section>
-
-      <section id="safety">
-        <h2>Pedestrian safety</h2>
+        <h3 className="group">Pedestrian safety</h3>
         <Result title="Safety and what it costs" ok={overLimit === 0}>
           <p>
             {r.safety.cost.trips} random trips at each flood level. No recommended route crossed water over the traveller's limit in{" "}
@@ -238,10 +229,7 @@ function Results({ r }: { r: BenchmarkResults }) {
             </p>
           )}
         </Result>
-      </section>
-
-      <section id="access">
-        <h2>Public area accessibility</h2>
+        <h3 className="group">Public area accessibility</h3>
         <Result title="Step-free connectivity between buildings" ok={sf.step_free_using_steps === 0 && sf.step_free_cheaper === 0}>
           <p>
             {sf.pairs} random pairs of buildings connected on foot, normal conditions: a step-free route exists for{" "}
@@ -255,8 +243,8 @@ function Results({ r }: { r: BenchmarkResults }) {
         </Result>
       </section>
 
-      <section id="field">
-        <h2>Field inspection</h2>
+      <section id="data">
+        <h2>Data layer</h2>
         {r.field ? (
           <Result title="Model against the inspection">
             <ul>
@@ -295,20 +283,6 @@ function Results({ r }: { r: BenchmarkResults }) {
         )}
       </section>
 
-      <section id="performance">
-        <h2>Performance</h2>
-        <Result title="Planning time">
-          <ul>
-            {Object.entries(r.performance.plan_ms).map(([key, s]) => (
-              <li key={key}>
-                {r.safety.cost.levels[key]?.title ?? key}: a whole trip plan takes {ms(s)}, over {s.plans} plans.
-              </li>
-            ))}
-            <li>One shortest-path search on the network: {ms(np.ours_ms)}; a trip through the router: {ms(e2e.route_ms)}.</li>
-          </ul>
-          <p className="muted small">The whole run took {Math.round(Object.values(r.performance.seconds).reduce((a, b) => a + b, 0) / 60)} minutes.</p>
-        </Result>
-      </section>
     </>
   );
 }

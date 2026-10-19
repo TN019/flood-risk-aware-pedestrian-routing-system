@@ -75,7 +75,6 @@ export interface BenchmarkResults {
     cost: {
       trips: number;
       levels: Record<string, { title: string; travellers: Record<string, TravellerSafety> }>;
-      plan_ms: Record<string, Spread & { plans: number }>;
     };
     rising_flood: {
       trips: number;
@@ -108,5 +107,5 @@ export interface BenchmarkResults {
     };
   };
   field: FieldComparison | null;
-  performance: { plan_ms: Record<string, Spread & { plans: number }>; seconds: Record<string, number> };
+  seconds: Record<string, number>; // how long each part of the run took
 }

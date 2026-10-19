@@ -183,13 +183,27 @@ body:has(.doc-page) {
   margin-top: 10px;
 }
 
-.doc-page .result:first-of-type {
+.doc-page h3.group + .result {
   border-top: none;
   margin-top: 0;
 }
 
-.doc-page .result h3 {
-  margin-top: 0;
+.doc-page .result h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+/* A group of results within a layer. */
+.doc-page h3.group {
+  margin: 22px 0 4px;
+  color: var(--brand);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.doc-page h2 + h3.group {
+  margin-top: 4px;
 }
 
 .doc-page .verdict {
