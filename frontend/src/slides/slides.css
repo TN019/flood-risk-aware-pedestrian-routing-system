@@ -1,0 +1,565 @@
+/* The /slides page: the walkthrough as full-screen slides, on the app's colours. Wide screens put
+   the words beside the clip; tall or narrow ones put them above it. Like the app's styles.css, it
+   brings in theme.css itself, so this page loads one stylesheet with the colours first. */
+
+@import "../theme.css";
+
+.deck {
+  --deep: #0a3359;
+  --foam: #7fd3ff;
+  --move: 0.55s cubic-bezier(0.22, 0.8, 0.24, 1);
+  --pad-x: max(20px, min(5vw, 80px));
+  --pad-top: max(20px, min(6vh, 64px));
+  --pad-bottom: max(72px, min(11vh, 104px));
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.deck-stage {
+  height: 100%;
+  touch-action: manipulation;
+}
+
+.deck-track {
+  display: flex;
+  height: 100%;
+  transition: transform var(--move);
+}
+
+.slide {
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: var(--pad-top) var(--pad-x) var(--pad-bottom);
+  /* Slides out of view are hidden once they have slid away. */
+  visibility: hidden;
+  transition: visibility 0s 0.55s;
+}
+
+.slide.current {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* ------------------------------------------------------------------ title and QR codes */
+
+.slide-dark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: #fff;
+  background:
+    radial-gradient(ellipse 70% 60% at 88% 0%, rgb(127 211 255 / 0.2), transparent 70%),
+    linear-gradient(155deg, #145d9c 0%, var(--brand) 45%, var(--deep) 100%);
+}
+
+.waves {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(30vh, 260px);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.waves svg {
+  display: block;
+  width: 200%;
+  height: 100%;
+  animation: drift 48s linear infinite;
+}
+
+.waves path {
+  fill: none;
+  stroke: var(--foam);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.waves path:nth-of-type(2) {
+  opacity: 0.25;
+}
+
+.waves path:nth-of-type(3) {
+  opacity: 0.45;
+}
+
+.waves path:nth-of-type(4) {
+  opacity: 0.8;
+}
+
+.waves .wave-fill {
+  fill: rgb(10 51 89 / 0.55);
+  stroke: none;
+}
+
+@keyframes drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.intro {
+  position: relative;
+  max-width: 64rem;
+  margin-bottom: min(12vh, 120px);
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: max(20px, min(4vh, 40px));
+  font-size: max(0.85rem, min(1.2vw, 1.05rem));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--foam);
+}
+
+.lockup img {
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.25);
+}
+
+.intro h1 {
+  font-size: max(2.3rem, min(6.4vw, 5.6rem));
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  text-wrap: balance;
+}
+
+.intro .lede {
+  max-width: 40rem;
+  margin-top: max(16px, min(3vh, 28px));
+  font-size: max(1.05rem, min(1.8vw, 1.55rem));
+  line-height: 1.45;
+  color: rgb(255 255 255 / 0.85);
+  text-wrap: pretty;
+}
+
+.deck-hint {
+  position: absolute;
+  left: var(--pad-x);
+  bottom: max(28px, env(safe-area-inset-bottom));
+  font-size: 0.9rem;
+  color: rgb(255 255 255 / 0.75);
+}
+
+.deck-hint kbd {
+  display: inline-block;
+  min-width: 1.8em;
+  padding: 1px 6px;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.hint-touch {
+  display: none;
+}
+
+/* On narrow screens the hint follows the words, clear of the controls. */
+@media (max-width: 600px) {
+  .intro {
+    margin-bottom: 0;
+  }
+
+  .deck-hint {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    margin-top: 28px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .hint-keys {
+    display: none;
+  }
+
+  .hint-touch {
+    display: inline;
+  }
+}
+
+/* The QR codes, only at a public address: in a row on wide screens, as a list on narrow ones. */
+.slide-share {
+  align-items: center;
+  text-align: center;
+}
+
+.share {
+  position: relative;
+  --qr: min(24vw, 40vh);
+}
+
+.share h2 {
+  font-size: max(1.8rem, min(3.6vw, 3.2rem));
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  font-weight: 800;
+}
+
+.qr-codes {
+  display: flex;
+  justify-content: center;
+  gap: max(20px, min(4vw, 64px));
+  margin: max(16px, min(4vh, 40px)) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qr-codes li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.qr-code {
+  display: block;
+  width: var(--qr);
+  height: var(--qr);
+  border-radius: max(8px, min(1vw, 14px));
+  box-shadow: 0 24px 56px -16px rgb(0 0 0 / 0.5);
+}
+
+.qr-codes p strong {
+  display: block;
+  font-size: max(1rem, min(1.5vw, 1.4rem));
+}
+
+.qr-codes p span {
+  display: block;
+  margin-top: 2px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: max(0.8rem, min(1vw, 0.95rem));
+  color: var(--foam);
+  overflow-wrap: anywhere;
+}
+
+.share-notice {
+  margin-top: max(18px, min(4vh, 36px));
+  font-size: max(0.85rem, min(1vw, 0.95rem));
+  color: rgb(255 255 255 / 0.75);
+}
+
+@media (max-aspect-ratio: 1/1), (max-width: 760px) {
+  .share {
+    --qr: min(30vw, 17vh);
+    width: 100%;
+    max-width: 30rem;
+  }
+
+  .qr-codes {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .qr-codes li {
+    flex-direction: row;
+    gap: 16px;
+    text-align: left;
+  }
+}
+
+/* ------------------------------------------------------------------ clips */
+
+.slide-clip {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) minmax(0, 2.5fr);
+  gap: max(24px, min(4vw, 72px));
+  align-items: center;
+}
+
+.slide-clip.clip-phone {
+  grid-template-columns: minmax(15rem, 1fr) minmax(0, 1fr);
+}
+
+.clip-text {
+  max-width: 30rem;
+}
+
+.clip-number {
+  font-size: max(0.85rem, min(1.1vw, 1rem));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--water);
+}
+
+.clip-number::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: var(--water);
+}
+
+.clip-text h2 {
+  margin-top: max(12px, min(2vh, 20px));
+  font-size: max(1.6rem, min(3vw, 3rem));
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: var(--brand);
+  text-wrap: balance;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: max(12px, min(2vh, 18px));
+}
+
+.tag {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: max(0.78rem, min(0.95vw, 0.9rem));
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tag.flood-none {
+  background: #e7f5ec;
+  border-color: #8fcca5;
+  color: #1e6b3a;
+}
+
+.tag.flood-light {
+  background: var(--info-bg);
+  border-color: var(--info-line);
+  color: var(--brand);
+}
+
+.tag.flood-moderate {
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+  color: #8a5300;
+}
+
+.tag.flood-heavy {
+  background: var(--orange-bg);
+  border-color: var(--orange-line);
+  color: #9a4300;
+}
+
+.tag.flood-extreme {
+  background: var(--red-bg);
+  border-color: var(--red-line);
+  color: var(--danger);
+}
+
+.clip-caption {
+  margin-top: max(14px, min(2.4vh, 22px));
+  font-size: max(1rem, min(1.4vw, 1.35rem));
+  line-height: 1.5;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+/* The clip fills its share of the slide at its own shape: as wide as it can be, unless that would
+   make it too tall. */
+.clip-media {
+  container-type: size;
+  height: 100%;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+}
+
+.clip-frame {
+  width: min(100cqw, 100cqh * 1.6);
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: max(8px, min(1.2vw, 16px));
+  background: var(--panel);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 2px 4px rgb(15 76 129 / 0.06),
+    0 28px 64px -16px rgb(15 76 129 / 0.35);
+}
+
+.clip-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The phone clip sits in a phone: the bezel is a shadow, so it takes no room from the screen. */
+.clip-phone .clip-frame {
+  --bezel: max(6px, min(1.4cqh, 12px));
+  width: auto;
+  height: min(100cqh - 2 * var(--bezel) - 8px, (100cqw - 2 * var(--bezel)) * 736 / 340);
+  aspect-ratio: 340 / 736;
+  border-radius: max(18px, min(4cqh, 36px));
+  box-shadow:
+    0 0 0 var(--bezel) var(--text),
+    0 0 0 calc(var(--bezel) + 1px) #3b4a5c,
+    0 28px 64px -12px rgb(15 76 129 / 0.45);
+}
+
+.slide-footer {
+  position: absolute;
+  left: var(--pad-x);
+  bottom: max(28px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.slide-footer img {
+  border-radius: 5px;
+}
+
+/* Tall or narrow screens: the words above the clip, the two centred together. The clip is sized
+   by the screen's height less what the words and margins need. */
+@media (max-aspect-ratio: 1/1), (max-width: 760px) {
+  .slide-clip,
+  .slide-clip.clip-phone {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    align-content: safe center;
+    gap: max(18px, min(3vh, 32px));
+  }
+
+  .clip-text {
+    max-width: 40rem;
+  }
+
+  .clip-media {
+    container-type: inline-size;
+    height: auto;
+  }
+
+  .clip-frame {
+    width: min(100cqw, max(180px, 100vh - 380px) * 1.6);
+    width: min(100cqw, max(180px, 100dvh - 380px) * 1.6);
+  }
+
+  .clip-phone .clip-frame {
+    height: min(max(260px, 100vh - 420px), (100cqw - 2 * var(--bezel)) * 736 / 340);
+    height: min(max(260px, 100dvh - 420px), (100cqw - 2 * var(--bezel)) * 736 / 340);
+    --bezel: 8px;
+  }
+
+  .slide-footer {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ controls */
+
+.deck-controls {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.88);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 0 0 1px rgb(27 36 48 / 0.08),
+    0 8px 24px -8px rgb(27 36 48 / 0.3);
+}
+
+.deck-controls button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.deck-controls button:hover:not(:disabled) {
+  background: var(--info-bg);
+}
+
+.deck-controls button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.deck-controls button:disabled {
+  color: #b6c1cc;
+  cursor: default;
+}
+
+.deck-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.deck-count {
+  min-width: 4.2em;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--muted);
+}
+
+.deck-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--water), var(--foam));
+  transition: width var(--move);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-track,
+  .slide,
+  .deck-progress {
+    transition: none;
+  }
+
+  .waves svg {
+    animation: none;
+  }
+}
