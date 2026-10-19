@@ -16,6 +16,7 @@ routing     snapping, cheapest and safest-path search ── PathFinder
 places      where a walk starts and ends (building entrances), refuges
 trip        whole-trip planning: routes, downgrade, refuge, emergency
 prediction  forecasting models                       ── Predictor
+benchmark   correctness, fault injection, safety, accessibility; field inspection kit
 ```
 
 A web API (FastAPI) and the web client sit on top of these layers; neither contains routing logic.
@@ -35,6 +36,7 @@ refuges and scenarios once and answers in WGS84 GeoJSON; `api.app` maps it onto 
 | `GET /api/search?q=` | place search inside the routable area (Nominatim, cached, one request a second) |
 | `POST /api/traveller` | a traveller's depth limit and what their preference means in metres |
 | `POST /api/trip` | the whole trip plan: where they stand, three routes, least water, downgrade, refuge, emergency |
+| `GET /api/benchmark` | the latest benchmark results (`docs/benchmark.json`, written by `scripts/benchmark.py`) |
 
 Start and destination must lie inside the study area; requests that cannot be answered as asked
 return 422 with a message for the user. The web client (`frontend/`, React, TypeScript and
@@ -436,3 +438,13 @@ reference:
   negative costs rejected), 40 random graphs × 25 pairs, and 200 pairs on the Southbank network.
 - `scripts/compare_pathfinders.py` — 1,000 node pairs and 300 end-to-end routes on the Southbank
   network; every pair must have the same cost. Writes `reports/pathfinder_comparison.md`.
+
+## Benchmarks
+
+`floodroute.benchmark` and `scripts/benchmark.py` go further than these checks: the safest-path
+search against brute force, fault injection (each safety rule broken on purpose while the whole test
+suite runs, through `tests/conftest.py` and `FLOODROUTE_FAULT`), the safety routes give and what it
+costs at every level, rerouting while a flood rises during a walk, step-free connectivity between
+buildings, planning time, and a kit for inspecting the data on site. What each should show, written
+before the first run, is in [benchmarks.md](benchmarks.md); the results are in `docs/benchmark.json`
+and on `/benchmark`.

@@ -93,7 +93,7 @@ uv run python scripts/make_scenarios.py    # build the flood scenario depth grid
 uv run pytest                              # run the test suite
 uv run ruff check && uv run ruff format --check  # lint and formatting
 uv run python scripts/compare_pathfinders.py  # verify the in-house Dijkstra against NetworkX
-uv run python scripts/verify.py            # cases A–H vs the predictions in docs/verification.md
+uv run python scripts/verify.py            # cases A–I vs the predictions in docs/verification.md
 uv run streamlit run streamlit_app.py      # open the Streamlit map UI
 ```
 
@@ -134,6 +134,61 @@ first if you want the latest commits.
 `scripts/build_network.py --source com` builds the alternative City of Melbourne network, and
 `scripts/validate_com_network.py` reports its topology and coverage against OpenStreetMap.
 Both write maps and reports to `reports/` (git-ignored).
+
+## How to test
+
+Testing works on two layers. Whether the **algorithms** follow their rules on the data they are
+given is checked automatically, on made-up data and on the real network. Whether the **data**
+matches the streets can only be checked on site. Every check below has its predictions written
+before it was first run ([docs/verification.md](docs/verification.md),
+[docs/benchmarks.md](docs/benchmarks.md)); the latest results are on the `/benchmark` page,
+reached only by its address.
+
+### 1. Pedestrian safety
+
+Approach: scenario-based algorithm testing and quantitative evaluation. It verifies that routes
+avoid water over the traveller's limit throughout a trip, that trips are planned again correctly
+when conditions change, and that the safety constraints hold under simulated flood events.
+
+- **Scenario tests (made-up data).** A small test town, cases A–I: every prediction is worked out
+  by hand before the program runs, and 138 of 138 are met. Case F checks that switching between
+  normal and flood conditions gives the right plan each time.
+- **Quantitative evaluation (real data).** 100 random Southbank trips at each of the 5 flood levels,
+  checked against properties R-A to R-H, with 0 violations: for example, no route crosses water
+  over the traveller's limit, a looser limit never makes fewer trips possible, and wheelchair
+  routes never use steps.
+- **Benchmarks.** Rerouting while the flood rises during a walk, planned again from where the
+  traveller is; the safety each route gives and what it costs (detour, water avoided) at each
+  level for several travellers; and fault injection, which breaks each safety rule on purpose to
+  show that the tests catch it.
+
+### 2. Public area accessibility
+
+Approach: scenario-based algorithm testing, quantitative evaluation and on-site route inspection
+(ground truthing). It verifies that routes are accessible as computed, and assesses on site how
+connected the paths really are, physical barriers, and access to public building entrances.
+
+- **Algorithm (automated).**
+  - Cases G (steps) and H (wheelchair and scooter levels) in the test town, and R-G on Southbank (no
+    wheelchair route uses steps).
+  - The share of pairs of buildings with a step-free route between them.
+  - How much longer the step-free route is than the walking route.
+- **Data (on site only).** The repository provides the tools; the inspection is done by people:
+  - a sampling script draws footpath sections, by kind, and building entrances from the model;
+  - a checklist (CSV): steps, kerb ramps, gradient, width, barriers or closures, whether entrances
+    are step-free and open to the public, with photos;
+  - a comparison script reads the completed checklist, compares it with the model and gives the
+    agreement; above all the share of items the model treats as usable that are not on site, the
+    most dangerous kind of error.
+
+```bash
+cd backend
+uv run pytest                                 # unit tests and the test town cases
+uv run python scripts/verify.py               # every hand-derived prediction, incl. Southbank
+uv run python scripts/benchmark.py            # all benchmarks -> docs/benchmark.json and /benchmark
+uv run python scripts/ground_truth_sample.py  # checklist to inspect -> data/ground_truth/sample.csv
+uv run python scripts/ground_truth_compare.py ../data/ground_truth/inspected.csv
+```
 
 ## Data sources
 
