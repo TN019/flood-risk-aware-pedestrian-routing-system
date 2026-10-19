@@ -58,9 +58,9 @@ mobility scooter 2.5 cm), and routes never use steps or footpaths measured steep
 ![The next level of the device, then the step-free route with it](docs/images/wheelchair.gif)
 
 **Steep paths.** No flooding, on the promenade between Southgate Avenue and Southbank Boulevard:
-on foot the route is 109 m and climbs a path at 8.3% (1 in 12.1). With a manual wheelchair it goes
-round that path, 429 m, and its steepest part is 6.9% (1 in 14.5), within the 1:14 (7.1%) limit for
-wheelchairs and scooters.
+on foot the route is 109 m and its steepest part is a path at 8.3%. With a manual wheelchair it
+goes round that path, 429 m, and its steepest part is 6.9%: wheelchair and scooter routes never use
+a path steeper than 1:14 (7.1%).
 
 ![The route on foot over an 8.3% path, then the wheelchair route around it](docs/images/steep-path.gif)
 
