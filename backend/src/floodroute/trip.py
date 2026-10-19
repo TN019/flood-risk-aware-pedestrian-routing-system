@@ -248,6 +248,22 @@ def find_refuge(
     return RefugeRoute(refuge, label, route, metrics, within_limit=metrics.segments_over_limit == 0)
 
 
+def emergency_advice(
+    status: OriginStatus,
+    routes: RoutePlan | None,
+    safe: bool,
+    downgrade: Downgrade | None,
+    refuge: RefugeRoute | None,
+) -> tuple[str | None, str]:
+    """How strongly emergency help is offered (None: not offered), and why."""
+    if not status.sheltered and not safe and refuge is None:
+        return ONLY_OPTION, NO_REFUGE
+    if status.sheltered and routes is not None and not safe and downgrade is None:
+        # Staying inside is still the advice, but the traveller cannot leave within the hard limit.
+        return "available", CUT_OFF
+    return status.level.emergency_advice, FROM_DEPTH
+
+
 def plan_trip(
     router: Router,
     refuges: RefugeIndex,
@@ -276,12 +292,7 @@ def plan_trip(
     if (not safe or status.level >= AlertLevel.OVER_LIMIT) and not status.sheltered:
         refuge = find_refuge(router, refuges, origin, snapshot, profile, status.level, alpha)
 
-    advice, reason = status.level.emergency_advice, FROM_DEPTH
-    if not status.sheltered and not safe and refuge is None:
-        advice, reason = ONLY_OPTION, NO_REFUGE
-    elif status.sheltered and routes is not None and not safe and downgrade is None:
-        # Staying inside is still the advice, but the traveller cannot leave within the hard limit.
-        advice, reason = "available", CUT_OFF
+    advice, reason = emergency_advice(status, routes, safe, downgrade, refuge)
     emergency = None
     if advice is not None:
         sos = SosRequest(
