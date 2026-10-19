@@ -9,57 +9,61 @@ and shallower water costs more the closer it is to that limit.
 
 ## Walkthrough
 
-![Planning walks from Boyd Village to Crown Melbourne as the flood level rises](docs/images/walkthrough.gif)
-
-From Boyd Village to Crown Melbourne with a mid-calf limit (28 cm): under light flooding the plain
-route is dry; under moderate flooding no route fits, so the app offers accepting water up to the
-knee or staying inside; taking the knee limit gives a route. Under heavy flooding, a start in
-67 cm of water brings up emergency help and the shallowest way to shelter. Last, the Get help
-button, always on the map, opens calls to 000 and VICSES and the SOS alert.
-
-## Screenshots
-
 Each trip opens with the next step to take, and the map highlights the route it refers to. Water
 the traveller can walk through is blue; water over their limit, or of unknown depth, is dashed red.
+The sources behind every flood level and depth limit, and which values are judgements, are on the
+`/reference` page, reached only by its address.
 
-**A route that fits.** Light flooding, ankle limit: the shortest way crosses water of unknown
-depth, so the recommended route walks 12 m further to stay within the limit.
+**Flood levels.** From none to extreme: the typical water on flooded footpaths rises from the
+ankle (6 cm) to the calf (32 cm), the thigh (54 cm) and above the hip (99 cm).
 
-![Recommended route under light flooding, with the next step and the route comparison](docs/images/detour.jpg)
+![The water on the map rising from light to extreme flooding](docs/images/flood-levels.gif)
+
+**A route that fits, around the water.** Light flooding, ankle limit: the shortest way crosses
+water of unknown depth, so the recommended route walks 12 m further to stay within the limit.
+
+![The recommended route, then the flood-ignoring shortest way it avoids](docs/images/detour.gif)
 
 **No route fits: a choice.** Moderate flooding, Boyd Village to Crown Melbourne, mid-calf limit
 (28 cm): every way crosses at least 32 cm, so the choices are to accept water up to the knee or to
-stay inside. The deepest point on the way is marked.
+stay inside. Taking the knee limit gives a route.
 
-![Two choices side by side when no route fits the traveller's limit](docs/images/choose.jpg)
+![Two choices, then the route with the knee limit](docs/images/choose.gif)
+
+**Go to a shelter.** Heavy flooding, from dry ground: every way to the destination crosses at
+least 68 cm, more than the 50 cm anyone is routed through, so the next step is the nearest shelter,
+140 m away and dry all the way.
+
+![The way to the nearest shelter when the destination is out of reach](docs/images/shelter.gif)
 
 **Standing in deep water.** Heavy flooding, starting in 67 cm: emergency help comes first, then the
 nearest shelter by the shallowest way out.
 
-![Emergency help and the way to the nearest shelter from deep water](docs/images/emergency.jpg)
+![Emergency help and the shallowest way to shelter from deep water](docs/images/deep-water.gif)
+
+**Cut off inside a building.** Extreme flooding, inside Boyd Village: every way to Crown Melbourne
+crosses at least 147 cm. Staying inside is the advice, and emergency help is available, with a
+reminder to move to a higher floor if water comes in.
+
+![Emergency help for a traveller cut off by deep water inside a building](docs/images/cut-off.gif)
 
 **With a wheelchair.** Light flooding, a manual wheelchair at its lowest level (no water, 2 cm),
 from inside the Crown Entertainment Complex to Boyd Village: every step-free way crosses 3 cm, so
-the choices are to accept water below a 4-inch castor axle (5 cm), the device's next level, or to
-stay inside. Each device has its own levels and cap (manual wheelchair 7.5 cm, powered wheelchair
-5 cm, mobility scooter 2.5 cm), and routes never use steps.
+the choices are the device's next level, below a 4-inch castor axle (5 cm), or staying inside.
+Each device has its own levels and cap (manual wheelchair 7.5 cm, powered wheelchair 5 cm,
+mobility scooter 2.5 cm), and routes never use steps.
 
-![A manual wheelchair user offered the next level of their device or staying inside](docs/images/wheelchair.jpg)
-
-**Sources and references.** `/reference`, reached only by its address, lists where the data comes
-from, the documents each flood level and limit rests on, and which values are judgements. Its
-values are read from the running API.
-
-![The sources and references page](docs/images/reference.jpg)
+![The next level of the device, then the step-free route with it](docs/images/wheelchair.gif)
 
 **Help at any time.** A Get help button stays on the map, whatever the trip says: call 000 if
 anyone's life is in danger, VICSES 132 500 for flood or storm help, or alert people nearby (the
-alert is simulated). When the trip finds the traveller in danger, or cut off by deep water inside
-a building, emergency help also opens the results.
+alert is simulated, with a few seconds to undo it).
+
+![Get help: calls to 000 and VICSES, and an SOS alert with undo](docs/images/get-help.gif)
 
 **On a phone.** The map sits above a sheet that slides up; the legend starts folded.
 
-<img src="docs/images/phone.jpg" alt="The same choice on a phone" width="300">
+<img src="docs/images/phone.gif" alt="A choice on a phone, with the sheet slid up" width="300">
 
 ## Repository layout
 
