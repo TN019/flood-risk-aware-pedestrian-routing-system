@@ -18,7 +18,8 @@ Edge attributes, always present
 
 Edge attributes, source-specific
     OSM: ``osmid``, ``highway``, ``name``, ``is_steps``, ``is_crossing``, ``is_bridge``,
-         ``is_tunnel``, ``is_carriageway``
+         ``is_tunnel``, ``is_carriageway``, ``gradient`` (rise over run from the City of Melbourne's
+         footpath steepness data, ``None`` where not measured; ``network.gradient``)
     City of Melbourne: ``objectid``, ``is_parcel_link``
 """
 

@@ -67,6 +67,7 @@ class RouteSegment:
     is_access: bool = False
     standing_on: tuple[str, ...] = ()  # access legs: footpaths where the traveller starts or ends
     on_steps: bool = False
+    gradient: float | None = None  # rise over run of the network edge (None: not measured)
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,20 @@ class Route:
     @property
     def uses_steps(self) -> bool:
         return any(seg.on_steps for seg in self.segments)
+
+    @property
+    def max_gradient(self) -> float | None:
+        """The steepest measured gradient on the route (None: none measured)."""
+        return max(self._gradients, default=None)
+
+    @property
+    def min_gradient(self) -> float | None:
+        """The gentlest measured gradient on the route (None: none measured)."""
+        return min(self._gradients, default=None)
+
+    @property
+    def _gradients(self) -> list[float]:
+        return [seg.gradient for seg in self.segments if seg.gradient is not None]
 
 
 class Router:
@@ -209,6 +224,7 @@ class Router:
                     is_access,
                     tuple(data.get("standing_on", ())),
                     bool(data.get("is_steps")),
+                    data.get("gradient"),
                 )
             )
             if is_access:

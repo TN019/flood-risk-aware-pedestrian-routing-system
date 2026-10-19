@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-10-19T06:03:26+00:00",
- "commit": "1fac09a",
+ "generated_at": "2026-10-19T06:54:26+00:00",
+ "commit": "4453b9b",
  "network": {
   "nodes": 2900,
   "edges": 3928
@@ -17,12 +17,12 @@
     "max": 2899
    },
    "ours_ms": {
-    "median": 1.2221,
-    "p95": 2.2221
+    "median": 1.2973,
+    "p95": 2.349
    },
    "reference_ms": {
-    "median": 0.8914,
-    "p95": 1.6251
+    "median": 0.932,
+    "p95": 1.7028
    }
   },
   "dijkstra_end_to_end": {
@@ -32,8 +32,8 @@
    "both_none": 2,
    "mismatches": [],
    "route_ms": {
-    "median": 5.8534,
-    "p95": 14.7838
+    "median": 6.3219,
+    "p95": 15.9837
    }
   },
   "minimax_brute_force": {
@@ -44,20 +44,20 @@
   },
   "verification": {
    "test_town": {
-    "met": 104,
-    "total": 104,
+    "met": 130,
+    "total": 130,
     "not_met": []
    },
    "southbank": {
-    "met": 34,
-    "total": 34,
+    "met": 39,
+    "total": 39,
     "not_met": []
    }
   },
   "faults": {
    "baseline": {
     "failed": 0,
-    "passed": 241,
+    "passed": 253,
     "skipped": 0
    },
    "faults": [
@@ -65,7 +65,7 @@
      "fault": "F1",
      "breaks": "Water deeper than the limit is passable",
      "tests_failed": 27,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_access.py::test_step_free_route_within_the_limit_is_reported_as_such",
       "tests/test_access.py::test_no_wheelchair_route_in_a_trip_uses_steps",
@@ -112,7 +112,9 @@
       "I2",
       "I3",
       "I5",
-      "I6"
+      "I6",
+      "J3",
+      "J4"
      ],
      "caught": true
     },
@@ -120,7 +122,7 @@
      "fault": "F2",
      "breaks": "Water of unknown depth counts as dry",
      "tests_failed": 3,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_risk.py::test_depth_relative_risk",
       "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction",
@@ -135,7 +137,7 @@
      "fault": "F3",
      "breaks": "No 50 cm hard limit for walkers",
      "tests_failed": 6,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_benchmark.py::test_no_hard_limit_fault_lifts_the_cap",
       "tests/test_risk.py::test_hard_limit_and_wheelchair",
@@ -150,8 +152,8 @@
     {
      "fault": "F4",
      "breaks": "Wheelchair users may use steps",
-     "tests_failed": 12,
-     "tests_run": 241,
+     "tests_failed": 16,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_access.py::test_steps_are_unusable_for_wheelchair_users_only",
       "tests/test_access.py::test_wheelchair_users_get_the_step_free_detour_on_every_route",
@@ -161,7 +163,11 @@
       "tests/test_access.py::test_no_wheelchair_route_in_a_trip_uses_steps",
       "tests/test_access.py::test_an_access_leg_cannot_skip_a_short_flight_of_steps",
       "tests/test_access.py::test_an_access_leg_cannot_skip_a_flight_that_turns_back",
+      "tests/test_access.py::test_paths_steeper_than_1_in_14_are_unusable_for_mobility_aid_users_only",
+      "tests/test_access.py::test_mobility_aid_users_get_the_detour_round_a_steep_path_and_walkers_do_not",
+      "tests/test_access.py::test_both_pieces_of_a_steep_path_split_by_a_start_point_are_steep",
       "tests/test_api.py::test_wheelchair_trips_never_use_steps",
+      "tests/test_api.py::test_mobility_aid_trips_never_use_steep_paths",
       "tests/test_api.py::test_wheelchair_trip_in_water_offers_no_route_over_steps",
       "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction",
       "tests/test_verification.py::test_southbank_properties_hold"
@@ -169,7 +175,11 @@
      "test_town_cases_failed": [
       "G1",
       "G2",
-      "G3"
+      "G3",
+      "J1",
+      "J2",
+      "J3",
+      "J4"
      ],
      "caught": true
     },
@@ -177,7 +187,7 @@
      "fault": "F5",
      "breaks": "No refuge is offered",
      "tests_failed": 8,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_access.py::test_refuges_reached_only_by_steps_are_not_offered_to_wheelchair_users",
       "tests/test_access.py::test_no_wheelchair_route_in_a_trip_uses_steps",
@@ -200,7 +210,9 @@
       "G3",
       "H4",
       "H5",
-      "I5"
+      "I5",
+      "J3",
+      "J4"
      ],
      "caught": true
     },
@@ -208,7 +220,7 @@
      "fault": "F6",
      "breaks": "No downgrade is offered",
      "tests_failed": 8,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_api.py::test_no_route_reports_the_least_water_and_where_it_is",
       "tests/test_trip.py::test_downgrade_finds_the_smallest_body_part_that_works",
@@ -226,7 +238,9 @@
       "G3",
       "H4",
       "H6",
-      "I3"
+      "I3",
+      "J3",
+      "J4"
      ],
      "caught": true
     },
@@ -234,7 +248,7 @@
      "fault": "F7",
      "breaks": "No emergency help when cut off inside a building",
      "tests_failed": 4,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_benchmark.py::test_a_fault_breaks_its_rule_only_while_applied",
       "tests/test_trip.py::test_inside_a_building_cut_off_by_deep_water_help_is_available",
@@ -252,7 +266,7 @@
      "fault": "F8",
      "breaks": "No emergency help at all",
      "tests_failed": 9,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_api.py::test_standing_in_deep_water_offers_help_and_the_shelter",
       "tests/test_benchmark.py::test_a_fault_breaks_its_rule_only_while_applied",
@@ -272,7 +286,8 @@
       "G3",
       "I2",
       "I4",
-      "I6"
+      "I6",
+      "J4"
      ],
      "caught": true
     },
@@ -280,7 +295,7 @@
      "fault": "F9",
      "breaks": "The recommended route ignores water within the limit (α = 0)",
      "tests_failed": 2,
-     "tests_run": 241,
+     "tests_run": 253,
      "failed_tests": [
       "tests/test_planning.py::test_three_routes_separate_filtering_from_weighting",
       "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
@@ -290,6 +305,27 @@
       "C4",
       "D",
       "H2"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F10",
+     "breaks": "Mobility aid users may use paths steeper than 1:14",
+     "tests_failed": 6,
+     "tests_run": 253,
+     "failed_tests": [
+      "tests/test_access.py::test_paths_steeper_than_1_in_14_are_unusable_for_mobility_aid_users_only",
+      "tests/test_access.py::test_mobility_aid_users_get_the_detour_round_a_steep_path_and_walkers_do_not",
+      "tests/test_access.py::test_both_pieces_of_a_steep_path_split_by_a_start_point_are_steep",
+      "tests/test_api.py::test_mobility_aid_trips_never_use_steep_paths",
+      "tests/test_benchmark.py::test_path_categories",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [
+      "J1",
+      "J2",
+      "J3",
+      "J4"
      ],
      "caught": true
     }
@@ -598,6 +634,8 @@
    "walking_route": 300,
    "step_free_route": 299,
    "step_free_using_steps": 0,
+   "step_free_using_steep": 0,
+   "walking_using_steep": 0,
    "step_free_cheaper": 0,
    "step_free_shorter": 1,
    "longer_median": 0.0,
@@ -608,15 +646,15 @@
  },
  "field": null,
  "seconds": {
-  "loading": 0.4034,
-  "dijkstra node pairs": 2.1444,
-  "dijkstra end to end": 3.8507,
-  "minimax": 0.2003,
-  "test town": 0.0651,
-  "southbank properties": 239.5803,
-  "fault injection": 298.1509,
-  "safety cost": 69.3697,
-  "rising flood": 7.5169,
-  "step-free pairs": 5.0738
+  "loading": 0.4458,
+  "dijkstra node pairs": 2.2607,
+  "dijkstra end to end": 4.1443,
+  "minimax": 0.2104,
+  "test town": 0.0871,
+  "southbank properties": 239.3962,
+  "fault injection": 338.3565,
+  "safety cost": 70.7209,
+  "rising flood": 7.7773,
+  "step-free pairs": 5.3696
  }
 }

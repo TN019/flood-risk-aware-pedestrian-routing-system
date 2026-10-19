@@ -1,7 +1,8 @@
 """Build the Southbank routing graph, save it, and render an interactive map of it.
 
-The primary network is OpenStreetMap's walking network. ``--source com`` builds the older
-City of Melbourne network instead (kept for comparison).
+The primary network is OpenStreetMap's walking network, with gradients from the City of Melbourne's
+footpath steepness data on its edges. ``--source com`` builds the older City of Melbourne network
+instead (kept for comparison, without gradients).
 
 Writes:
 - data/processed/southbank_network.gpkg      (OSM; layers: nodes, edges, study_area)
@@ -31,7 +32,8 @@ from floodroute.network import (
     to_gdfs,
 )
 from floodroute.network import osm_builder as ob
-from floodroute.sources import com, osm
+from floodroute.network.gradient import STEEPEST_RAMP, add_gradients
+from floodroute.sources import com, osm, steepness
 
 PROCESSED_DIR = config.PROCESSED_DIR
 REPORT_DIR = config.REPORT_DIR
@@ -41,7 +43,8 @@ OUTPUTS = {
     "com": (config.PROCESSED_COM_NETWORK_PATH, REPORT_DIR / "network_map_com.html"),
 }
 SOURCES = {
-    "osm": "OpenStreetMap walking network (© OpenStreetMap contributors, ODbL)",
+    "osm": "OpenStreetMap walking network (© OpenStreetMap contributors, ODbL); footpath gradients: "
+    "City of Melbourne Footpath steepness (CC BY)",
     "com": "City of Melbourne Pedestrian Network (CC BY), 2019",
 }
 FADED = 0.3
@@ -52,6 +55,8 @@ def edge_class(d: dict) -> str:
         return "Parcel links (dead-end only)"
     if d.get("is_steps"):
         return "Steps"
+    if (d.get("gradient") or 0) > STEEPEST_RAMP:
+        return "Steeper than 1:14"
     if d.get("is_crossing"):
         return "Crossings"
     if d.get("is_carriageway") and (d.get("cost_factor") or 1) > 1:
@@ -65,6 +70,7 @@ STYLES = {  # class -> (colour, weight, dash)
     "Footpaths": ("#1f4e79", 3, None),
     "Crossings": ("#2ca02c", 4, None),
     "Steps": ("#d62728", 3, "2 4"),
+    "Steeper than 1:14": ("#ff7f0e", 4, None),
     "Roads without a separate sidewalk": ("#8c6d31", 3, None),
     "Roads with a sidewalk alongside (avoided)": ("#888888", 2, "6 6"),
     "Parcel links (dead-end only)": ("#e6550d", 2, "4 4"),
@@ -91,7 +97,10 @@ def render_map(graph: nx.Graph, report_lines: list[str], source: str) -> folium.
         name=f"Routing buffer ({graph.graph['buffer_m']:.0f} m)",
         style_function=lambda _: {"color": "#777", "weight": 1.5, "dashArray": "6 6", "fill": False},
     ).add_to(fmap)
-    tooltip = ["edge_id", "class", "highway", "name", "length_m"]
+    edges["gradient"] = [
+        None if d.get("gradient") is None else f"{d['gradient']:.1%}" for *_, d in graph.edges(data=True)
+    ]
+    tooltip = ["edge_id", "class", "highway", "name", "length_m", "gradient"]
     for cls, (colour, weight, dash) in STYLES.items():
         sub = edges[edges["class"] == cls]
         if sub.empty:
@@ -172,6 +181,7 @@ def build(source: str) -> tuple[nx.Graph, dict, list[str]]:
         graph, report = ob.build_graph_from_osm(
             osm.load_walk_network(), config.METRIC_CRS, area, config.STUDY_AREA_BUFFER_M
         )
+        gradients = add_gradients(graph, steepness.load_footpath_sections())
         lines = [
             f"Excluded: {report.indoor_removed} indoor, {report.private_removed} private, "
             f"{report.use_sidepath_removed} use-sidepath way segments.",
@@ -179,7 +189,11 @@ def build(source: str) -> tuple[nx.Graph, dict, list[str]]:
             f"×{ob.CARRIAGEWAY_PENALTY:g} to walk along.",
             f"{report.crossings} crossings, {report.steps} steps; {report.components_dropped} disconnected "
             f"pieces ({report.nodes_dropped} nodes) dropped.",
+            f"Gradient known on {gradients.edges_with_gradient} edges, {gradients.edges_steeper_than_ramp} "
+            f"steeper than 1:14 (City of Melbourne footpath steepness, {gradients.trusted} of "
+            f"{gradients.sections} sections used).",
         ]
+        return graph, {**report.as_dict(), "gradients": gradients.as_dict()}, lines
     else:
         graph, report = com_builder.build_graph(
             com.load_pedestrian_network(), study_area=area, buffer_m=config.STUDY_AREA_BUFFER_M

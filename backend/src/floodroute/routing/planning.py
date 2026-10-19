@@ -7,8 +7,8 @@
 Comparing ``shortest`` with ``safe_shortest`` shows what excluding unsafe water changes; comparing
 ``safe_shortest`` with ``recommended`` shows what weighting the remaining risk changes.
 
-All three leave out edges the traveller cannot use at all (steps, for wheelchair users), so for
-them ``shortest`` is the shortest step-free way.
+All three leave out edges the traveller cannot use at all (steps and paths steeper than 1:14, for
+mobility aid users), so for them ``shortest`` is the shortest way without either.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from floodroute.risk import (
     RiskModel,
     TravellerProfile,
     risk_cost,
+    too_steep,
     walking_cost_for,
 )
 from floodroute.risk.model import source_edge_id
@@ -32,7 +33,7 @@ from floodroute.routing.metrics import RouteMetrics, route_metrics
 from floodroute.routing.router import Route, Router, RoutingError
 
 SHORTEST, SAFE_SHORTEST, RECOMMENDED = "shortest", "safe_shortest", "recommended"
-NO_STEP_FREE_ROUTE = "No step-free route connects these places."
+NO_STEP_FREE_ROUTE = "No route without steps or steep paths connects these places."
 
 
 @dataclass(frozen=True)
@@ -54,8 +55,9 @@ class RoutePlan:
     recommended: RouteOption
     alpha: float
     blocked_edges: int  # network edges over this traveller's limit under these conditions
-    step_free: bool = False  # the traveller cannot use steps, so no route uses them
+    step_free: bool = False  # the traveller cannot use steps or steep paths, so no route uses them
     steps_avoided: bool = False  # the plain shortest way uses steps this traveller cannot use
+    steep_avoided: bool = False  # the plain shortest way has a path steeper than this traveller can use
 
     @property
     def options(self) -> tuple[RouteOption, RouteOption, RouteOption]:
@@ -71,8 +73,8 @@ def plan_routes(
     alpha: float = DEFAULT_ALPHA,
     model: RiskModel | None = None,
 ) -> RoutePlan:
-    """Raises ``RoutingError`` only when the two places are not connected at all; when water or
-    steps are the obstacle, the options carry an ``error`` instead of a route."""
+    """Raises ``RoutingError`` only when the two places are not connected at all; when water, steps
+    or steep paths are the obstacle, the options carry an ``error`` instead of a route."""
     model = model or DepthRelativeRisk()
     blocked = sum(
         1
@@ -80,14 +82,23 @@ def plan_routes(
         if model.edge_risk(snapshot.condition(source_edge_id(d)), profile) is None
     )
     step_free = profile.uses_wheelchair
-    steps_avoided = step_free and router.route(origin, destination).uses_steps
+    plain = router.route(origin, destination) if step_free else None
+    steps_avoided = step_free and plain.uses_steps
+    steep_avoided = step_free and too_steep(plain.max_gradient)
     try:
         shortest = router.route(origin, destination, walking_cost_for(profile))
     except RoutingError:
         if not step_free:
             raise
         none = [RouteOption(kind, None, None, NO_STEP_FREE_ROUTE) for kind in (SHORTEST, SAFE_SHORTEST, RECOMMENDED)]
-        return RoutePlan(*none, alpha=alpha, blocked_edges=blocked, step_free=True, steps_avoided=True)
+        return RoutePlan(
+            *none,
+            alpha=alpha,
+            blocked_edges=blocked,
+            step_free=True,
+            steps_avoided=steps_avoided,
+            steep_avoided=steep_avoided,
+        )
     reference = shortest.length_m
 
     def option(kind: str, cost) -> RouteOption:
@@ -95,7 +106,7 @@ def plan_routes(
             route = router.route(origin, destination, cost)
         except RoutingError:
             limit_cm = profile.depth_limit_m * 100
-            way = "step-free route" if step_free else "route"
+            way = "route without steps or steep paths" if step_free else "route"
             return RouteOption(kind, None, None, f"No {way} keeps you within your limit ({limit_cm:.0f} cm).")
         return RouteOption(kind, route, route_metrics(route, snapshot, profile, reference))
 
@@ -107,4 +118,5 @@ def plan_routes(
         blocked_edges=blocked,
         step_free=step_free,
         steps_avoided=steps_avoided,
+        steep_avoided=steep_avoided,
     )

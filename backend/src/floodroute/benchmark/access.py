@@ -1,9 +1,9 @@
 """Step-free connectivity between buildings under normal conditions.
 
 For random pairs of buildings inside Southbank: the walking route, and the step-free route a manual
-wheelchair user gets. A step-free route is also a walking route, so it can never cost less (routes
-minimise walking cost, with carriageways counted three times their length; it can be shorter), and
-it must never use steps.
+wheelchair user gets, which also leaves out paths steeper than 1:14. A step-free route is also a
+walking route, so it can never cost less (routes minimise walking cost, with carriageways counted
+three times their length; it can be shorter), and it must never use steps or a steep path.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import random
 
 from floodroute.benchmark.world import World, quantile
-from floodroute.risk import MobilityAid, TravellerProfile, walking_cost_for
+from floodroute.risk import MobilityAid, TravellerProfile, too_steep, walking_cost_for
 from floodroute.routing import RoutingError
 from floodroute.verification import route_cost
 
@@ -30,6 +30,8 @@ def step_free_pairs(world: World, n: int = 300, seed: int = 2026, min_m: float =
         "walking_route": 0,
         "step_free_route": 0,
         "step_free_using_steps": 0,
+        "step_free_using_steep": 0,
+        "walking_using_steep": 0,
         "step_free_cheaper": 0,
         "step_free_shorter": 0,
     }
@@ -49,12 +51,14 @@ def step_free_pairs(world: World, n: int = 300, seed: int = 2026, min_m: float =
             continue  # not connected on foot either: outside what this measures
         out["pairs"] += 1
         out["walking_route"] += 1
+        out["walking_using_steep"] += too_steep(walking.max_gradient)
         try:
             step_free = world.router.route(origin.access_points, destination.access_points, chair_cost)
         except RoutingError:
             continue
         out["step_free_route"] += 1
         out["step_free_using_steps"] += step_free.uses_steps
+        out["step_free_using_steep"] += too_steep(step_free.max_gradient)
         cheaper = (
             route_cost(step_free, world.graph, chair_cost) < route_cost(walking, world.graph, walk_cost) - TOLERANCE
         )

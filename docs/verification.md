@@ -1,7 +1,7 @@
 # Verification: predictions
 
 This document states, **before running the program**, what the routing rules should produce in a
-set of test cases (A–I). The predictions are derived by hand from the rules in
+set of test cases (A–J). The predictions are derived by hand from the rules in
 [architecture.md](architecture.md). `backend/scripts/verify.py` then runs the same cases and
 compares its results with these predictions; see `reports/verification_results.md`.
 
@@ -35,6 +35,10 @@ hydraulic model results.
   as steps is impassable for them in every search
   (shortest ignoring flooding, shortest within limit, recommended, least water, refuge). For
   everyone else steps are ordinary paths.
+- Mobility aid users never use a path steeper than 1:14, the steepest ramp AS 1428.1 allows: an
+  edge with a gradient steeper than 1:14 is impassable for them in every search, like steps. A
+  gradient of exactly 1:14 is allowed, and an edge with no measured gradient counts as passable.
+  For everyone else gradients change nothing.
 
 Limits used below:
 
@@ -172,6 +176,19 @@ top street is 10 + 25 + 300 + 50 = 385 m. Every way from x = 100 to x = 200 uses
 | I5 | As I2, but starting outside at B0 (dry) | Not sheltered, start level OK. No downgrade. Refuge "Shelter", **35 m**, within the limit. **No emergency** (the rule is for a start inside only) |
 | I6 | b12 and t12 at 10 cm. Manual wheelchair, no water, inside Shelter | Least water 10 cm, route 335 m. No downgrade (10 cm > the 7.5 cm cap). Emergency help **available**, reason **cut off** |
 
+### J — steep paths and mobility aid users
+
+The town without steps, with a gradient on some edges (no other change). Start B0, α = 2. The
+gradient applies to the whole edge, and to both pieces when a point splits it. Adult, ankle limit
+(6.63 cm); mobility aid users at the stated level.
+
+| Case | Setup | Predictions |
+|---|---|---|
+| J1 | b12 at 1:10 (steeper than 1:14). No water | Adult: shortest, shortest within limit and recommended all **300 m**, through b12; no steep path reported as avoided. Manual wheelchair, no water: all three **400 m**, none through b12; steep paths reported as avoided, steps not; edges over the limit **0** (a gradient is not water). Powered wheelchair and mobility scooter, no water: recommended **400 m** (all three devices share the limit) |
+| J2 | No water. b12 at exactly 1:14; at 1:13; with no measured gradient | Manual wheelchair, recommended: **300 m** at 1:14 (the limit itself is allowed), **400 m** at 1:13, **300 m** with no gradient (not measured counts as passable) |
+| J3 | b12 at 1:10, t12 at 4 cm | Adult: t12 is within the limit and b12 is usable: recommended **300 m**. Powered wheelchair, no water: every way from x = 100 to x = 200 uses b12 (steep) or t12 (4 cm > 2 cm), so **no route within the limit**. Shortest ignoring flooding **400 m** (through t12), steep paths reported as avoided. Least water **4 cm**, route **400 m** (the dry 300 m way is steep). Downgrade to **"well below the chassis"** (5 cm ≥ 4 cm), route **400 m**. Refuge "Shelter", **35 m**, within the limit. No emergency. Mobility scooter, no water: no route within the limit; least water 4 cm; **no downgrade** (4 cm > its 2.5 cm cap); refuge "Shelter", 35 m, within the limit |
+| J4 | c0 at 1:10, b12 and t12 at 10 cm | Adult: no route within limit; downgrade to the lower calf, least water 10 cm, route 300 m; refuge "Shelter", **35 m** up c0 (steep paths are ordinary paths for walkers), within the limit; no emergency. Manual wheelchair, no water: no route within limit; least water **10 cm**, route **300 m** (via b12); no downgrade (10 cm > the 7.5 cm cap); the Shelter door joins the network only on c0, and both pieces of c0 are steep, so **no refuge** is offered; emergency **"only option"** |
+
 ## Part 2 — properties on the Southbank network
 
 On the real network exact routes cannot be worked out by hand, so the predictions are properties
@@ -188,6 +205,7 @@ flood levels.
 | R-F | For a fixed traveller (adult, ankle), the number of network edges over the limit rises strictly from normal to extreme, and the share of trips with a route within the limit never rises |
 | R-G | Every level, every trip: no route planned for a mobility aid user (shortest ignoring flooding, shortest within limit, recommended, least water, refuge) uses steps |
 | R-H | Same device: a trip possible for a manual wheelchair at a lower level is possible at every higher one (no water ⇒ 5 cm ⇒ 7.5 cm) |
+| R-I | Every level, every trip: no route planned for a mobility aid user (shortest ignoring flooding, shortest within limit, recommended, least water, refuge) uses a network edge steeper than 1:14 |
 
 ## Results
 
@@ -264,3 +282,13 @@ already held, and the three emergency checks (I2, I4, I6) failed, as predicted. 
 138 checks met**, including all 17 in I. Calling for help (000, VICSES 132 500, an alert to
 people nearby) is now always available in both clients; these rules decide only when the results
 put it first.
+
+**Tenth run, after mobility aid users were kept off paths steeper than 1:14.** Case J (test town),
+R-I (Southbank) and fault F10 were derived and committed before the change; against the code before
+it, 11 of J's 26 checks already held (the walkers' routes and the path without a measured gradient)
+and the 15 that depend on the new rule failed, as predicted. Result: **169 of 169 checks met**,
+including all 26 in J. On the Southbank network 2 of the 100 random trips have a path steeper than
+1:14 on their plain shortest way (counted once for each of the four mobility aid travellers, 8), and
+none of the mobility aid routes uses one. Gradients come from surveyed footpath sections joined to
+the network (architecture.md, "Footpath gradients"); whether they match the street is for the
+inspection on site (benchmarks.md, 4).

@@ -38,7 +38,7 @@ class StaticHazard:
         return HazardSnapshot("test", at, conditions, DRY)
 
 
-def town_service(steps: tuple[str, ...] = ()) -> Service:
+def town_service(steps: tuple[str, ...] = (), gradients: dict[str, float] | None = None) -> Service:
     xy = {1: (0, 0), 2: (150, 0), 3: (300, 0), 4: (0, 100), 5: (300, 100)}
     g = nx.Graph(crs=config.METRIC_CRS, study_area=box(X0 - 50, Y0 - 50, X0 + 350, Y0 + 150), buffer_m=50.0)
     for n, (x, y) in xy.items():
@@ -55,6 +55,7 @@ def town_service(steps: tuple[str, ...] = ()) -> Service:
             cost_factor=1.0,
             in_study_area=True,
             is_steps=eid in steps,
+            gradient=(gradients or {}).get(eid),
         )
     router = Router(g)
     buildings = gpd.GeoDataFrame(
@@ -83,6 +84,13 @@ def client():
 def stepped_client():
     """The same streets with steps on the east half of the bottom street (e1)."""
     with TestClient(create_app(lambda: town_service(steps=("e1",)), serve_client=False)) as c:
+        yield c
+
+
+@pytest.fixture(scope="module")
+def steep_client():
+    """The same streets with the east half of the bottom street (e1) at 1:10."""
+    with TestClient(create_app(lambda: town_service(gradients={"e1": 0.10}), serve_client=False)) as c:
         yield c
 
 
@@ -187,6 +195,21 @@ def test_wheelchair_trips_never_use_steps(stepped_client):
     for o in chair["routes"]["options"]:
         assert not o["route"]["uses_steps"] and o["route"]["metrics"]["length_m"] == pytest.approx(510, abs=1)
     assert chair["routes"]["step_free"] and chair["routes"]["steps_avoided"]
+
+
+def test_mobility_aid_trips_never_use_steep_paths(steep_client):
+    walker = trip(steep_client, scenario="dry").json()
+    chair = trip(steep_client, scenario="dry", mobility_aid="mobility_scooter").json()
+    for o in walker["routes"]["options"]:
+        assert o["route"]["min_gradient"] == pytest.approx(0.10)
+        assert o["route"]["max_gradient"] == pytest.approx(0.10) and o["route"]["metrics"]["length_m"] == pytest.approx(
+            310, abs=1
+        )
+    assert not walker["routes"]["steep_avoided"]
+    for o in chair["routes"]["options"]:
+        assert o["route"]["max_gradient"] is None and o["route"]["min_gradient"] is None
+        assert o["route"]["metrics"]["length_m"] == pytest.approx(510, abs=1)
+    assert chair["routes"]["step_free"] and chair["routes"]["steep_avoided"] and not chair["routes"]["steps_avoided"]
 
 
 def test_wheelchair_trip_in_water_offers_no_route_over_steps(stepped_client):

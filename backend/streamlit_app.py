@@ -380,7 +380,10 @@ with st.sidebar:
             key="aid_level",
             format_func=lambda i: f"{aid.levels[i].label} ({aid.levels[i].depth_m * 100:g} cm)",
         )
-        st.caption("Limits for wheeled aids follow the device, not your height. Routes never use steps.")
+        st.caption(
+            "Limits for wheeled aids follow the device, not your height. "
+            "Routes never use steps or footpaths measured steeper than 1:14."
+        )
         profile = TravellerProfile(height_cm / 100, mobility_aid=aid, aid_level=level)
     st.caption(
         f"Your limit: **{profile.depth_limit_m * 100:g} cm** (never more than {profile.hard_limit_m * 100:g} cm)"
@@ -553,6 +556,11 @@ def depth_text(depth: float | None) -> str:
     return "none" if depth <= DRY_DEPTH_M else f"{depth * 100:.0f} cm ({profile.describe_depth(depth)})"
 
 
+def gradient_text(gradient: float | None) -> str:
+    """A measured gradient as a plain percentage, e.g. "8.3%"; "—" when none was measured."""
+    return "—" if gradient is None else f"{abs(gradient):.1%}"
+
+
 def show_origin_and_emergency(trip: TripPlan) -> None:
     """The alert for where the traveller stands, and the emergency panel."""
     o = trip.origin
@@ -664,6 +672,8 @@ elif plan is not None:
                     "Time": "—",
                     "Deepest water": "—",
                     "In water": "—",
+                    "Steepest": "—",
+                    "Gentlest": "—",
                     "Over your limit": option.error,
                 }
             )
@@ -676,6 +686,8 @@ elif plan is not None:
                 "Time": f"{om.travel_time_s / 60:.0f} min",
                 "Deepest water": depth_text(om.max_depth_m),
                 "In water": f"{om.wading_length_m:,.0f} m",
+                "Steepest": gradient_text(option.route.max_gradient),
+                "Gentlest": gradient_text(option.route.min_gradient),
                 "Over your limit": f"{om.segments_over_limit} section(s)" if om.segments_over_limit else "no",
             }
         )
@@ -683,7 +695,8 @@ elif plan is not None:
     st.caption(
         f"{plan.blocked_edges} network sections are over your limit in this scenario. "
         "Grey dashed: shortest ignoring flooding · orange dotted: shortest within your limit · "
-        "purple: recommended (also weighs how close the water is to your limit)."
+        "purple: recommended (also weighs how close the water is to your limit). "
+        "Gradients are those the City of Melbourne measured along each route (— where none was measured)."
     )
 
     def describe(place: pl.Place, used) -> str:

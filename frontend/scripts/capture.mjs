@@ -35,6 +35,9 @@ const STURT_STREET = [-37.82579, 144.961159];
 const SOUTHBANK_PROMENADE = [-37.819892, 144.967703];
 const NEAR_CROWN = [-37.82228, 144.95793]; // dry ground; under heavy flooding every way south is too deep
 const SOUTH_OF_CROWN = [-37.82704, 144.9541];
+// Either side of an 8.3% path on the promenade: 109 m on foot, 429 m round it in a wheelchair.
+const PROMENADE_WEST = [-37.820479, 144.963567];
+const PROMENADE_EAST = [-37.820245, 144.964435];
 
 const DESKTOP = { width: 1280, height: 800, deviceScaleFactor: 1 };
 const PHONE = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
@@ -228,6 +231,23 @@ async function planTrip(page, from, to, phone = false) {
   await showResults(page, phone);
 }
 
+/** Choose a mobility aid in the traveller panel, with the pointer on it, and wait for the new plan. */
+async function switchAid(page, aid) {
+  const before = await nextStepText(page);
+  const box = await page.evaluate(() => {
+    const select = [...document.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === "manual_wheelchair"));
+    select.scrollIntoView({ block: "center", behavior: "instant" });
+    const r = select.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await page.mouse.move(box.x, box.y, { steps: 25 });
+  await sleep(500);
+  await setAid(page, aid);
+  await waitForNewPlan(page, before);
+  await sleep(1400); // the panel now shows the device's levels
+  await showResults(page, false);
+}
+
 async function useLimit(page) {
   const before = await nextStepText(page);
   await clickButton(page, ".choice button.button", "Use this limit");
@@ -308,6 +328,16 @@ const CLIPS = {
       await sleep(2400);
       await useLimit(page);
       await sleep(2200);
+    },
+  },
+  "steep-path": {
+    frame: [PROMENADE_WEST, PROMENADE_EAST],
+    setup: (page) => setWading(page, "ankle"),
+    run: async (page) => {
+      await planTrip(page, PROMENADE_WEST, PROMENADE_EAST);
+      await sleep(3000);
+      await switchAid(page, "manual_wheelchair");
+      await sleep(3400);
     },
   },
   "get-help": {

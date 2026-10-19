@@ -60,7 +60,7 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
           </select>
           <p className="muted small">
             Limits for wheeled aids follow the device (castor axle, chassis, manufacturer advice), not your height. Routes never use
-            steps.
+            steps or footpaths measured steeper than 1:14.
           </p>
         </div>
       ) : (

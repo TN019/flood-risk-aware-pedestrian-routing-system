@@ -68,6 +68,10 @@ def _steps_for_wheelchairs() -> list:
     ]
 
 
+def _steep_for_wheelchairs() -> list:
+    return [mock.patch("floodroute.risk.access.MAX_GRADIENT", float("inf"))]
+
+
 def _no_refuge() -> list:
     return [mock.patch("floodroute.trip.find_refuge", lambda *a, **k: None)]
 
@@ -120,6 +124,7 @@ FAULTS: dict[str, Fault] = {
         Fault("F7", "No emergency help when cut off inside a building", _no_help_when_cut_off),
         Fault("F8", "No emergency help at all", _no_help),
         Fault("F9", "The recommended route ignores water within the limit (α = 0)", _alpha_zero),
+        Fault("F10", "Mobility aid users may use paths steeper than 1:14", _steep_for_wheelchairs),
     ]
 }
 

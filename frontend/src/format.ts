@@ -1,4 +1,4 @@
-import type { Geometry, Options, RouteOption } from "./types";
+import type { Geometry, Options, RouteJson, RouteOption, TripPlan } from "./types";
 
 /** Where water of this depth reaches on a person of this height, e.g. "up to the ankle".
  * Mirrors floodroute.risk.profile.describe_depth. */
@@ -62,4 +62,29 @@ export function groupRoutes(options: RouteOption[]): { option: RouteOption; kind
     else groups.push({ option, kinds: [option.kind], key });
   }
   return groups.map(({ option, kinds }) => ({ option, kinds }));
+}
+
+/** What the routes leave out for a mobility aid user, as a sentence (empty for walkers). */
+export function accessNote(routes: Pick<NonNullable<TripPlan["routes"]>, "step_free" | "steps_avoided" | "steep_avoided">): string {
+  const avoided = [routes.steps_avoided && "the steps", routes.steep_avoided && "the paths steeper than 1:14"].filter(Boolean);
+  if (avoided.length > 0) return `Every route avoids ${avoided.join(" and ")} on the shortest way.`;
+  return routes.step_free ? "Every route is step-free." : "";
+}
+
+/** A measured gradient (rise over run) as a plain percentage, e.g. "8.3%"; "—" when it is missing. */
+export function gradientPercent(g: number | null | undefined): string {
+  return typeof g === "number" && Number.isFinite(g) ? `${(Math.abs(g) * 100).toFixed(1)}%` : "—";
+}
+
+/** Whether a route has a steepest and a gentlest measured gradient to show. */
+export function hasGradients(route: Partial<Pick<RouteJson, "max_gradient" | "min_gradient">>): boolean {
+  return [route.max_gradient, route.min_gradient].every((g) => typeof g === "number" && Number.isFinite(g));
+}
+
+/** The measured gradients along a route, e.g. "Gradient 0.6% to 2.4%". */
+export function gradientSummary(route: Partial<Pick<RouteJson, "max_gradient" | "min_gradient">>): string {
+  if (!hasGradients(route)) return "No gradient data";
+  const gentlest = gradientPercent(route.min_gradient);
+  const steepest = gradientPercent(route.max_gradient);
+  return gentlest === steepest ? `Gradient ${steepest}` : `Gradient ${gentlest} to ${steepest}`;
 }

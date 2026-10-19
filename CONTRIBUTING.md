@@ -11,7 +11,7 @@ Requires Python 3.12 and [uv](https://docs.astral.sh/uv/). All backend commands 
 ```bash
 cd backend
 uv sync                                    # .venv with runtime, dev and tool dependencies
-uv run python scripts/download_data.py     # raw OSM, City of Melbourne, terrain, overlay and drain data into data/raw
+uv run python scripts/download_data.py     # raw OSM, City of Melbourne, terrain, overlay, drain and gradient data into data/raw
 uv run python scripts/build_network.py     # processed network and places into data/processed
 uv run python scripts/make_scenarios.py    # flood scenario depth grids into data/processed/scenarios
 ```

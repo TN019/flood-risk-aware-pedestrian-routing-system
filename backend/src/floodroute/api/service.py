@@ -306,6 +306,7 @@ class Service:
                 "blocked_edges": trip.routes.blocked_edges,
                 "step_free": trip.routes.step_free,
                 "steps_avoided": trip.routes.steps_avoided,
+                "steep_avoided": trip.routes.steep_avoided,
                 "options": [
                     {
                         "kind": option.kind,
@@ -412,6 +413,8 @@ class Service:
             "geometry": self.to_wgs(route.geometry),
             "access_legs": [self.to_wgs(leg) for leg in legs if leg.length > 0],
             "uses_steps": route.uses_steps,
+            "max_gradient": None if route.max_gradient is None else round(route.max_gradient, 4),
+            "min_gradient": None if route.min_gradient is None else round(route.min_gradient, 4),
             "from": {**self.latlon(route.origin.point), "label": start.access_label(route.origin.point)},
             "to": {
                 **self.latlon(route.destination.point),

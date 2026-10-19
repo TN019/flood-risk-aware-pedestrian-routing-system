@@ -1,4 +1,4 @@
-import { cm, depthSummary, distance, minutes } from "../format";
+import { cm, depthSummary, distance, gradientPercent, hasGradients, minutes } from "../format";
 import { acceptText, detourText, route, situation, whyNoRoute } from "../guidance";
 import type { RouteKind } from "../routeStyles";
 import type { Options, RouteJson, TripPlan } from "../types";
@@ -35,6 +35,23 @@ function Metrics({ r, options }: { r: RouteJson; options: Options }) {
         <span className="metric-value">{distance(m.wading_length_m)}</span>
         <span className="metric-label">in water</span>
       </div>
+      {hasGradients(r) ? (
+        <>
+          <div>
+            <span className="metric-value">{gradientPercent(r.max_gradient)}</span>
+            <span className="metric-label">steepest</span>
+          </div>
+          <div>
+            <span className="metric-value">{gradientPercent(r.min_gradient)}</span>
+            <span className="metric-label">gentlest</span>
+          </div>
+        </>
+      ) : (
+        <div>
+          <span className="metric-value">—</span>
+          <span className="metric-label">no gradient data</span>
+        </div>
+      )}
     </div>
   );
 }

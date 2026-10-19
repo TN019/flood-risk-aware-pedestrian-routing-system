@@ -1,4 +1,4 @@
-import { cm, depthSummary, distance, minutes } from "../format";
+import { accessNote, cm, depthSummary, distance, gradientSummary, minutes } from "../format";
 import type { RouteKind } from "../routeStyles";
 import type { Options, TripPlan } from "../types";
 import { NextStep } from "./NextStep";
@@ -100,6 +100,7 @@ function Comparison({ trip, options, selected, onSelect }: Pick<Props, "trip" | 
                     <span>
                       Deepest {depthSummary(m.max_depth_m, m.max_depth_label, options.dry_depth_m)} · {distance(m.wading_length_m)} in water
                     </span>
+                    <span>{gradientSummary(o.route!)}</span>
                     {unsafe && <span className="warn-text">{m.segments_over_limit} section(s) over your limit</span>}
                   </span>
                 ) : (
@@ -112,7 +113,7 @@ function Comparison({ trip, options, selected, onSelect }: Pick<Props, "trip" | 
       </ul>
       <p className="muted small">
         Select a route to see it on the map. {routes.blocked_edges} network sections are over your limit in this scenario.
-        {routes.steps_avoided ? " Every route avoids the steps on the shortest way." : routes.step_free ? " Every route is step-free." : ""}
+        {accessNote(routes) && ` ${accessNote(routes)}`}
       </p>
     </section>
   );
