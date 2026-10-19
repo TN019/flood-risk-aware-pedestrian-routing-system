@@ -99,6 +99,7 @@ export interface BenchmarkResults {
       walking_route: number;
       step_free_route: number;
       step_free_using_steps: number;
+      step_free_cheaper: number;
       step_free_shorter: number;
       longer_median: number | null;
       longer_p90: number | null;

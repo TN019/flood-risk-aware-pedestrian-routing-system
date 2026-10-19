@@ -241,12 +241,14 @@ function Results({ r }: { r: BenchmarkResults }) {
 
       <section id="access">
         <h2>Public area accessibility</h2>
-        <Result title="Step-free connectivity between buildings" ok={sf.step_free_using_steps === 0 && sf.step_free_shorter === 0}>
+        <Result title="Step-free connectivity between buildings" ok={sf.step_free_using_steps === 0 && sf.step_free_cheaper === 0}>
           <p>
             {sf.pairs} random pairs of buildings connected on foot, normal conditions: a step-free route exists for{" "}
             <strong>{share(sf.step_free_route, sf.pairs)}</strong>; {sf.same_length} are as short as the walking route. The rest are longer by{" "}
             {pct(sf.longer_median, 1)} at the median, {pct(sf.longer_p90, 1)} at the 90th percentile and {pct(sf.longer_max, 1)} at most. No
-            step-free route uses steps ({sf.step_free_using_steps}) or is shorter than the walking route ({sf.step_free_shorter}).
+            step-free route uses steps ({sf.step_free_using_steps}) or costs less than the walking route ({sf.step_free_cheaper}).
+            {sf.step_free_shorter > 0 &&
+              ` ${sf.step_free_shorter} ${sf.step_free_shorter === 1 ? "is" : "are"} shorter in metres but cost more: routes minimise walking cost, with a carriageway counted three times its length.`}
           </p>
         </Result>
       </section>
