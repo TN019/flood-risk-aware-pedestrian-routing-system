@@ -8,6 +8,7 @@ served from ``/`` as well, so one process serves the whole application.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from typing import Literal
@@ -108,6 +109,13 @@ def create_app(load_service: Callable[[], Service] = Service.from_files, serve_c
             raise
         except Exception as exc:  # place search depends on an outside service
             raise HTTPException(502, "Place search is unavailable right now. Click the map instead.") from exc
+
+    @app.get("/api/benchmark")
+    def benchmark() -> dict:
+        """The last benchmark results (scripts/benchmark.py), shown at /benchmark."""
+        if not config.BENCHMARK_PATH.exists():
+            raise HTTPException(404, "No benchmark results yet: run backend/scripts/benchmark.py.")
+        return json.loads(config.BENCHMARK_PATH.read_text())
 
     @app.post("/api/trip")
     def trip(body: TripRequest) -> dict:

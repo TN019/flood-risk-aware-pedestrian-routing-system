@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import { ConditionsPanel } from "./components/ConditionsPanel";
+import { GetHelp } from "./components/GetHelp";
 import { MapLegend } from "./components/MapLegend";
 import { MapView } from "./components/MapView";
 import { PlaceSearch } from "./components/PlaceSearch";
+import type { SosState } from "./components/Sos";
 import { TravellerPanel } from "./components/TravellerPanel";
 import { TripResults } from "./components/TripResults";
 import { contains } from "./format";
@@ -51,7 +53,7 @@ export default function App() {
   const [tripError, setTripError] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [sosSentAt, setSosSentAt] = useState<number | null>(null);
+  const [sos, setSos] = useState<SosState | null>(null);
   const [selected, setSelected] = useState<RouteKind | null>(null);
   const [focus, setFocus] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -126,7 +128,7 @@ export default function App() {
     };
   }, [start, destination, scenarioId, traveller]);
 
-  useEffect(() => setSosSentAt(null), [start, destination]);
+  useEffect(() => setSos(null), [start, destination]);
 
   const inside = useCallback((lat: number, lon: number) => !area || contains(area.study_area, lon, lat), [area]);
 
@@ -271,8 +273,8 @@ export default function App() {
           <TripResults
             trip={trip}
             options={options}
-            sosSentAt={sosSentAt}
-            onSos={setSosSentAt}
+            sos={sos}
+            onSos={setSos}
             onUseLimit={(d) =>
               setTraveller((t) => (d.aid_level !== null ? { ...t, aid_level: d.aid_level } : { ...t, wading: d.body_part ?? t.wading }))
             }
@@ -292,7 +294,8 @@ export default function App() {
         <footer className="footnote">
           <p>
             Routes are guidance based on modelled conditions, which can be incomplete or wrong, and floods change quickly. Never walk
-            through floodwater you do not have to, follow directions from emergency services, and in an emergency call 000.
+            through floodwater you do not have to, follow directions from emergency services, and in an emergency call 000 (VICSES
+            132 500 for flood or storm help).
           </p>
           <p>Map data © OpenStreetMap contributors. Flood scenarios: see Sources under each level.</p>
         </footer>
@@ -314,6 +317,7 @@ export default function App() {
           focus={focus}
         />
         <MapLegend trip={trip} selected={selected} hasWater={!!scenarioId && (water[scenarioId]?.features.length ?? 0) > 0} />
+        <GetHelp start={start} sos={sos} undoSeconds={options?.sos_undo_seconds ?? 5} onSos={setSos} />
         <div className="click-target" role="status">
           Next click sets the <strong>{clickTarget}</strong>
         </div>

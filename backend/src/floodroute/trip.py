@@ -17,8 +17,11 @@
    Wheelchair users never use steps in any of these searches, so a refuge whose entrances can only
    be reached by steps is not offered to them.
 4. **Emergency help** when the start is over 50 cm deep (more strongly above the knee and above
-   half the traveller's height), or when no refuge can be reached at all. Only the request is
-   produced here; sending it (e.g. alerting people nearby) is outside this package.
+   half the traveller's height), when no refuge can be reached at all, or when a traveller inside
+   a building is cut off: no route fits their limit and no downgrade is offered, so every way to
+   the destination crosses water beyond the hard limit (or the device's cap) or of unknown depth.
+   Only the request is produced here; sending it (e.g. alerting people nearby) is outside this
+   package. Calling for help is always possible in the clients; this decides when it is urged.
 """
 
 from __future__ import annotations
@@ -41,6 +44,10 @@ from floodroute.routing.minimax import MinimaxPathFinder, snapshot_depth
 from floodroute.routing.router import STANDING_TOLERANCE_M
 
 ONLY_OPTION = "only option"
+# Why emergency help is offered.
+FROM_DEPTH = "depth"  # the water where the traveller stands
+NO_REFUGE = "no_refuge"  # outside, no route within the limit and no refuge in reach
+CUT_OFF = "cut_off"  # inside a building, and every way out is beyond the hard limit
 
 
 @dataclass(frozen=True)
@@ -97,6 +104,7 @@ class SosRequest:
 class Emergency:
     advice: str  # "available" | "recommended" | "strongly recommended" | "only option"
     sos: SosRequest
+    reason: str = FROM_DEPTH  # FROM_DEPTH, NO_REFUGE or CUT_OFF
 
 
 @dataclass(frozen=True)
@@ -240,6 +248,22 @@ def find_refuge(
     return RefugeRoute(refuge, label, route, metrics, within_limit=metrics.segments_over_limit == 0)
 
 
+def emergency_advice(
+    status: OriginStatus,
+    routes: RoutePlan | None,
+    safe: bool,
+    downgrade: Downgrade | None,
+    refuge: RefugeRoute | None,
+) -> tuple[str | None, str]:
+    """How strongly emergency help is offered (None: not offered), and why."""
+    if not status.sheltered and not safe and refuge is None:
+        return ONLY_OPTION, NO_REFUGE
+    if status.sheltered and routes is not None and not safe and downgrade is None:
+        # Staying inside is still the advice, but the traveller cannot leave within the hard limit.
+        return "available", CUT_OFF
+    return status.level.emergency_advice, FROM_DEPTH
+
+
 def plan_trip(
     router: Router,
     refuges: RefugeIndex,
@@ -268,9 +292,7 @@ def plan_trip(
     if (not safe or status.level >= AlertLevel.OVER_LIMIT) and not status.sheltered:
         refuge = find_refuge(router, refuges, origin, snapshot, profile, status.level, alpha)
 
-    advice = status.level.emergency_advice
-    if not status.sheltered and not safe and refuge is None:
-        advice = ONLY_OPTION
+    advice, reason = emergency_advice(status, routes, safe, downgrade, refuge)
     emergency = None
     if advice is not None:
         sos = SosRequest(
@@ -281,5 +303,5 @@ def plan_trip(
             profile.depth_limit_m,
             now or datetime.now(UTC),
         )
-        emergency = Emergency(advice, sos)
+        emergency = Emergency(advice, sos, reason)
     return TripPlan(status, routes, downgrade, refuge, emergency, least)

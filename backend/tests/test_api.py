@@ -158,7 +158,7 @@ def test_no_route_reports_the_least_water_and_where_it_is(client):
 def test_standing_in_deep_water_offers_help_and_the_shelter(client):
     j = trip(client, start=(75, -2)).json()
     assert j["origin"]["level"] == "very_deep" and j["origin"]["depth_m"] == pytest.approx(0.5)
-    assert j["emergency"]["advice"] == "recommended"
+    assert j["emergency"]["advice"] == "recommended" and j["emergency"]["reason"] == "depth"
     assert j["emergency"]["sos"]["depth_m"] == pytest.approx(0.5)
     assert j["refuge"]["name"] == "Shelter" and not j["refuge"]["within_limit"]
 
@@ -221,3 +221,13 @@ def test_mobility_aid_requests_are_checked(client):
     assert trip(client, mobility_aid="hoverboard").status_code == 422
     r = trip(client, mobility_aid="mobility_scooter", aid_level=2)
     assert r.status_code == 422 and "no level 2" in r.json()["detail"]
+
+
+def test_benchmark_results_or_a_message(client, tmp_path, monkeypatch):
+    from floodroute import config
+
+    monkeypatch.setattr(config, "BENCHMARK_PATH", tmp_path / "benchmark.json")
+    missing = client.get("/api/benchmark")
+    assert missing.status_code == 404 and "scripts/benchmark.py" in missing.json()["detail"]
+    (tmp_path / "benchmark.json").write_text('{"commit": "abc123"}')
+    assert client.get("/api/benchmark").json() == {"commit": "abc123"}

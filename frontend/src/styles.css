@@ -102,6 +102,7 @@
   border-radius: 10px;
   border: 1px solid var(--line);
   background: #fff;
+  color: var(--text);
   cursor: pointer;
   text-decoration: none;
   font-weight: 600;
@@ -284,8 +285,11 @@
 
 .emergency-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.emergency-why {
+  font-size: 0.92rem;
 }
 
 .sos-sent {
@@ -802,6 +806,66 @@ input[type="range"] {
   text-align: center;
 }
 
+/* Always on the map, whatever the trip says. */
+.get-help {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.get-help-button {
+  border: 2px solid var(--danger);
+  background: #fff;
+  color: var(--danger);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 6px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.get-help-button[aria-expanded="true"] {
+  background: var(--danger);
+  color: #fff;
+}
+
+.get-help-panel {
+  width: min(300px, calc(100vw - 20px));
+  background: var(--panel);
+  border: 1px solid var(--red-line);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.get-help-panel .button {
+  text-align: center;
+  text-decoration: none;
+}
+
+.get-help-panel p {
+  margin-bottom: 4px;
+}
+
+.get-help-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.get-help-head h2 {
+  font-size: 1rem;
+  color: var(--danger);
+}
+
 .click-target {
   position: absolute;
   top: 10px;
@@ -927,6 +991,26 @@ input[type="range"] {
     bottom: auto;
     top: 52px;
     left: 8px;
+  }
+
+  /* Get help takes the top left; the click hint moves right, clear of it and of the zoom buttons. */
+  .get-help {
+    left: 8px;
+  }
+
+  .get-help-button {
+    padding: 6px 10px;
+  }
+
+  .click-target {
+    left: auto;
+    right: 50px;
+    transform: none;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    max-width: calc(100% - 176px); /* wraps rather than run under Get help on narrow phones */
+    white-space: normal;
+    text-align: center;
   }
 
   .levels {

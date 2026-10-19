@@ -16,6 +16,7 @@ routing     snapping, cheapest and safest-path search ── PathFinder
 places      where a walk starts and ends (building entrances), refuges
 trip        whole-trip planning: routes, downgrade, refuge, emergency
 prediction  forecasting models                       ── Predictor
+benchmark   correctness, fault injection, safety, accessibility; field inspection kit
 ```
 
 A web API (FastAPI) and the web client sit on top of these layers; neither contains routing logic.
@@ -35,12 +36,16 @@ refuges and scenarios once and answers in WGS84 GeoJSON; `api.app` maps it onto 
 | `GET /api/search?q=` | place search inside the routable area (Nominatim, cached, one request a second) |
 | `POST /api/traveller` | a traveller's depth limit and what their preference means in metres |
 | `POST /api/trip` | the whole trip plan: where they stand, three routes, least water, downgrade, refuge, emergency |
+| `GET /api/benchmark` | the latest benchmark results (`docs/benchmark.json`, written by `scripts/benchmark.py`) |
 
 Start and destination must lie inside the study area; requests that cannot be answered as asked
 return 422 with a message for the user. The web client (`frontend/`, React, TypeScript and
 MapLibre on an OpenStreetMap basemap) keeps no routing rules of its own: it shows what the API
 returns, with the map and a side panel on desktops and the map above a sliding sheet on phones.
-Sending an SOS is simulated in the client, with a short window to undo it.
+A **Get help** button stays on the map whatever the trip says, with calls to 000 (life in
+danger) and VICSES 132 500 (flood or storm help) and an alert to people nearby; the Streamlit app
+has the same in its sidebar. Sending an SOS is simulated in the client, with a short window to undo
+it.
 
 The results open with a **next step** card that turns the plan into one instruction
 (`frontend/src/guidance.ts`, unit-tested):
@@ -52,7 +57,7 @@ The results open with a **next step** card that turns the plan into one instruct
 | no route fits; a higher limit or a shelter (or staying inside) would work | the two choices side by side | neither until one is picked |
 | no route fits; only a higher limit works | accept deeper water, with a button to use that limit | the higher-limit route |
 | no route fits; only a shelter is reachable | go to the shelter and wait (folded under "if you cannot wait" when the start is critical) | the shelter route |
-| no route fits and the traveller is indoors | stay inside | the least-water route |
+| no route fits and the traveller is indoors | stay inside (and, when cut off, emergency help is available: move to a higher floor if water comes in) | the least-water route |
 | no route and no shelter | call for help; stay on high ground | the least-water route |
 
 Whenever no route fits, the card says why: the least water any way to the destination has to
@@ -385,6 +390,13 @@ inside a building counts as sheltered.
 If no refuge can be reached at all, emergency help is the only option, with advice to stay on
 the highest ground available.
 
+A traveller starting inside a building has no alert level. If no route fits their limit and no
+downgrade is offered (every way to the destination crosses water beyond the hard limit, or the
+device's cap, or of unknown depth), they are **cut off**: staying inside is still the advice, and
+emergency help is made available, with advice to move to a higher floor if water comes in. The
+`Emergency` carries why it was offered (`reason`: the depth at the start, no refuge, or cut off).
+Calling for help never depends on these rules: the clients always offer it.
+
 **Safest-path search.** `routing.minimax.MinimaxPathFinder` first finds the lowest possible
 "deepest point" over all paths (a bottleneck search: Dijkstra with `max` in place of `+`), then
 the cheapest path that never goes deeper. Two phases are needed: a single search on the pair
@@ -409,7 +421,8 @@ the route to the nearest refuge stays within the limit; from water over the limi
 safest route and is marked as crossing water over the limit.
 
 **Emergency help.** `plan_trip` produces an `SosRequest` (location, depth, how deep that is on the
-traveller, their limit, time); sending it, and calling 000, happen in the client.
+traveller, their limit, time) and the reason help is offered; sending it, and calling 000 or
+VICSES, happen in the client.
 
 **Access legs.** The short leg from a point to the footpath it joins also carries the water where
 the traveller stands (`standing_on`), so starting from a dry footpath a few metres away does not
@@ -425,3 +438,13 @@ reference:
   negative costs rejected), 40 random graphs × 25 pairs, and 200 pairs on the Southbank network.
 - `scripts/compare_pathfinders.py` — 1,000 node pairs and 300 end-to-end routes on the Southbank
   network; every pair must have the same cost. Writes `reports/pathfinder_comparison.md`.
+
+## Benchmarks
+
+`floodroute.benchmark` and `scripts/benchmark.py` go further than these checks: the safest-path
+search against brute force, fault injection (each safety rule broken on purpose while the whole test
+suite runs, through `tests/conftest.py` and `FLOODROUTE_FAULT`), the safety routes give and what it
+costs at every level, rerouting while a flood rises during a walk, step-free connectivity between
+buildings, and a kit for inspecting the data on site. What each should show, written
+before the first run, is in [benchmarks.md](benchmarks.md); the results are in `docs/benchmark.json`
+and on `/benchmark`.

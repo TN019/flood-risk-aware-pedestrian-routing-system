@@ -29,7 +29,7 @@ from floodroute.risk.levels import REFERENCE_HEIGHT_M, FloodLevel, level_of, typ
 from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
 from floodroute.routing import RECOMMENDED, SAFE_SHORTEST, SHORTEST, RoutePlan, Router, RoutingError
 from floodroute.sources import geocoding as geocode
-from floodroute.trip import ONLY_OPTION, TripPlan, plan_trip
+from floodroute.trip import CUT_OFF, ONLY_OPTION, TripPlan, plan_trip
 
 GRAPH_PATH = config.PROCESSED_NETWORK_PATH
 PLACES_PATH = config.PROCESSED_PLACES_PATH
@@ -271,6 +271,36 @@ def search_box(which: str) -> None:
         st.rerun()
 
 
+def help_calls() -> None:
+    c1, c2 = st.columns(2)
+    c1.link_button("📞 Call 000", "tel:000", type="primary", width="stretch")
+    c2.link_button("📞 VICSES 132 500", "tel:132500", width="stretch")
+
+
+def sos_control(shared: str, key: str) -> None:
+    """The SOS button, or once sent (simulated), when it was sent with an undo for a few seconds."""
+    sent_at = state.get("sos_sent_at")
+    if sent_at is None:
+        if st.button("📣 Alert people nearby (SOS)", key=f"sos_{key}", width="stretch"):
+            state.sos_sent_at, state.sos_shared = time.time(), shared
+            st.rerun()
+        return
+    sent = time.time() - sent_at
+    st.success(f"SOS sent {sent:.0f} s ago with {state.get('sos_shared', shared)} (simulated).")
+    if sent < SOS_UNDO_SECONDS and st.button("Undo SOS", key=f"undo_{key}", width="stretch"):
+        state.sos_sent_at = None
+        st.rerun()
+
+
+def shared_location() -> str:
+    """What an SOS sent from the sidebar shares: the start stands in for the traveller's position."""
+    if state.get("start") is None:
+        return "no location (set a start to share one)"
+    return (
+        "your current location" if state.get("start_src") == "current location" else "your start point as your location"
+    )
+
+
 # --------------------------------------------------------------------------- sidebar
 
 with st.sidebar:
@@ -279,6 +309,14 @@ with st.sidebar:
         "Walking routes on the OpenStreetMap walking network that avoid water deeper than you choose "
         "to walk through, under the flood scenario selected below."
     )
+    with st.expander("🆘 Get help"):
+        st.caption(
+            "Call 000 if anyone's life is in danger. VICSES 132 500 for flood or storm help: trapped by "
+            "water, water coming inside, a fallen tree."
+        )
+        help_calls()
+        sos_control(shared_location(), "sidebar")
+        st.caption("The SOS alert is simulated in this version.")
 
     mode = st.radio("Start from", [CHOOSE, CURRENT], horizontal=True)
     gps_ok = False
@@ -540,18 +578,17 @@ def show_origin_and_emergency(trip: TripPlan) -> None:
         st.markdown(f"**{title}**")
         if advice == ONLY_OPTION:
             st.caption("No shelter can be reached from here. Stay on the highest ground you can reach.")
-        c1, c2 = st.columns(2)
-        c1.link_button("📞 Call 000", "tel:000", type="primary", width="stretch")
-        if state.get("sos_sent_at") is None:
-            if c2.button("📣 Alert people nearby (SOS)", width="stretch"):
-                state.sos_sent_at = time.time()
-                st.rerun()
-        else:
-            sent = time.time() - state.sos_sent_at
-            c2.success(f"SOS sent {sent:.0f} s ago with your location and {depth} water depth (simulated).")
-            if sent < SOS_UNDO_SECONDS and c2.button("Undo SOS", width="stretch"):
-                state.sos_sent_at = None
-                st.rerun()
+        if trip.emergency.reason == CUT_OFF:
+            st.caption(
+                "You are cut off by deep water. Stay inside, and move to a higher floor if water comes "
+                "into the building."
+            )
+        help_calls()
+        shared = "your location" if o.depth_m is None else f"your location and {depth} water depth"
+        sos_control(shared, "emergency")
+        st.caption(
+            "000 if anyone's life is in danger; VICSES for flood help, such as being trapped or water coming in."
+        )
 
 
 def show_alternatives(trip: TripPlan) -> None:

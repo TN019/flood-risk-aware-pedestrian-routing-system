@@ -1,0 +1,622 @@
+{
+ "generated_at": "2026-10-19T06:03:26+00:00",
+ "commit": "1fac09a",
+ "network": {
+  "nodes": 2900,
+  "edges": 3928
+ },
+ "correctness": {
+  "dijkstra_node_pairs": {
+   "pairs": 1000,
+   "cost_match": 1000,
+   "same_path": 1000,
+   "both_none": 0,
+   "mismatches": [],
+   "settled": {
+    "median": 1459.5,
+    "max": 2899
+   },
+   "ours_ms": {
+    "median": 1.2221,
+    "p95": 2.2221
+   },
+   "reference_ms": {
+    "median": 0.8914,
+    "p95": 1.6251
+   }
+  },
+  "dijkstra_end_to_end": {
+   "routes": 300,
+   "length_match": 300,
+   "same_geometry": 298,
+   "both_none": 2,
+   "mismatches": [],
+   "route_ms": {
+    "median": 5.8534,
+    "p95": 14.7838
+   }
+  },
+  "minimax_brute_force": {
+   "graphs": 300,
+   "pairs": 891,
+   "match": 891,
+   "mismatches": []
+  },
+  "verification": {
+   "test_town": {
+    "met": 104,
+    "total": 104,
+    "not_met": []
+   },
+   "southbank": {
+    "met": 34,
+    "total": 34,
+    "not_met": []
+   }
+  },
+  "faults": {
+   "baseline": {
+    "failed": 0,
+    "passed": 241,
+    "skipped": 0
+   },
+   "faults": [
+    {
+     "fault": "F1",
+     "breaks": "Water deeper than the limit is passable",
+     "tests_failed": 27,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_access.py::test_step_free_route_within_the_limit_is_reported_as_such",
+      "tests/test_access.py::test_no_wheelchair_route_in_a_trip_uses_steps",
+      "tests/test_api.py::test_no_route_reports_the_least_water_and_where_it_is",
+      "tests/test_benchmark.py::test_a_fault_breaks_its_rule_only_while_applied",
+      "tests/test_benchmark.py::test_over_limit_fault_lets_routes_through_deep_water",
+      "tests/test_benchmark.py::test_rising_flood_reroutes_from_where_the_traveller_is",
+      "tests/test_planning.py::test_three_routes_separate_filtering_from_weighting",
+      "tests/test_planning.py::test_low_alpha_keeps_the_shallow_street",
+      "tests/test_planning.py::test_no_safe_route_is_reported_per_option",
+      "tests/test_risk.py::test_depth_relative_risk",
+      "tests/test_risk.py::test_risk_cost_formula",
+      "tests/test_risk.py::test_unsafe_edge_is_never_used_whatever_alpha",
+      "tests/test_risk.py::test_no_feasible_route_is_reported_not_forced",
+      "tests/test_risk.py::test_conditions_follow_edges_split_at_the_route_ends",
+      "tests/test_trip.py::test_downgrade_finds_the_smallest_body_part_that_works",
+      "tests/test_trip.py::test_no_downgrade_for_wheelchair_users_or_beyond_the_hard_limit",
+      "tests/test_trip.py::test_refuge_from_dry_ground_stays_within_the_limit",
+      "tests/test_trip.py::test_emergency_is_the_only_option_when_nothing_is_reachable",
+      "tests/test_trip.py::test_inside_a_building_cut_off_by_deep_water_help_is_available",
+      "tests/test_trip.py::test_inside_a_building_cut_off_beyond_a_wheelchairs_cap",
+      "tests/test_trip.py::test_plans_on_the_southbank_network_are_consistent",
+      "tests/test_trip.py::test_least_water_shows_why_no_route_fits_and_where",
+      "tests/test_trip.py::test_least_water_is_reported_beyond_the_hard_limit_without_a_downgrade",
+      "tests/test_trip.py::test_mobility_aid_downgrade_is_the_next_level_of_the_same_device",
+      "tests/test_trip.py::test_no_mobility_aid_downgrade_beyond_the_device_cap",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction",
+      "tests/test_verification.py::test_southbank_properties_hold"
+     ],
+     "test_town_cases_failed": [
+      "B",
+      "E1",
+      "E2",
+      "E3",
+      "E6",
+      "E7",
+      "F",
+      "G2",
+      "G3",
+      "H1",
+      "H4",
+      "H5",
+      "H6",
+      "I2",
+      "I3",
+      "I5",
+      "I6"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F2",
+     "breaks": "Water of unknown depth counts as dry",
+     "tests_failed": 3,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_risk.py::test_depth_relative_risk",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction",
+      "tests/test_verification.py::test_southbank_properties_hold"
+     ],
+     "test_town_cases_failed": [
+      "I4"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F3",
+     "breaks": "No 50 cm hard limit for walkers",
+     "tests_failed": 6,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_benchmark.py::test_no_hard_limit_fault_lifts_the_cap",
+      "tests/test_risk.py::test_hard_limit_and_wheelchair",
+      "tests/test_risk.py::test_the_wheelchair_flag_alone_is_a_manual_wheelchair_with_no_water",
+      "tests/test_trip.py::test_deep_applies_between_50_cm_and_the_knee_of_a_tall_person",
+      "tests/test_trip.py::test_refuge_from_deep_water_is_the_safest_way_out",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [],
+     "caught": true
+    },
+    {
+     "fault": "F4",
+     "breaks": "Wheelchair users may use steps",
+     "tests_failed": 12,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_access.py::test_steps_are_unusable_for_wheelchair_users_only",
+      "tests/test_access.py::test_wheelchair_users_get_the_step_free_detour_on_every_route",
+      "tests/test_access.py::test_wheelchair_users_get_no_route_when_every_way_has_steps",
+      "tests/test_access.py::test_step_free_route_within_the_limit_is_reported_as_such",
+      "tests/test_access.py::test_refuges_reached_only_by_steps_are_not_offered_to_wheelchair_users",
+      "tests/test_access.py::test_no_wheelchair_route_in_a_trip_uses_steps",
+      "tests/test_access.py::test_an_access_leg_cannot_skip_a_short_flight_of_steps",
+      "tests/test_access.py::test_an_access_leg_cannot_skip_a_flight_that_turns_back",
+      "tests/test_api.py::test_wheelchair_trips_never_use_steps",
+      "tests/test_api.py::test_wheelchair_trip_in_water_offers_no_route_over_steps",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction",
+      "tests/test_verification.py::test_southbank_properties_hold"
+     ],
+     "test_town_cases_failed": [
+      "G1",
+      "G2",
+      "G3"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F5",
+     "breaks": "No refuge is offered",
+     "tests_failed": 8,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_access.py::test_refuges_reached_only_by_steps_are_not_offered_to_wheelchair_users",
+      "tests/test_access.py::test_no_wheelchair_route_in_a_trip_uses_steps",
+      "tests/test_api.py::test_standing_in_deep_water_offers_help_and_the_shelter",
+      "tests/test_benchmark.py::test_rising_flood_reroutes_from_where_the_traveller_is",
+      "tests/test_trip.py::test_refuge_from_dry_ground_stays_within_the_limit",
+      "tests/test_trip.py::test_refuge_from_deep_water_is_the_safest_way_out",
+      "tests/test_trip.py::test_critical_depth_strongly_recommends_help",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5",
+      "E7",
+      "E8",
+      "G2",
+      "G3",
+      "H4",
+      "H5",
+      "I5"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F6",
+     "breaks": "No downgrade is offered",
+     "tests_failed": 8,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_api.py::test_no_route_reports_the_least_water_and_where_it_is",
+      "tests/test_trip.py::test_downgrade_finds_the_smallest_body_part_that_works",
+      "tests/test_trip.py::test_no_downgrade_for_wheelchair_users_or_beyond_the_hard_limit",
+      "tests/test_trip.py::test_starting_inside_a_building_counts_as_sheltered",
+      "tests/test_trip.py::test_inside_a_building_cut_off_beyond_a_wheelchairs_cap",
+      "tests/test_trip.py::test_least_water_shows_why_no_route_fits_and_where",
+      "tests/test_trip.py::test_mobility_aid_downgrade_is_the_next_level_of_the_same_device",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [
+      "E1",
+      "E2",
+      "E3",
+      "G3",
+      "H4",
+      "H6",
+      "I3"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F7",
+     "breaks": "No emergency help when cut off inside a building",
+     "tests_failed": 4,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_benchmark.py::test_a_fault_breaks_its_rule_only_while_applied",
+      "tests/test_trip.py::test_inside_a_building_cut_off_by_deep_water_help_is_available",
+      "tests/test_trip.py::test_inside_a_building_cut_off_beyond_a_wheelchairs_cap",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [
+      "I2",
+      "I4",
+      "I6"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F8",
+     "breaks": "No emergency help at all",
+     "tests_failed": 9,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_api.py::test_standing_in_deep_water_offers_help_and_the_shelter",
+      "tests/test_benchmark.py::test_a_fault_breaks_its_rule_only_while_applied",
+      "tests/test_trip.py::test_refuge_from_deep_water_is_the_safest_way_out",
+      "tests/test_trip.py::test_critical_depth_strongly_recommends_help",
+      "tests/test_trip.py::test_emergency_is_the_only_option_when_nothing_is_reachable",
+      "tests/test_trip.py::test_inside_a_building_cut_off_by_deep_water_help_is_available",
+      "tests/test_trip.py::test_inside_a_building_cut_off_beyond_a_wheelchairs_cap",
+      "tests/test_trip.py::test_plans_on_the_southbank_network_are_consistent",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [
+      "E4",
+      "E5",
+      "E6",
+      "E8",
+      "G3",
+      "I2",
+      "I4",
+      "I6"
+     ],
+     "caught": true
+    },
+    {
+     "fault": "F9",
+     "breaks": "The recommended route ignores water within the limit (α = 0)",
+     "tests_failed": 2,
+     "tests_run": 241,
+     "failed_tests": [
+      "tests/test_planning.py::test_three_routes_separate_filtering_from_weighting",
+      "tests/test_verification.py::test_test_town_matches_every_hand_derived_prediction"
+     ],
+     "test_town_cases_failed": [
+      "C1",
+      "C4",
+      "D",
+      "H2"
+     ],
+     "caught": true
+    }
+   ]
+  }
+ },
+ "safety": {
+  "cost": {
+   "trips": 100,
+   "levels": {
+    "light-flooding": {
+     "title": "Light flooding",
+     "travellers": {
+      "adult, ankle": {
+       "with_route": 86,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 36,
+       "detour_median": 0.0077,
+       "detour_p90": 0.0942,
+       "over_limit_avoided_m_median": 66.3524,
+       "shortest_deepest_median_m": 0.125,
+       "shortest_unknown_depth": 19,
+       "recommended_deepest_median_m": 0.0538,
+       "without_route": {
+        "higher limit": 4,
+        "shelter": 10
+       }
+      },
+      "adult, mid calf": {
+       "with_route": 90,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 20,
+       "detour_median": 0.0079,
+       "detour_p90": 0.1542,
+       "over_limit_avoided_m_median": 57.3579,
+       "shortest_deepest_median_m": null,
+       "shortest_unknown_depth": 20,
+       "recommended_deepest_median_m": 0.0609,
+       "without_route": {
+        "shelter": 10
+       }
+      },
+      "child, mid calf": {
+       "with_route": 90,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 20,
+       "detour_median": 0.0079,
+       "detour_p90": 0.1542,
+       "over_limit_avoided_m_median": 57.3579,
+       "shortest_deepest_median_m": null,
+       "shortest_unknown_depth": 20,
+       "recommended_deepest_median_m": 0.0609,
+       "without_route": {
+        "shelter": 10
+       }
+      },
+      "manual wheelchair, 5 cm": {
+       "with_route": 85,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 48,
+       "detour_median": 0.1739,
+       "detour_p90": 0.3442,
+       "over_limit_avoided_m_median": 149.209,
+       "shortest_deepest_median_m": 0.0799,
+       "shortest_unknown_depth": 19,
+       "recommended_deepest_median_m": 0.0394,
+       "without_route": {
+        "higher limit": 2,
+        "shelter": 13
+       }
+      }
+     }
+    },
+    "moderate-flooding": {
+     "title": "Moderate flooding",
+     "travellers": {
+      "adult, ankle": {
+       "with_route": 15,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 9,
+       "detour_median": 0.2841,
+       "detour_p90": 0.6387,
+       "over_limit_avoided_m_median": 156.5313,
+       "shortest_deepest_median_m": 0.1278,
+       "shortest_unknown_depth": 1,
+       "recommended_deepest_median_m": 0.0614,
+       "without_route": {
+        "higher limit": 60,
+        "shelter": 25
+       }
+      },
+      "adult, mid calf": {
+       "with_route": 38,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 14,
+       "detour_median": 0.0861,
+       "detour_p90": 0.4725,
+       "over_limit_avoided_m_median": 310.9844,
+       "shortest_deepest_median_m": 0.5843,
+       "shortest_unknown_depth": 6,
+       "recommended_deepest_median_m": 0.1718,
+       "without_route": {
+        "higher limit": 37,
+        "shelter": 25
+       }
+      },
+      "child, mid calf": {
+       "with_route": 35,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 17,
+       "detour_median": 0.1118,
+       "detour_p90": 0.4427,
+       "over_limit_avoided_m_median": 153.484,
+       "shortest_deepest_median_m": 0.3633,
+       "shortest_unknown_depth": 6,
+       "recommended_deepest_median_m": 0.1718,
+       "without_route": {
+        "higher limit": 30,
+        "shelter": 35
+       }
+      },
+      "manual wheelchair, 5 cm": {
+       "with_route": 12,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 8,
+       "detour_median": 0.1833,
+       "detour_p90": 0.9568,
+       "over_limit_avoided_m_median": 241.4754,
+       "shortest_deepest_median_m": 0.1013,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": 0.0,
+       "without_route": {
+        "higher limit": 8,
+        "shelter": 80
+       }
+      }
+     }
+    },
+    "heavy-flooding": {
+     "title": "Heavy flooding",
+     "travellers": {
+      "adult, ankle": {
+       "with_route": 11,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 8,
+       "detour_median": 0.205,
+       "detour_p90": 0.5642,
+       "over_limit_avoided_m_median": 167.9074,
+       "shortest_deepest_median_m": 0.1469,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": 0.0439,
+       "without_route": {
+        "shelter": 68,
+        "higher limit": 21
+       }
+      },
+      "adult, mid calf": {
+       "with_route": 18,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 2,
+       "detour_median": 0.0383,
+       "detour_p90": 0.0574,
+       "over_limit_avoided_m_median": 201.4962,
+       "shortest_deepest_median_m": 0.3633,
+       "shortest_unknown_depth": 1,
+       "recommended_deepest_median_m": 0.2107,
+       "without_route": {
+        "shelter": 68,
+        "higher limit": 14
+       }
+      },
+      "child, mid calf": {
+       "with_route": 18,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 5,
+       "detour_median": 0.1105,
+       "detour_p90": 0.1741,
+       "over_limit_avoided_m_median": 153.484,
+       "shortest_deepest_median_m": 0.2666,
+       "shortest_unknown_depth": 1,
+       "recommended_deepest_median_m": 0.1718,
+       "without_route": {
+        "shelter": 79,
+        "higher limit": 3
+       }
+      },
+      "manual wheelchair, 5 cm": {
+       "with_route": 8,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 5,
+       "detour_median": 0.2156,
+       "detour_p90": 0.7669,
+       "over_limit_avoided_m_median": 325.1789,
+       "shortest_deepest_median_m": 0.166,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": 0.0,
+       "without_route": {
+        "higher limit": 3,
+        "shelter": 89
+       }
+      }
+     }
+    },
+    "extreme-flooding": {
+     "title": "Extreme flooding",
+     "travellers": {
+      "adult, ankle": {
+       "with_route": 2,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 0,
+       "detour_median": null,
+       "detour_p90": null,
+       "over_limit_avoided_m_median": null,
+       "shortest_deepest_median_m": null,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": null,
+       "without_route": {
+        "shelter": 96,
+        "higher limit": 2
+       }
+      },
+      "adult, mid calf": {
+       "with_route": 3,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 0,
+       "detour_median": null,
+       "detour_p90": null,
+       "over_limit_avoided_m_median": null,
+       "shortest_deepest_median_m": null,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": null,
+       "without_route": {
+        "shelter": 96,
+        "higher limit": 1
+       }
+      },
+      "child, mid calf": {
+       "with_route": 2,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 0,
+       "detour_median": null,
+       "detour_p90": null,
+       "over_limit_avoided_m_median": null,
+       "shortest_deepest_median_m": null,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": null,
+       "without_route": {
+        "shelter": 97,
+        "higher limit": 1
+       }
+      },
+      "manual wheelchair, 5 cm": {
+       "with_route": 2,
+       "recommended_over_limit": 0,
+       "shortest_unsafe": 0,
+       "detour_median": null,
+       "detour_p90": null,
+       "over_limit_avoided_m_median": null,
+       "shortest_deepest_median_m": null,
+       "shortest_unknown_depth": 0,
+       "recommended_deepest_median_m": null,
+       "without_route": {
+        "shelter": 98
+       }
+      }
+     }
+    }
+   }
+  },
+  "rising_flood": {
+   "trips": 100,
+   "traveller": "adult, mid calf",
+   "schedule": [
+    {
+     "level": "Light flooding",
+     "from_s": 0.0
+    },
+    {
+     "level": "Moderate flooding",
+     "from_s": 240.0
+    },
+    {
+     "level": "Heavy flooding",
+     "from_s": 480.0
+    }
+   ],
+   "violations_m": 0.0,
+   "escape_over_limit_m": 679.4068,
+   "reroutes": 141,
+   "trips_rerouted": 97,
+   "caught_by_rising_water": 21,
+   "not_replanned_outside_area": 6,
+   "over_limit_outside_area_m": 1434.7248,
+   "outcomes": {
+    "arrived": 31,
+    "at a shelter": 67,
+    "higher limit": 2
+   },
+   "extra_walk_median": 0.0,
+   "extra_walk_p90": 0.0774
+  }
+ },
+ "access": {
+  "step_free_pairs": {
+   "pairs": 300,
+   "walking_route": 300,
+   "step_free_route": 299,
+   "step_free_using_steps": 0,
+   "step_free_cheaper": 0,
+   "step_free_shorter": 1,
+   "longer_median": 0.0,
+   "longer_p90": 0.0,
+   "longer_max": 0.3975,
+   "same_length": 279
+  }
+ },
+ "field": null,
+ "seconds": {
+  "loading": 0.4034,
+  "dijkstra node pairs": 2.1444,
+  "dijkstra end to end": 3.8507,
+  "minimax": 0.2003,
+  "test town": 0.0651,
+  "southbank properties": 239.5803,
+  "fault injection": 298.1509,
+  "safety cost": 69.3697,
+  "rising flood": 7.5169,
+  "step-free pairs": 5.0738
+ }
+}

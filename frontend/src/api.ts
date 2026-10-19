@@ -9,6 +9,7 @@ import type {
   TravellerInfo,
   TripPlan,
 } from "./types";
+import type { BenchmarkResults } from "./benchmark/types";
 
 export class ApiError extends Error {}
 
@@ -46,6 +47,7 @@ export const api = {
   area: () => request<Area>("/area"),
   network: () => request<FeatureCollection>("/network"),
   options: () => request<Options>("/options"),
+  benchmark: () => request<BenchmarkResults>("/benchmark"),
   scenarios: () => request<ScenarioSummary[]>("/scenarios"),
   water: (scenarioId: string) => request<FeatureCollection>(`/scenarios/${encodeURIComponent(scenarioId)}/water`),
   search: (query: string) => request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}`),

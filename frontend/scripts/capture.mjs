@@ -1,13 +1,11 @@
-// Regenerate the README images: six screenshots and the animated walkthrough.
+// Regenerate the README walkthrough: one short animated clip for each situation the app handles.
 //
 // Needs, running locally: the API (`uv run uvicorn floodroute.api.app:app --port 8010` in backend/)
 // and the web dev server (`npm run dev`, with FLOODROUTE_API_URL pointing at that API).
 // Also needs Google Chrome (or CHROME_PATH) and ffmpeg on the PATH.
 //
-//   npm run capture                    # everything
-//   npm run capture -- screenshots     # only the screenshots
-//   npm run capture -- walkthrough     # only the animated walkthrough
-//   npm run capture -- reference       # only the /reference page
+//   npm run capture                       # every clip
+//   npm run capture -- choose cut-off     # only the named clips (see CLIPS below)
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -27,7 +25,7 @@ const CHROME =
     win32: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   }[process.platform];
 
-// Places used in the images: [lat, lon].
+// Places used in the clips: [lat, lon].
 const BOYD_VILLAGE = [-37.82613, 144.96126];
 const CROWN = [-37.8224, 144.96048];
 const CROWN_WEST = [-37.82506, 144.95828]; // inside the Crown Entertainment Complex
@@ -35,17 +33,11 @@ const SOUTHBANK_EAST = [-37.826185, 144.963614];
 const SOUTH_WHARF = [-37.824086, 144.954684];
 const STURT_STREET = [-37.82579, 144.961159];
 const SOUTHBANK_PROMENADE = [-37.819892, 144.967703];
+const NEAR_CROWN = [-37.82228, 144.95793]; // dry ground; under heavy flooding every way south is too deep
+const SOUTH_OF_CROWN = [-37.82704, 144.9541];
 
-const DESKTOP = { width: 1280, height: 800, deviceScaleFactor: 1.25 }; // 1600 px wide images
-const PHONE = { width: 390, height: 844, deviceScaleFactor: 1.5, isMobile: true, hasTouch: true };
-
-const SCREENSHOTS = [
-  { file: "detour.jpg", viewport: DESKTOP, level: "Light", wading: "ankle", from: SOUTHBANK_EAST, to: SOUTH_WHARF },
-  { file: "choose.jpg", viewport: DESKTOP, level: "Moderate", wading: "mid_calf", from: BOYD_VILLAGE, to: CROWN },
-  { file: "emergency.jpg", viewport: DESKTOP, level: "Heavy", wading: "mid_calf", from: STURT_STREET, to: SOUTHBANK_PROMENADE },
-  { file: "phone.jpg", viewport: PHONE, level: "Moderate", wading: "mid_calf", from: BOYD_VILLAGE, to: CROWN },
-  { file: "wheelchair.jpg", viewport: DESKTOP, level: "Light", aid: "manual_wheelchair", from: CROWN_WEST, to: BOYD_VILLAGE },
-];
+const DESKTOP = { width: 1280, height: 800, deviceScaleFactor: 1 };
+const PHONE = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -101,18 +93,19 @@ function mapPoint(page, [lat, lon]) {
 }
 
 /** Pan and zoom the map so both places are in view. */
-async function showPlaces(page, a, b) {
+async function showPlaces(page, a, b, padding = 140) {
   await page.evaluate(
-    (a, b) =>
+    (a, b, padding) =>
       window.__floodrouteMap.fitBounds(
         [
           [Math.min(a[1], b[1]), Math.min(a[0], b[0])],
           [Math.max(a[1], b[1]), Math.max(a[0], b[0])],
         ],
-        { padding: 140, duration: 900 },
+        { padding, duration: 900 },
       ),
     a,
     b,
+    padding,
   );
   await sleep(1100);
   await mapIdle(page);
@@ -123,66 +116,34 @@ function nextStepText(page) {
 }
 
 async function waitForNewPlan(page, previous) {
-  await page.waitForFunction((prev) => {
-    const text = document.querySelector(".next")?.innerText;
-    return text && text !== prev;
-  }, { timeout: 20000 }, previous);
+  await page.waitForFunction(
+    (prev) => {
+      const text = document.querySelector(".next")?.innerText;
+      return text && text !== prev;
+    },
+    { timeout: 20000 },
+    previous,
+  );
   await sleep(800); // the map zooms to the trip
   await mapIdle(page);
 }
 
-function showResults(page, phone, smooth = false) {
-  return page.evaluate(
-    (phone, smooth) => {
-      const panel = document.querySelector(".panel");
-      const target = document.querySelector(".results") ?? document.querySelector(".next");
-      // On a phone the sheet's sticky handle covers the top of the panel.
-      if (target) panel.scrollTo({ top: target.offsetTop - (phone ? 56 : 12), behavior: smooth ? "smooth" : "instant" });
-    },
-    phone,
-    smooth,
-  );
+function showResults(page, phone) {
+  return page.evaluate((phone) => {
+    const panel = document.querySelector(".panel");
+    const target = document.querySelector(".results") ?? document.querySelector(".next");
+    // On a phone the sheet's sticky handle covers the top of the panel.
+    if (target) panel.scrollTo({ top: target.offsetTop - (phone ? 56 : 12), behavior: "smooth" });
+  }, phone);
 }
 
-/** The /reference page, once its values have loaded from the API. */
-async function reference(browser) {
-  const page = await browser.newPage();
-  await page.setViewport(DESKTOP);
-  await page.goto(`${APP}/reference/`, { waitUntil: "networkidle0" });
-  await page.waitForSelector(".scenario");
-  await page.screenshot({ path: path.join(OUT, "reference.jpg"), type: "jpeg", quality: 82 });
-  console.log("saved reference.jpg");
-  await page.close();
-}
-
-async function screenshots(browser) {
-  for (const shot of SCREENSHOTS) {
-    const page = await open(browser, shot.viewport);
-    if (shot.aid) await setAid(page, shot.aid);
-    else await setWading(page, shot.wading);
-    await page.evaluate((level) => [...document.querySelectorAll(".levels button")].find((b) => b.textContent === level).click(), shot.level);
-    await sleep(1500);
-    const before = await nextStepText(page);
-    for (const place of [shot.from, shot.to]) {
-      const { x, y } = await mapPoint(page, place);
-      await page.mouse.click(x, y);
-      await sleep(400);
-    }
-    await waitForNewPlan(page, before);
-    await showResults(page, !!shot.viewport.isMobile);
-    await sleep(600);
-    await page.screenshot({ path: path.join(OUT, shot.file), type: "jpeg", quality: 82 });
-    console.log("saved", shot.file);
-    await page.close();
-  }
-  await reference(browser);
-}
-
-// A visible pointer that follows the mouse and pulses on clicks; headless screenshots have none.
+// A visible pointer that follows the mouse and pulses on clicks; headless recordings have none. On a
+// phone only the pulse shows, like a tap.
 const POINTER = `
   #pointer { position: fixed; z-index: 99999; width: 26px; height: 26px; margin: -4px 0 0 -4px; pointer-events: none;
     transition: transform 0.08s; }
   #pointer.down { transform: scale(0.85); }
+  #pointer.touch svg { display: none; }
   #pointer::after { content: ""; position: absolute; left: -10px; top: -10px; width: 28px; height: 28px; border-radius: 50%;
     border: 3px solid rgba(123, 44, 191, 0.8); opacity: 0; }
   #pointer.down::after { animation: pulse 0.5s ease-out; }
@@ -190,26 +151,39 @@ const POINTER = `
 const POINTER_SVG =
   '<svg viewBox="0 0 26 26" width="26" height="26"><path d="M3 2 L3 21 L8 16 L12 24 L15 22.5 L11 15 L18 15 Z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 
-async function addPointer(page) {
+async function addPointer(page, touch) {
   await page.addStyleTag({ content: POINTER });
-  await page.evaluate((svg) => {
-    const el = document.createElement("div");
-    el.id = "pointer";
-    el.innerHTML = svg;
-    el.style.left = "640px";
-    el.style.top = "400px";
-    document.body.appendChild(el);
-    addEventListener("mousemove", (e) => {
-      el.style.left = `${e.clientX}px`;
-      el.style.top = `${e.clientY}px`;
-    }, true);
-    addEventListener("mousedown", () => {
-      el.classList.remove("down");
-      void el.offsetWidth;
-      el.classList.add("down");
-    }, true);
-    addEventListener("mouseup", () => setTimeout(() => el.classList.remove("down"), 300), true);
-  }, POINTER_SVG);
+  await page.evaluate(
+    (svg, touch) => {
+      const el = document.createElement("div");
+      el.id = "pointer";
+      if (touch) el.classList.add("touch");
+      el.innerHTML = svg;
+      el.style.left = `${innerWidth / 2}px`;
+      el.style.top = `${innerHeight / 2}px`;
+      document.body.appendChild(el);
+      addEventListener(
+        "mousemove",
+        (e) => {
+          el.style.left = `${e.clientX}px`;
+          el.style.top = `${e.clientY}px`;
+        },
+        true,
+      );
+      addEventListener(
+        "mousedown",
+        () => {
+          el.classList.remove("down");
+          void el.offsetWidth;
+          el.classList.add("down");
+        },
+        true,
+      );
+      addEventListener("mouseup", () => setTimeout(() => el.classList.remove("down"), 300), true);
+    },
+    POINTER_SVG,
+    touch,
+  );
 }
 
 async function clickAt(page, { x, y }) {
@@ -220,11 +194,12 @@ async function clickAt(page, { x, y }) {
   await page.mouse.up();
 }
 
-/** Click the button whose text starts with `text`, bringing it into view first. */
+/** Click the element whose text starts with `text`, bringing it into view first. */
 async function clickButton(page, selector, text) {
   const box = await page.evaluate(
     (selector, text) => {
       const el = [...document.querySelectorAll(selector)].find((b) => b.innerText.trim().startsWith(text));
+      if (!el) throw new Error(`no ${selector} starting with "${text}"`);
       el.scrollIntoView({ block: "nearest", behavior: "instant" });
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -236,86 +211,182 @@ async function clickButton(page, selector, text) {
   await clickAt(page, box);
 }
 
-async function walkthrough(browser) {
-  const tmp = mkdtempSync(path.join(tmpdir(), "walkthrough-"));
+async function pickLevel(page, level) {
+  await clickButton(page, ".levels button", level);
+  await sleep(600);
+  await mapIdle(page);
+}
+
+/** Set the start and the destination by clicking the map, and wait for the plan. The map is framed
+ * on both places before recording (see `frame`), so the clip does not spend frames on panning. */
+async function planTrip(page, from, to, phone = false) {
+  const before = await nextStepText(page);
+  await clickAt(page, await mapPoint(page, from));
+  await sleep(600);
+  await clickAt(page, await mapPoint(page, to));
+  await waitForNewPlan(page, before);
+  await showResults(page, phone);
+}
+
+async function useLimit(page) {
+  const before = await nextStepText(page);
+  await clickButton(page, ".choice button.button", "Use this limit");
+  await waitForNewPlan(page, before);
+  await showResults(page, false);
+}
+
+// One clip per situation, in the order the README shows them. Before recording, the map is framed on
+// `frame` and `setup` runs.
+const CLIPS = {
+  "flood-levels": {
+    run: async (page) => {
+      for (const level of ["Light", "Moderate", "Heavy", "Extreme"]) {
+        await pickLevel(page, level);
+        await sleep(1300);
+      }
+    },
+  },
+  detour: {
+    frame: [SOUTHBANK_EAST, SOUTH_WHARF],
+    setup: (page) => setWading(page, "ankle"),
+    run: async (page) => {
+      await pickLevel(page, "Light");
+      await planTrip(page, SOUTHBANK_EAST, SOUTH_WHARF);
+      await sleep(2000);
+      await clickButton(page, ".compare-row", "Shortest, ignoring");
+      await sleep(2000);
+      await clickButton(page, ".compare-row", "Recommended");
+      await sleep(1800);
+    },
+  },
+  choose: {
+    frame: [BOYD_VILLAGE, CROWN],
+    setup: (page) => setWading(page, "mid_calf"),
+    run: async (page) => {
+      await pickLevel(page, "Moderate");
+      await planTrip(page, BOYD_VILLAGE, CROWN);
+      await sleep(2200);
+      await clickButton(page, ".choice-main", "Accept water");
+      await sleep(1800);
+      await useLimit(page);
+      await sleep(2200);
+    },
+  },
+  shelter: {
+    frame: [NEAR_CROWN, SOUTH_OF_CROWN],
+    setup: (page) => setWading(page, "mid_calf"),
+    run: async (page) => {
+      await pickLevel(page, "Heavy");
+      await planTrip(page, NEAR_CROWN, SOUTH_OF_CROWN);
+      await sleep(3200);
+    },
+  },
+  "deep-water": {
+    frame: [STURT_STREET, SOUTHBANK_PROMENADE],
+    setup: (page) => setWading(page, "mid_calf"),
+    run: async (page) => {
+      await pickLevel(page, "Heavy");
+      await planTrip(page, STURT_STREET, SOUTHBANK_PROMENADE);
+      await sleep(3400);
+    },
+  },
+  "cut-off": {
+    frame: [BOYD_VILLAGE, CROWN],
+    setup: (page) => setWading(page, "ankle"),
+    run: async (page) => {
+      await pickLevel(page, "Extreme");
+      await planTrip(page, BOYD_VILLAGE, CROWN);
+      await sleep(3400);
+    },
+  },
+  wheelchair: {
+    frame: [CROWN_WEST, BOYD_VILLAGE],
+    setup: (page) => setAid(page, "manual_wheelchair"),
+    run: async (page) => {
+      await pickLevel(page, "Light");
+      await planTrip(page, CROWN_WEST, BOYD_VILLAGE);
+      await sleep(2400);
+      await useLimit(page);
+      await sleep(2200);
+    },
+  },
+  "get-help": {
+    run: async (page) => {
+      await sleep(600);
+      await clickButton(page, ".get-help-button", "🆘");
+      await sleep(1600);
+      await clickButton(page, ".get-help-panel button", "📣");
+      await sleep(2400);
+      await clickButton(page, ".get-help-panel button.link", "Undo");
+      await sleep(1400);
+    },
+  },
+  phone: {
+    frame: [BOYD_VILLAGE, CROWN],
+    viewport: PHONE,
+    setup: (page) => setWading(page, "mid_calf"),
+    run: async (page) => {
+      await pickLevel(page, "Moderate");
+      await planTrip(page, BOYD_VILLAGE, CROWN, true);
+      await sleep(1800);
+      await clickButton(page, ".sheet-handle", "Show details");
+      await sleep(2600);
+    },
+  },
+};
+
+/** A small looping GIF: 8 frames a second, one palette for the whole clip. */
+function toGif(video, out, width) {
+  execFileSync("ffmpeg", [
+    "-y",
+    "-loglevel",
+    "error",
+    "-i",
+    video,
+    "-vf",
+    `fps=8,scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=80:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle`,
+    "-loop",
+    "0",
+    out,
+  ]);
+}
+
+async function record(browser, name, clip) {
+  const tmp = mkdtempSync(path.join(tmpdir(), "clip-"));
   try {
-    const page = await open(browser, { width: 1280, height: 800, deviceScaleFactor: 1 });
-    await setWading(page, "mid_calf");
-    await addPointer(page);
-    const video = path.join(tmp, "walkthrough.webm");
+    const viewport = clip.viewport ?? DESKTOP;
+    const page = await open(browser, viewport);
+    // Keep both places clear of the legend (bottom left on a desktop) and of Get help (top left).
+    const padding = viewport.isMobile ? { top: 70, bottom: 60, left: 40, right: 40 } : { top: 90, bottom: 220, left: 90, right: 90 };
+    if (clip.frame) await showPlaces(page, ...clip.frame, padding);
+    await clip.setup?.(page);
+    await addPointer(page, !!viewport.isMobile);
+    const video = path.join(tmp, `${name}.webm`);
     const recorder = await page.screencast({ path: video });
-    await sleep(1200);
-
-    // 1. Light flooding: Boyd Village to Crown Melbourne.
-    await clickButton(page, ".levels button", "Light");
     await sleep(900);
-    let before = await nextStepText(page);
-    await clickAt(page, await mapPoint(page, BOYD_VILLAGE));
-    await sleep(700);
-    await clickAt(page, await mapPoint(page, CROWN));
-    await waitForNewPlan(page, before);
-    await showResults(page, false, true);
-    await sleep(2200);
-
-    // 2. Moderate flooding: no route fits a mid-calf limit, so a choice.
-    before = await nextStepText(page);
-    await clickButton(page, ".levels button", "Moderate");
-    await waitForNewPlan(page, before);
-    await showResults(page, false, true);
-    await sleep(2600);
-
-    // 3. Look at accepting water up to the knee, then take that limit.
-    await clickButton(page, ".choice-main", "Accept water");
-    await sleep(800);
-    await mapIdle(page);
-    await sleep(1800);
-    before = await nextStepText(page);
-    await clickButton(page, ".choice button.button", "Use this limit");
-    await waitForNewPlan(page, before);
-    await showResults(page, false, true);
-    await sleep(2200);
-
-    // 4. Heavy flooding, starting in deep water: emergency help and the way to shelter.
-    await clickButton(page, ".levels button", "Heavy");
-    await sleep(600);
-    before = await nextStepText(page);
-    await clickButton(page, "button", "Clear");
-    await sleep(500);
-    await showPlaces(page, STURT_STREET, SOUTHBANK_PROMENADE);
-    await clickAt(page, await mapPoint(page, STURT_STREET));
-    await sleep(700);
-    await clickAt(page, await mapPoint(page, SOUTHBANK_PROMENADE));
-    await waitForNewPlan(page, before);
-    await showResults(page, false, true);
-    await sleep(3200);
-
+    await clip.run(page);
     await recorder.stop();
     await page.close();
-    // A small, looping GIF: 8 frames a second, 760 px wide, one palette for the whole clip.
-    execFileSync("ffmpeg", [
-      "-y",
-      "-loglevel", "error",
-      "-i", video,
-      "-vf", "fps=8,scale=760:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
-      "-loop", "0",
-      path.join(OUT, "walkthrough.gif"),
-    ]);
-    console.log("saved walkthrough.gif");
+    toGif(video, path.join(OUT, `${name}.gif`), viewport.isMobile ? 340 : 640);
+    console.log(`saved ${name}.gif`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
 }
 
-const which = process.argv[2] ?? "all";
+const names = process.argv.slice(2);
+const unknown = names.filter((n) => !(n in CLIPS));
+if (unknown.length) {
+  console.error(`Unknown clip(s): ${unknown.join(", ")}. Clips: ${Object.keys(CLIPS).join(", ")}`);
+  process.exit(1);
+}
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 try {
-  if (which === "all" || which === "screenshots") await screenshots(browser);
-  if (which === "all" || which === "walkthrough") await walkthrough(browser);
-  if (which === "reference") await reference(browser);
+  for (const name of names.length ? names : Object.keys(CLIPS)) await record(browser, name, CLIPS[name]);
 } finally {
   await browser.close();
 }
