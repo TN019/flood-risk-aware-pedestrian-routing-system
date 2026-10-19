@@ -25,6 +25,7 @@ from floodroute.hazard import DRY, EdgeCondition, HazardSnapshot
 from floodroute.places import PlaceResolver
 from floodroute.places.refuges import RefugeIndex
 from floodroute.risk import BodyPart, DepthRelativeRisk, MobilityAid, TravellerProfile, risk_cost
+from floodroute.risk.alerts import AlertLevel
 from floodroute.risk.model import source_edge_id
 from floodroute.routing import Route, Router, RoutingError, plan_routes
 from floodroute.trip import ONLY_OPTION, plan_trip
@@ -108,7 +109,7 @@ def test_town(with_shelter: bool = True, steps: tuple[str, ...] = ()) -> tuple[R
     return router, resolver, RefugeIndex(resolver)
 
 
-def flood(**depths: float) -> HazardSnapshot:
+def flood(**depths: float | None) -> HazardSnapshot:
     return HazardSnapshot("test", conditions={e: EdgeCondition(d) for e, d in depths.items()}, default=DRY)
 
 
@@ -464,6 +465,46 @@ def run_test_town() -> list[Check]:
         ("below a 6-inch castor axle", 0.07, 300.0),
         downgrade(t),
     )
+
+    # I — cut off inside a building
+    inside = Point(-25, 25)
+
+    def emergency(t) -> tuple | None:
+        return (t.emergency.advice, t.emergency.reason) if t.emergency else None
+
+    def least(t) -> tuple | None:
+        lw = t.least_water
+        return (lw.required_depth_m, round(lw.route.length_m, 3)) if lw else None
+
+    t = _trip(flood(), adult(), start=inside)
+    add("I1", "sheltered, recommended (m)", (True, 335.0), (t.origin.sheltered, _len(t.routes.recommended)))
+    add("I1", "emergency", None, t.emergency)
+    t = _trip(flood(b12=0.60, t12=0.60), adult(BodyPart.MID_CALF), start=inside)
+    add("I2", "route within limit", False, t.has_safe_route)
+    add("I2", "least water (m), its route (m)", (0.60, 335.0), least(t))
+    add("I2", "downgrade, refuge", (None, None), (t.downgrade, t.refuge))
+    add("I2", "emergency advice, reason", ("available", "cut_off"), emergency(t))
+    t = _trip(flood(b12=0.40, t12=0.40), adult(BodyPart.MID_CALF), start=inside)
+    add("I3", "least water (m)", 0.40, t.least_water.required_depth_m if t.least_water else None)
+    add("I3", "downgrade to, least water (m), route (m)", ("knee", 0.40, 335.0), downgrade(t))
+    add("I3", "emergency", None, t.emergency)
+    t = _trip(flood(b12=None, t12=None), adult(), start=inside)
+    lw = t.least_water
+    add("I4", "least water (m), downgrade", (None, None), (lw.required_depth_m if lw else "none", t.downgrade))
+    add("I4", "emergency advice, reason", ("available", "cut_off"), emergency(t))
+    t = _trip(flood(b12=0.60, t12=0.60), adult(BodyPart.MID_CALF))
+    add(
+        "I5",
+        "sheltered, start level, downgrade",
+        (False, AlertLevel.OK, None),
+        (t.origin.sheltered, t.origin.level, t.downgrade),
+    )
+    add("I5", "refuge, length (m), within limit", ("Shelter", 35.0, True), refuge(t))
+    add("I5", "emergency", None, t.emergency)
+    t = _trip(flood(b12=0.10, t12=0.10), aid(manual), start=inside)
+    add("I6", "least water (m), its route (m)", (0.10, 335.0), least(t))
+    add("I6", "downgrade", None, t.downgrade)
+    add("I6", "emergency advice, reason", ("available", "cut_off"), emergency(t))
     return checks
 
 

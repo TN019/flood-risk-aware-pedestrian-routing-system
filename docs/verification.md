@@ -1,7 +1,7 @@
 # Verification: predictions
 
 This document states, **before running the program**, what the routing rules should produce in a
-set of test cases (A–G). The predictions are derived by hand from the rules in
+set of test cases (A–I). The predictions are derived by hand from the rules in
 [architecture.md](architecture.md). `backend/scripts/verify.py` then runs the same cases and
 compares its results with these predictions; see `reports/verification_results.md`.
 
@@ -22,6 +22,11 @@ hydraulic model results.
   stated. The recommended route minimises total cost.
 - Alert levels at the start: over 50 cm = DEEP; above the knee (0.285 × height) = VERY_DEEP; above
   half the height = CRITICAL.
+- Emergency help: at the start's alert level (DEEP: available; VERY_DEEP: recommended; CRITICAL:
+  strongly recommended); as the only option when the start is outside, no route fits the limit and
+  no refuge can be reached; and, for a start inside a building (no alert level), as **available**
+  when the traveller is cut off: no route fits the limit and no downgrade is offered (the least
+  water is beyond the hard limit or the device's cap, or of unknown depth).
 - A downgrade is offered only when the start is at most OVER_LIMIT, and only up to 50 cm; for a
   mobility aid, it is the lowest higher level of the same device that covers the least water,
   never above that device's cap.
@@ -150,6 +155,22 @@ wheelchair 2 / 5 cm, mobility scooter 2 / 2.5 cm.
 | H4 | b12 and t12 at 4 cm. Manual wheelchair, no water | No route within the limit. Least water **4 cm**, route **300 m**. Downgrade to **"below a 4-inch castor axle"** (5 cm ≥ 4 cm), route **300 m**. Refuge "Shelter", **35 m**, within the limit. No emergency |
 | H5 | As H4, mobility scooter, no water | No route within the limit. Least water 4 cm. **No downgrade** (4 cm > the scooter's 2.5 cm cap). Refuge "Shelter", 35 m, within the limit |
 | H6 | b12 and t12 at 7 cm. Powered wheelchair, no water; manual wheelchair, no water | Powered: **no downgrade** (7 cm > its 5 cm cap). Manual: downgrade to **"below a 6-inch castor axle"** (7.5 cm ≥ 7 cm; 5 cm is not enough), route **300 m** |
+
+### I — cut off inside a building
+
+The town without steps, α = 2. Start inside "Shelter" (any point in it): the start is sheltered,
+with no alert level, and no refuge is searched for. Its one door is 10 m from c0 at (0, 25), so
+the shortest way to B3 is 10 + 25 (down c0) + 300 (bottom street) = **335 m**; the way over the
+top street is 10 + 25 + 300 + 50 = 385 m. Every way from x = 100 to x = 200 uses b12 or t12.
+
+| Case | Setup | Predictions |
+|---|---|---|
+| I1 | No water. Adult, ankle | Sheltered. Recommended **335 m**. No emergency |
+| I2 | b12 and t12 at 60 cm. Adult, mid calf (27.5 cm) | No route within the limit. Least water **60 cm**, route **335 m** (tie on depth, shortest). **No downgrade** (60 cm > 50 cm). No refuge (already inside). Emergency help **available**, reason **cut off** |
+| I3 | b12 and t12 at 40 cm. Adult, mid calf | Least water 40 cm. Downgrade to the **knee** (48.45 cm ≥ 40 cm), route **335 m**. **No emergency**: a way out within 50 cm exists |
+| I4 | b12 and t12 of unknown depth. Adult, ankle | Least water of **unknown depth**. No downgrade. Emergency help **available**, reason **cut off** |
+| I5 | As I2, but starting outside at B0 (dry) | Not sheltered, start level OK. No downgrade. Refuge "Shelter", **35 m**, within the limit. **No emergency** (the rule is for a start inside only) |
+| I6 | b12 and t12 at 10 cm. Manual wheelchair, no water, inside Shelter | Least water 10 cm, route 335 m. No downgrade (10 cm > the 7.5 cm cap). Emergency help **available**, reason **cut off** |
 
 ## Part 2 — properties on the Southbank network
 
