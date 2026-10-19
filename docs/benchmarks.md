@@ -123,7 +123,8 @@ closures, or mark an entrance that is not open to the public. Only an inspection
 1. `uv run python scripts/ground_truth_sample.py` draws a sample, stratified by kind: footpaths,
    crossings, steps, paths steeper than 1:14 and paths beside a carriageway, and building entrances
    used as shelters. Steep paths are rare inside Southbank (one in the current network), so that
-   kind is also drawn from the network's margin, which routes use to cross the river. It writes a
+   kind is also drawn from the network's margin, which routes use to cross the river, after every
+   steep path inside Southbank. It writes a
    checklist (CSV) with what the model says about each item, its measured gradient among them, and
    empty columns for the inspector.
 2. On site, for each item: is it passable, are there steps, is there a kerb ramp, how steep is it,
@@ -175,3 +176,23 @@ completed; clean reruns on commits `4add2c3` and `1fac09a` gave the same figures
   cost less. Measured: a step-free route exists for 299 of 300 pairs and is the walking route itself
   for 279; it is 39.8% longer at most.
 - **4** No inspection filed yet.
+
+**Run with footpath gradients** (commit `4453b9b`, after mobility aid users were kept off paths
+steeper than 1:14; the predictions for F10 and 3.1 were written before it).
+
+- **1.1, 1.2** Unchanged: 1,000 of 1,000 node pairs, 300 of 300 trips, 891 of 891 pairs agree.
+- **1.3** Test town **130 of 130** (26 new checks in J), Southbank properties **39 of 39** (R-I at
+  every level). As predicted.
+- **1.4** Every fault is caught; as written the suite has no failures (253 tests). **F10** fails 6
+  tests and the test town cases J1–J4 only, not G, as predicted. F4 now also fails J, since it
+  lets mobility aid users use every edge; F1, F5, F6 and F8 also fail parts of J3 and J4, which
+  include water, refuges and emergency help.
+- **2.1, 2.2** The same figures as before: no random trip inside Southbank meets one of the 16 steep
+  paths that are not steps, as only one of them lies inside Southbank.
+- **3.1** No step-free route uses steps or a path steeper than 1:14 (**0** and **0**), none costs
+  less than the walking route, and a step-free route exists for **299 of 300** pairs, as before, so
+  not more. As predicted. None of the 300 walking routes uses a steep path either, so this
+  benchmark does not exercise the rule; case J, R-I and the unit tests carry it.
+- **4** No inspection filed yet. The sample now has a steep kind: 15 of the 16 steep paths that are
+  not steps, the one inside Southbank first and 14 in the margin.
+
