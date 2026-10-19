@@ -84,7 +84,9 @@ def _row(kind="path", category="footpath", **kw):
 
 
 def test_path_categories():
-    assert ground_truth.path_category({"is_steps": True, "is_crossing": True}) == "steps"
+    assert ground_truth.path_category({"is_steps": True, "is_crossing": True, "gradient": 0.2}) == "steps"
+    assert ground_truth.path_category({"highway": "footway", "gradient": 0.08}) == "steep"
+    assert ground_truth.path_category({"highway": "footway", "gradient": 1 / 14}) == "footpath"
     assert ground_truth.path_category({"is_crossing": True}) == "crossing"
     assert ground_truth.path_category({"is_carriageway": True}) == "beside carriageway"
     assert ground_truth.path_category({"highway": "footway"}) == "footpath"
@@ -118,3 +120,19 @@ def test_compare_counts_false_accessible_items():
     assert p["steps_missed"] == {"count": 1, "of": 3, "rate": pytest.approx(1 / 3)}
     assert out["entrances"]["not_usable"] == {"count": 1, "of": 1, "rate": 1.0}
     assert out["entrances"]["not_step_free"]["count"] == 0
+
+
+def test_compare_counts_steep_paths_the_model_misses_and_steep_paths_that_are_not():
+    seen = {"field_found": "yes", "field_passable": "yes"}
+    rows = [
+        _row(model_steep="no", field_gradient="gentle", **seen),  # agrees
+        _row(model_steep="unknown", field_gradient="steep", **seen),  # not measured, and steep
+        _row(model_steep="no", field_gradient="steep", **seen),  # measured too gentle
+        _row(category="steep", model_steep="yes", field_gradient="steep", **seen),  # agrees
+        _row(category="steep", model_steep="yes", field_gradient="flat", **seen),  # a false alarm
+        _row(model_steep="no", **seen),  # gradient not judged
+    ]
+    p = ground_truth.compare(rows)["paths"]
+    assert p["steep_agree"] == {"count": 2, "of": 5, "rate": pytest.approx(0.4)}
+    assert p["steep_missed"] == {"count": 2, "of": 3, "rate": pytest.approx(2 / 3)}
+    assert p["steep_not_steep"] == {"count": 1, "of": 2, "rate": pytest.approx(0.5)}

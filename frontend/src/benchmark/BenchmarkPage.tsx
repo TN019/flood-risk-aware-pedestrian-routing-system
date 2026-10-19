@@ -107,7 +107,7 @@ function Results({ r }: { r: BenchmarkResults }) {
         </Result>
         <Result title="Hand-derived predictions" ok={v.test_town.met === v.test_town.total && v.southbank.met === v.southbank.total}>
           <p>
-            Test town cases A–I: <strong>{share(v.test_town.met, v.test_town.total)}</strong> met. Southbank properties R-A to R-H:{" "}
+            Test town cases A–J: <strong>{share(v.test_town.met, v.test_town.total)}</strong> met. Southbank properties R-A to R-I:{" "}
             <strong>{share(v.southbank.met, v.southbank.total)}</strong> met.
           </p>
           {[...v.test_town.not_met, ...v.southbank.not_met].length > 0 && (
@@ -230,13 +230,18 @@ function Results({ r }: { r: BenchmarkResults }) {
           )}
         </Result>
         <h3 className="group">Public area accessibility</h3>
-        <Result title="Step-free connectivity between buildings" ok={sf.step_free_using_steps === 0 && sf.step_free_cheaper === 0}>
+        <Result
+          title="Step-free connectivity between buildings"
+          ok={sf.step_free_using_steps === 0 && sf.step_free_using_steep === 0 && sf.step_free_cheaper === 0}
+        >
           <p>
-            {sf.pairs} random pairs of buildings connected on foot, normal conditions: a step-free route exists for{" "}
-            <strong>{share(sf.step_free_route, sf.pairs)}</strong>, and for {sf.same_length} it is the walking route itself (no steps on
-            the way). Over all pairs it is longer by {pct(sf.longer_median, 1)} at the median, {pct(sf.longer_p90, 1)} at the 90th
+            {sf.pairs} random pairs of buildings connected on foot, normal conditions. The step-free route also leaves out paths steeper
+            than 1:14, which {sf.walking_using_steep} of the walking routes use. A step-free route exists for{" "}
+            <strong>{share(sf.step_free_route, sf.pairs)}</strong>, and for {sf.same_length} it is the walking route itself (no steps or
+            steep paths on the way). Over all pairs it is longer by {pct(sf.longer_median, 1)} at the median, {pct(sf.longer_p90, 1)} at the 90th
             percentile and {pct(sf.longer_max, 1)} at most. No
-            step-free route uses steps ({sf.step_free_using_steps}) or costs less than the walking route ({sf.step_free_cheaper}).
+            step-free route uses steps ({sf.step_free_using_steps}) or a path steeper than 1:14 ({sf.step_free_using_steep}), or costs
+            less than the walking route ({sf.step_free_cheaper}).
             {sf.step_free_shorter > 0 &&
               ` ${sf.step_free_shorter} ${sf.step_free_shorter === 1 ? "is" : "are"} shorter in metres but cost more: routes minimise walking cost, with a carriageway counted three times its length.`}
           </p>
@@ -257,6 +262,10 @@ function Results({ r }: { r: BenchmarkResults }) {
                 shows without them.
               </li>
               <li>
+                Gradient: the model agrees for {rate(r.field.paths.steep_agree)}. Treated as no steeper than 1:14 (or not measured) but steep on
+                site: <strong>{rate(r.field.paths.steep_missed)}</strong>. Treated as steeper but not steep: {rate(r.field.paths.steep_not_steep)}.
+              </li>
+              <li>
                 Entrances inspected: {r.field.entrances.inspected}. Not there or not open to the public: {rate(r.field.entrances.not_usable)}; not
                 step-free: {rate(r.field.entrances.not_step_free)}.
               </li>
@@ -265,8 +274,9 @@ function Results({ r }: { r: BenchmarkResults }) {
         ) : (
           <>
             <p>
-              No inspection has been filed yet. The data comes from OpenStreetMap, which can miss steps, kerbs, barriers and closures, or mark
-              an entrance that is not open to the public; only an inspection on site can tell.
+              No inspection has been filed yet. The paths and entrances come from OpenStreetMap, which can miss steps, kerbs, barriers and
+              closures, or mark an entrance that is not open to the public, and the gradients from the City of Melbourne's footpath survey,
+              which leaves out many paths; only an inspection on site can tell.
             </p>
             <ol>
               <li>

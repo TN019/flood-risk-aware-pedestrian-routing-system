@@ -48,6 +48,9 @@ export interface FieldComparison {
     false_step_free: Rate;
     steps_agree: Rate;
     steps_missed: Rate;
+    steep_agree: Rate;
+    steep_missed: Rate; // treated as no steeper than 1:14 (or not measured) but steep on site
+    steep_not_steep: Rate; // treated as steeper than 1:14 but not steep on site
     by_kind: Record<string, { inspected: number; not_passable: Rate; step_free_but_not: Rate }>;
   };
   entrances: { inspected: number; not_usable: Rate; not_step_free: Rate };
@@ -98,6 +101,8 @@ export interface BenchmarkResults {
       walking_route: number;
       step_free_route: number;
       step_free_using_steps: number;
+      step_free_using_steep: number; // step-free routes with a path steeper than 1:14
+      walking_using_steep: number; // walking routes with a path steeper than 1:14
       step_free_cheaper: number;
       step_free_shorter: number;
       longer_median: number | null;

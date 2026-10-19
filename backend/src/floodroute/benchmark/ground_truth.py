@@ -6,8 +6,13 @@ entrances, and records what the model says about each; an inspector fills the ``
 site; ``compare`` measures the agreement, and above all the share of items the model treats as
 usable or step-free that are not (the false accessible rate).
 
-Field answers are ``yes``, ``no`` or ``unknown`` unless stated; ``field_gradient`` is ``flat``,
-``gentle`` or ``steep``.
+Paths steeper than 1:14 are rare inside Southbank (most are on the north bank and the bridge
+approaches), so the ``steep`` kind is also drawn from the network's margin, which routes use to
+cross the river.
+
+Field answers are ``yes``, ``no`` or ``unknown`` unless stated; ``field_gradient`` is ``flat`` (no
+noticeable slope), ``gentle`` (a noticeable slope up to 1:14, about 4°) or ``steep`` (steeper than
+1:14; a phone's level app is enough to tell).
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from pyproj import Transformer
 
 from floodroute import config
 from floodroute.benchmark.world import World
+from floodroute.risk import too_steep
 
 MODEL_COLUMNS = [
     "id",
@@ -30,7 +36,9 @@ MODEL_COLUMNS = [
     "name",
     "osm_ref",
     "model_steps",  # paths: the section is a flight of steps
-    "model_step_free",  # paths: usable by wheelchair users; entrances: n/a
+    "model_step_free",  # paths: no steps; entrances: n/a
+    "model_gradient",  # paths: measured gradient, e.g. "8.3%"; blank where not measured
+    "model_steep",  # paths: steeper than 1:14, so wheelchair routes leave it out (yes / no / unknown)
     "model_entrance",  # entrances: "mapped door" or "outline point" (no door mapped)
 ]
 FIELD_COLUMNS = [
@@ -49,12 +57,15 @@ FIELD_COLUMNS = [
     "field_photo",
     "field_notes",
 ]
-PATH_KINDS = ("steps", "crossing", "beside carriageway", "footpath", "street")
+PATH_KINDS = ("steps", "steep", "crossing", "beside carriageway", "footpath", "street")
+FIELD_GRADIENTS = ("flat", "gentle", "steep")
 
 
 def path_category(data: dict) -> str:
     if data.get("is_steps"):
         return "steps"
+    if too_steep(data.get("gradient")):
+        return "steep"
     if data.get("is_crossing"):
         return "crossing"
     if data.get("is_carriageway"):
@@ -66,7 +77,7 @@ def path_category(data: dict) -> str:
 
 def sample(world: World, per_kind: int = 15, seed: int = 2026) -> list[dict]:
     """``per_kind`` footpath sections of each kind and ``per_kind`` building entrances, inside
-    Southbank."""
+    Southbank (steep paths anywhere on the network)."""
     rng = random.Random(seed)
     to_wgs = Transformer.from_crs(config.METRIC_CRS, "EPSG:4326", always_xy=True)
     area = world.graph.graph["study_area"]
@@ -77,8 +88,9 @@ def sample(world: World, per_kind: int = 15, seed: int = 2026) -> list[dict]:
 
     by_kind: dict[str, list] = {k: [] for k in PATH_KINDS}
     for _, _, d in world.graph.edges(data=True):
-        if d.get("in_study_area"):
-            by_kind[path_category(d)].append(d)
+        kind = path_category(d)
+        if d.get("in_study_area") or kind == "steep":
+            by_kind[kind].append(d)
     rows = []
     for kind in PATH_KINDS:
         for d in rng.sample(by_kind[kind], min(per_kind, len(by_kind[kind]))):
@@ -94,6 +106,10 @@ def sample(world: World, per_kind: int = 15, seed: int = 2026) -> list[dict]:
                     "osm_ref": d.get("osmid", ""),
                     "model_steps": "yes" if d.get("is_steps") else "no",
                     "model_step_free": "no" if d.get("is_steps") else "yes",
+                    "model_gradient": "" if d.get("gradient") is None else f"{d['gradient']:.1%}",
+                    "model_steep": "unknown"
+                    if d.get("gradient") is None
+                    else ("yes" if too_steep(d["gradient"]) else "no"),
                     "model_entrance": "",
                 }
             )
@@ -118,6 +134,8 @@ def sample(world: World, per_kind: int = 15, seed: int = 2026) -> list[dict]:
                 "osm_ref": "",
                 "model_steps": "",
                 "model_step_free": "",
+                "model_gradient": "",
+                "model_steep": "",
                 "model_entrance": "mapped door" if place.method == "entrances" else "outline point",
             }
         )
@@ -160,6 +178,9 @@ def compare(rows: list[dict]) -> dict:
         return not_passable(r) or r.get("field_steps") == "yes" or r.get("field_kerb_ramp") == "no"
 
     known_steps = [r for r in paths if r.get("field_steps") in ("yes", "no")]
+    known_gradient = [r for r in paths if r.get("field_gradient") in FIELD_GRADIENTS]
+    treated_usable = [r for r in known_gradient if r.get("model_steep") != "yes"]  # unknown counts as usable
+    treated_steep = [r for r in known_gradient if r.get("model_steep") == "yes"]
     step_free_claims = [r for r in paths if r["model_step_free"] == "yes"]
     by_kind = {}
     for kind in PATH_KINDS:
@@ -184,6 +205,18 @@ def compare(rows: list[dict]) -> dict:
             "steps_missed": _rate(
                 sum(1 for r in known_steps if r["model_steps"] == "no" and r["field_steps"] == "yes"),
                 sum(1 for r in known_steps if r["model_steps"] == "no"),
+            ),
+            "steep_agree": _rate(
+                sum(1 for r in known_gradient if (r.get("model_steep") == "yes") == (r["field_gradient"] == "steep")),
+                len(known_gradient),
+            ),
+            # Treated as no steeper than 1:14 (or not measured) but steep on site: wheelchair routes may use it.
+            "steep_missed": _rate(
+                sum(1 for r in treated_usable if r["field_gradient"] == "steep"), len(treated_usable)
+            ),
+            # Treated as steeper than 1:14 but not steep on site: wheelchair routes go round it for nothing.
+            "steep_not_steep": _rate(
+                sum(1 for r in treated_steep if r["field_gradient"] != "steep"), len(treated_steep)
             ),
             "by_kind": by_kind,
         },
