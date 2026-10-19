@@ -138,8 +138,9 @@ closures, or mark an entrance that is not open to the public. Only an inspection
    1:14 (or not measured) that are steep on site; the share of paths treated as steep that are not
    shows the detours wheelchair users are sent on for nothing.
 
-No prediction: the results appear on `/benchmark` once an inspection has been filed as
-`data/ground_truth/inspected.csv`.
+No prediction: once an inspection has been filed as `data/ground_truth/inspected.csv`, the next
+run writes the comparison to `docs/benchmark.json` (`field`); `/benchmark` shows only the algorithm
+layer.
 
 ## Results
 
