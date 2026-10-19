@@ -31,7 +31,7 @@ refuges and scenarios once and answers in WGS84 GeoJSON; `api.app` maps it onto 
 |---|---|
 | `GET /api/area` | study area, routable area (with its margin) and bounds |
 | `GET /api/network` | walking network for display: paths, margin paths, avoided carriageways |
-| `GET /api/options` | body-part limits, landmarks, route preferences, flood levels, SOS undo window |
+| `GET /api/options` | body-part limits, landmarks, the steepest path for mobility aid users, route preferences, flood levels, SOS undo window |
 | `GET /api/scenarios` | scenarios with their level, typical depth, description and sources |
 | `GET /api/scenarios/{id}/water` | wet and unknown-depth edges of a scenario |
 | `GET /api/search?q=` | place search inside the routable area (Nominatim, cached, one request a second) |
@@ -196,11 +196,14 @@ still be bridged by an access leg, for every traveller; so can the slope of a st
 access legs carry no gradient.
 
 Each route reports whether it uses steps, access legs included (`Route.uses_steps`, `uses_steps` in
-the API), and its steepest measured gradient (`Route.max_gradient`, `max_gradient`). The plan
-reports `step_free`, `steps_avoided` (the plain shortest way has steps that the routes avoid) and
-`steep_avoided` (the same for a path steeper than 1:14). When no way without steps or steep paths
-connects the two places at all, every option carries the error "No route without steps or steep
-paths connects these places." Kerbs, ways tagged `wheelchair=no` and surface are not used.
+the API), and its steepest and gentlest measured gradient (`Route.max_gradient` and `min_gradient`,
+over the edges with a gradient; `null` when it has none). Both clients show the two for every route,
+as a percentage and a "1 in N" ratio ("no gradient data" when there is none), with the 1:14 limit
+beside them for a mobility aid user. The plan reports `step_free`, `steps_avoided` (the plain
+shortest way has steps that the routes avoid) and `steep_avoided` (the same for a path steeper than
+1:14). When no way without steps or steep paths connects the two places at all, every option
+carries the error "No route without steps or steep paths connects these places." Kerbs, ways
+tagged `wheelchair=no` and surface are not used.
 
 #### Footpath gradients
 

@@ -11,6 +11,8 @@ and shallower water costs more the closer it is to that limit.
 
 Each trip opens with the next step to take, and the map highlights the route it refers to. Water
 the traveller can walk through is blue; water over their limit, or of unknown depth, is dashed red.
+Every route shows its length, time, deepest water, and its steepest and gentlest gradient where the
+City of Melbourne has measured the footpaths.
 The sources behind every flood level and depth limit, and which values are judgements, are on the
 `/reference` page, reached only by its address.
 
@@ -54,6 +56,13 @@ Each device has its own levels and cap (manual wheelchair 7.5 cm, powered wheelc
 mobility scooter 2.5 cm), and routes never use steps or footpaths measured steeper than 1:14.
 
 ![The next level of the device, then the step-free route with it](docs/images/wheelchair.gif)
+
+**Steep paths.** No flooding, on the promenade between Southgate Avenue and Southbank Boulevard:
+on foot the route is 109 m and climbs a path at 8.3% (1 in 12.1). With a manual wheelchair it goes
+round that path, 429 m, and its steepest part is 6.9% (1 in 14.5), within the 1:14 (7.1%) limit for
+wheelchairs and scooters.
+
+![The route on foot over an 8.3% path, then the wheelchair route around it](docs/images/steep-path.gif)
 
 **Help at any time.** A Get help button stays on the map, whatever the trip says: call 000 if
 anyone's life is in danger, VICSES 132 500 for flood or storm help, or alert people nearby (the
