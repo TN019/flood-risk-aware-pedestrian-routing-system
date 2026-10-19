@@ -98,6 +98,10 @@ step-free route a manual wheelchair user gets.
 the same buildings (a step-free route is also a walking route). The share of pairs with a step-free
 route and how much longer it is are measurements.
 
+**Revised after the first run:** no step-free route **costs** less than the walking route. The first
+prediction confused length with cost: routes minimise walking cost, with a carriageway counted three
+times its length, so a step-free route may be shorter while costing more (see Results).
+
 ### 3.2 Field inspection (ground truthing)
 
 The network and entrances come from OpenStreetMap, which can miss steps, kerbs, barriers and

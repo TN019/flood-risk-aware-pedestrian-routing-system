@@ -1,8 +1,9 @@
 """Step-free connectivity between buildings under normal conditions.
 
 For random pairs of buildings inside Southbank: the walking route, and the step-free route a manual
-wheelchair user gets. A step-free route is also a walking route, so it can never be shorter, and it
-must never use steps.
+wheelchair user gets. A step-free route is also a walking route, so it can never cost less (routes
+minimise walking cost, with carriageways counted three times their length; it can be shorter), and
+it must never use steps.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import random
 from floodroute.benchmark.world import World, quantile
 from floodroute.risk import MobilityAid, TravellerProfile, walking_cost_for
 from floodroute.routing import RoutingError
+from floodroute.verification import route_cost
 
 TOLERANCE = 1e-6  # metres
 
@@ -23,7 +25,14 @@ def step_free_pairs(world: World, n: int = 300, seed: int = 2026, min_m: float =
     chair = TravellerProfile(1.70, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR)
     walk_cost, chair_cost = walking_cost_for(walker), walking_cost_for(chair)
     rng = random.Random(seed)
-    out = {"pairs": 0, "walking_route": 0, "step_free_route": 0, "step_free_using_steps": 0, "step_free_shorter": 0}
+    out = {
+        "pairs": 0,
+        "walking_route": 0,
+        "step_free_route": 0,
+        "step_free_using_steps": 0,
+        "step_free_cheaper": 0,
+        "step_free_shorter": 0,
+    }
     ratios = []
     tries = 0
     while out["pairs"] < n and tries < n * 50:
@@ -46,6 +55,10 @@ def step_free_pairs(world: World, n: int = 300, seed: int = 2026, min_m: float =
             continue
         out["step_free_route"] += 1
         out["step_free_using_steps"] += step_free.uses_steps
+        cheaper = (
+            route_cost(step_free, world.graph, chair_cost) < route_cost(walking, world.graph, walk_cost) - TOLERANCE
+        )
+        out["step_free_cheaper"] += cheaper
         out["step_free_shorter"] += step_free.length_m < walking.length_m - TOLERANCE
         ratios.append(step_free.length_m / walking.length_m)
     out["longer_median"] = quantile([r - 1 for r in ratios], 0.5)
