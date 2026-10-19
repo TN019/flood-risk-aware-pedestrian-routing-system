@@ -81,6 +81,10 @@ and the interfaces new code should plug into.
 - **Style.** Formatting and linting are enforced by ruff (configured in `backend/pyproject.toml`).
   Use type hints on public functions and a short docstring explaining *why* when the reason is
   not obvious from the code.
+- **Sources in one place per audience.** A new or changed data source or cited document goes into
+  the README's Data sources table, NOTICE (if its licence needs attribution), `docs/parameters.md`
+  for the values it sets, and `frontend/src/reference/content.ts`, which the `/reference` page
+  shows. Values on that page come from the API and need no edit.
 - **No secrets or large data in git.** Never commit API keys or tokens. Processed network files
   derived from OpenStreetMap are covered by the ODbL; do not commit or publish them without
   following its attribution and share-alike terms.

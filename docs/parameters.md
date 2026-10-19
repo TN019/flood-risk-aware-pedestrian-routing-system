@@ -81,7 +81,7 @@ Basis:
 | Ground model | 5 m cells, metres AHD | `sources.terrain` | Cited: Geoscience Australia 5 m LiDAR DEM (2025) |
 | Flood mechanisms | river and storm tide; drain backflow; stormwater ponding | `hazard.terrain` | Cited: Melbourne Water, Southbank Precinct Local Floodplain Development Plan (2026); City of Melbourne Municipal Emergency Management Plan, Flood and Storm Sub-plan (2025) |
 | Light: highest normal tide | 0.59 m AHD | `data/scenarios/1-light-flooding.json` | Cited: highest astronomical tide at Williamstown, Port Phillip Bay Coastal Hazard Assessment (Water Technology for DEECA, 2023), Table 2-1 |
-| Moderate: 1-in-20-year storm tide | 1.25 m AHD | `data/scenarios/2-moderate-flooding.json` | Cited: GHD for Melbourne Water (2017), Fishermans Bend Baseline Drainage Plan, Table 1 |
+| Moderate: 1-in-20-year storm tide | 1.25 m AHD | `data/scenarios/2-moderate-flooding.json` | Cited: GHD for Melbourne Water (2017), Fishermans Bend: Baseline drainage plan options, Table 1 |
 | Heavy: 1-in-100-year storm tide today | 1.60 m AHD | `data/scenarios/3-heavy-flooding.json` | Cited: GHD (2017) Table 1; also the major flood level at the VICSES Southbank gauge |
 | Extreme: 1-in-100-year storm tide in 2100 | 2.40 m AHD | `data/scenarios/4-extreme-flooding.json` | Cited: GHD (2017) Table 1; 0.8 m of sea level rise, Victoria Planning Provisions clause 13.01-2S |
 | Drain inlets | grated, side-entry, lane, trench and headwall pits | `sources.drainage` | Cited: City of Melbourne open data, Stormwater Pits; junctions, nodes and submerged pits are left out because they do not open to the surface |
