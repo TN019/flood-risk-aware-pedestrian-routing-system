@@ -25,7 +25,7 @@ from floodroute.network import is_snappable
 from floodroute.places import Place, PlaceResolver
 from floodroute.places.refuges import RefugeIndex
 from floodroute.places.resolver import DESTINATION, ORIGIN
-from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, MAX_GRADIENT, BodyPart, MobilityAid, TravellerProfile
+from floodroute.risk import DRY_DEPTH_M, HARD_LIMIT_M, BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
 from floodroute.risk.levels import REFERENCE_HEIGHT_M, FloodLevel, level_of, typical_depth_m
 from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
@@ -135,7 +135,6 @@ class Service:
             "landmarks": [{"fraction": f, "name": n} for f, n in LANDMARKS],
             "dry_depth_m": DRY_DEPTH_M,
             "hard_limit_m": HARD_LIMIT_M,
-            "max_gradient": MAX_GRADIENT,  # steepest path a mobility aid user is routed on
             "mobility_aids": [
                 {
                     "key": aid.name.lower(),
