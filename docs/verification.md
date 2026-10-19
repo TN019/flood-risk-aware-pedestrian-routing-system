@@ -282,3 +282,13 @@ already held, and the three emergency checks (I2, I4, I6) failed, as predicted. 
 138 checks met**, including all 17 in I. Calling for help (000, VICSES 132 500, an alert to
 people nearby) is now always available in both clients; these rules decide only when the results
 put it first.
+
+**Tenth run, after mobility aid users were kept off paths steeper than 1:14.** Case J (test town),
+R-I (Southbank) and fault F10 were derived and committed before the change; against the code before
+it, 11 of J's 26 checks already held (the walkers' routes and the path without a measured gradient)
+and the 15 that depend on the new rule failed, as predicted. Result: **169 of 169 checks met**,
+including all 26 in J. On the Southbank network 2 of the 100 random trips have a path steeper than
+1:14 on their plain shortest way (counted once for each of the four mobility aid travellers, 8), and
+none of the mobility aid routes uses one. Gradients come from surveyed footpath sections joined to
+the network (architecture.md, "Footpath gradients"); whether they match the street is for the
+inspection on site (benchmarks.md, 4).
