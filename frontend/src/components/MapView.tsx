@@ -1,4 +1,4 @@
-import maplibregl, { type GeoJSONSource, type LngLatBoundsLike, type MapMouseEvent } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type LngLatBoundsLike, type MapMouseEvent, type PaddingOptions } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { cm, describeDepth } from "../format";
@@ -167,6 +167,14 @@ function markerElement(kind: "start" | "destination"): HTMLElement {
   el.setAttribute("aria-label", kind === "start" ? "Start" : "Destination");
   el.textContent = kind === "start" ? "A" : "B";
   return el;
+}
+
+/** Room around a fitted trip or route: on a desktop the legend takes the bottom left; on a phone
+ * Get help, the legend and the click hint take the top. */
+function fitPadding(): PaddingOptions {
+  return window.matchMedia("(max-width: 760px)").matches
+    ? { top: 90, right: 40, bottom: 40, left: 40 }
+    : { top: 70, right: 60, bottom: 170, left: 60 };
 }
 
 export function MapView(props: Props) {
@@ -456,8 +464,7 @@ export function MapView(props: Props) {
         [Math.min(...lons), Math.min(...lats)],
         [Math.max(...lons), Math.max(...lats)],
       ],
-      // Extra room at the bottom for the legend.
-      { padding: { top: 60, right: 60, bottom: 150, left: 60 }, maxZoom: 17, duration: 500 },
+      { padding: fitPadding(), maxZoom: 17, duration: 500 },
     );
   }, [props.focus]);
 
@@ -498,7 +505,7 @@ export function MapView(props: Props) {
         [Math.min(...lons), Math.min(...lats)],
         [Math.max(...lons), Math.max(...lats)],
       ],
-      { padding: 80, maxZoom: 17, duration: 600 },
+      { padding: fitPadding(), maxZoom: 17, duration: 600 },
     );
   }, [styleVersion, props.start, props.destination]);
 
