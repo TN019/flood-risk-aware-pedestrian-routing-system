@@ -1,7 +1,8 @@
 """Share this copy of the app through a temporary public link (a Cloudflare quick tunnel).
 
 Run it with ./deploy/share.sh (macOS, Linux) or deploy\\share.bat (Windows). Each run builds the
-web client from the working copy, starts the API on a free local port, opens the tunnel and prints
+web client from the working copy (installing its dependencies again first if package-lock.json is
+newer than what is installed), starts the API on a free local port, opens the tunnel and prints
 the public address, with a QR code of it in the terminal and in deploy/share.png; Ctrl+C stops both
 and deletes the image. The address is public (anyone who has it can open the app),
 changes on every run, and works only while this computer is on and the script is running.
@@ -85,9 +86,17 @@ def check_data() -> None:
         )
 
 
+def needs_install(frontend: Path = FRONTEND) -> bool:
+    """Whether the web client's dependencies are missing or older than package-lock.json (after a pull
+    that added or updated one). npm writes node_modules/.package-lock.json on every install."""
+    installed = frontend / "node_modules" / ".package-lock.json"
+    lock = frontend / "package-lock.json"
+    return not installed.exists() or lock.stat().st_mtime > installed.stat().st_mtime
+
+
 def build_client(npm: str) -> None:
-    if not (FRONTEND / "node_modules").exists():
-        step("Installing the web client's dependencies")
+    if needs_install():
+        step("Installing the web client's dependencies (package-lock.json is newer than node_modules)")
         if subprocess.run([npm, "ci"], cwd=FRONTEND).returncode != 0:
             fail("npm ci failed; see its messages above.")
     step("Building the web client from this working copy")

@@ -65,7 +65,8 @@ To let someone elsewhere open your copy, without hosting it anywhere, run from t
 ./deploy/share.sh       # macOS and Linux; on Windows double-click deploy\share.bat
 ```
 
-Each run builds the web client from your working copy, starts the API on a free local port
+Each run builds the web client from your working copy (installing its dependencies again when
+`package-lock.json` has changed), starts the API on a free local port
 (8010, or the next free one) and opens a [Cloudflare quick tunnel](https://try.cloudflare.com),
 then prints a public `https://….trycloudflare.com` address with a QR code of it, in the terminal
 and as `deploy/share.png`, for opening it on a phone. Ctrl+C stops both and deletes the image
