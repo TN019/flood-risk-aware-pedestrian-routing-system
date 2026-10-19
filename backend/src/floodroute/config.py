@@ -19,6 +19,8 @@ RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 SCENARIO_DIR = DATA_DIR / "scenarios"
 REPORT_DIR = REPO_ROOT / "reports"
+BENCHMARK_PATH = REPO_ROOT / "docs" / "benchmark.json"  # written by scripts/benchmark.py, shown at /benchmark
+GROUND_TRUTH_DIR = DATA_DIR / "ground_truth"  # field inspection checklists (scripts/ground_truth_*.py)
 CACHE_DIR = REPO_ROOT / "cache"
 
 
