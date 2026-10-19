@@ -7,7 +7,9 @@ longer it is, and what is offered when no route fits. It also times every plan.
 ``rising_flood``: a traveller walks while the flood level rises on a schedule; at every rise the trip
 is planned again from where they are and they follow the new advice. Each part of a route is walked
 under the level it was planned for, so no metre should be walked over the limit on a route given as
-within it.
+within it. A route may run into the network's margin outside Southbank, where no trip can be planned
+(starts must lie inside); a rise there leaves the traveller on the route they have, under the new
+level, and that is counted separately.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from floodroute.places import Place
 from floodroute.risk import BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
 from floodroute.risk.model import edge_condition
-from floodroute.routing import Route
+from floodroute.routing import Route, RoutingError
 from floodroute.trip import TripPlan, plan_trip
 
 ADULT, CHILD = 1.70, 1.20
@@ -37,14 +39,19 @@ TRAVELLERS = {
 RISING = (("light-flooding", 0.0), ("moderate-flooding", 240.0), ("heavy-flooding", 480.0))
 
 
-def _over_limit_m(route: Route, snapshot: HazardSnapshot, profile: TravellerProfile, upto_m: float = math.inf) -> float:
-    """Metres of the route's first ``upto_m`` that lie on water deeper than the limit or of unknown
-    depth."""
+def _over_limit_m(
+    route: Route, snapshot: HazardSnapshot, profile: TravellerProfile, from_m: float = 0.0, upto_m: float = math.inf
+) -> float:
+    """Metres of the route between ``from_m`` and ``upto_m`` that lie on water deeper than the limit
+    or of unknown depth."""
     total, walked = 0.0, 0.0
     for seg in route.segments:
         if walked >= upto_m:
             break
-        part = min(seg.length_m, upto_m - walked)
+        part = min(walked + seg.length_m, upto_m) - max(walked, from_m)
+        if part <= 0:
+            walked += seg.length_m
+            continue
         cond = edge_condition(
             snapshot, {"edge_id": seg.source_edge_id, "length_m": seg.length_m, "standing_on": seg.standing_on}
         )
@@ -127,43 +134,53 @@ def rising_flood(
 ) -> dict:
     profile = TRAVELLERS[traveller]
     outcomes: Counter = Counter()
-    violations_m = escape_m = 0.0
-    reroutes, rerouted_trips, caught = 0, 0, 0
+    violations_m = escape_m = outside_m = 0.0
+    reroutes, rerouted_trips, caught, outside = 0, 0, 0, 0
     extra = []
     for origin, destination in trips:
         t, k, here, planned_first, walked_total, trip_reroutes = 0.0, 0, origin, None, 0.0, 0
+        route, given_safe, goal, offset = None, False, "", 0.0
         while True:
-            level = schedule[k][0]
-            snap = world.snapshots[level]
-            plan = plan_trip(world.router, world.refuges, here, destination, snap, profile)
-            if trip_reroutes and plan.origin.level > AlertLevel.OK:
-                caught += 1  # the water rose over the limit where they stand
-            if plan.has_safe_route:
-                route, given_safe, goal = plan.routes.recommended.route, True, "arrived"
-            elif plan.refuge is not None:
-                route, given_safe, goal = plan.refuge.route, plan.refuge.within_limit, "at a shelter"
-            else:
-                outcomes[_offered(plan)] += 1
-                break
-            if planned_first is None:
-                planned_first = route.length_m
+            snap = world.snapshots[schedule[k][0]]
+            try:
+                plan = plan_trip(world.router, world.refuges, here, destination, snap, profile)
+            except RoutingError:
+                if route is None:
+                    raise
+                plan = None  # outside Southbank: no new plan, so they keep to the route they have
+                outside += 1
+            if plan is not None:
+                if trip_reroutes and plan.origin.level > AlertLevel.OK:
+                    caught += 1  # the water rose over the limit where they stand
+                if plan.has_safe_route:
+                    route, given_safe, goal = plan.routes.recommended.route, True, "arrived"
+                elif plan.refuge is not None:
+                    route, given_safe, goal = plan.refuge.route, plan.refuge.within_limit, "at a shelter"
+                else:
+                    outcomes[_offered(plan)] += 1
+                    break
+                offset = 0.0
+                if planned_first is None:
+                    planned_first = route.length_m
             next_rise = schedule[k + 1][1] if k + 1 < len(schedule) else math.inf
-            reach = (next_rise - t) * profile.walking_speed_m_s
-            walk = min(route.length_m, reach)
-            over = _over_limit_m(route, snap, profile, walk)
-            if given_safe:
+            walk = min(route.length_m - offset, (next_rise - t) * profile.walking_speed_m_s)
+            over = _over_limit_m(route, snap, profile, offset, offset + walk)
+            if plan is None:
+                outside_m += over
+            elif given_safe:
                 violations_m += over
             else:
                 escape_m += over  # the safest way out of water already over the limit
             walked_total += walk
-            if route.length_m <= reach:
+            offset += walk
+            if offset >= route.length_m - 1e-9:
                 outcomes[goal] += 1
                 if goal == "arrived":
                     extra.append(walked_total / planned_first - 1)
                 break
             t, k = next_rise, k + 1
             trip_reroutes += 1
-            here = world.resolver.resolve(_point_at(route, walk), "here", role="origin")
+            here = world.resolver.resolve(_point_at(route, offset), "here", role="origin")
         reroutes += trip_reroutes
         rerouted_trips += trip_reroutes > 0
     return {
@@ -175,6 +192,8 @@ def rising_flood(
         "reroutes": reroutes,
         "trips_rerouted": rerouted_trips,
         "caught_by_rising_water": caught,
+        "not_replanned_outside_area": outside,
+        "over_limit_outside_area_m": outside_m,
         "outcomes": dict(outcomes),
         "extra_walk_median": quantile(extra, 0.5),
         "extra_walk_p90": quantile(extra, 0.9),
