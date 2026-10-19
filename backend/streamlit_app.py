@@ -23,7 +23,7 @@ from floodroute import places as pl
 from floodroute.hazard.catalog import NONE, list_scenarios, load_hazard
 from floodroute.network import is_snappable, load_graph, to_gdfs
 from floodroute.places.refuges import RefugeIndex
-from floodroute.risk import DRY_DEPTH_M, MAX_GRADIENT, BodyPart, MobilityAid, TravellerProfile
+from floodroute.risk import DRY_DEPTH_M, BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel
 from floodroute.risk.levels import REFERENCE_HEIGHT_M, FloodLevel, level_of, typical_depth_m
 from floodroute.risk.preference import DEFAULT_PREFERENCE, RoutePreference, explain
@@ -557,13 +557,8 @@ def depth_text(depth: float | None) -> str:
 
 
 def gradient_text(gradient: float | None) -> str:
-    """A measured gradient as a percentage and a "1 in N" ratio, e.g. "8.3% (1 in 12.1)"."""
-    if gradient is None:
-        return "no gradient data"
-    if gradient <= 0:
-        return "0% (flat)"
-    run = 1 / gradient
-    return f"{gradient:.1%} (1 in {run:.0f})" if run >= 100 else f"{gradient:.1%} (1 in {run:.3g})"
+    """A measured gradient as a plain percentage, e.g. "8.3%"; "—" when none was measured."""
+    return "—" if gradient is None else f"{abs(gradient):.1%}"
 
 
 def show_origin_and_emergency(trip: TripPlan) -> None:
@@ -692,7 +687,7 @@ elif plan is not None:
                 "Deepest water": depth_text(om.max_depth_m),
                 "In water": f"{om.wading_length_m:,.0f} m",
                 "Steepest": gradient_text(option.route.max_gradient),
-                "Gentlest": "—" if option.route.min_gradient is None else gradient_text(option.route.min_gradient),
+                "Gentlest": gradient_text(option.route.min_gradient),
                 "Over your limit": f"{om.segments_over_limit} section(s)" if om.segments_over_limit else "no",
             }
         )
@@ -701,12 +696,7 @@ elif plan is not None:
         f"{plan.blocked_edges} network sections are over your limit in this scenario. "
         "Grey dashed: shortest ignoring flooding · orange dotted: shortest within your limit · "
         "purple: recommended (also weighs how close the water is to your limit). "
-        "Gradients are those the City of Melbourne measured along each route"
-        + (
-            f"; yours keep to 1:{1 / MAX_GRADIENT:.0f} ({MAX_GRADIENT:.1%}) or gentler."
-            if profile.uses_wheelchair
-            else "."
-        )
+        "Gradients are those the City of Melbourne measured along each route (— where none was measured)."
     )
 
     def describe(place: pl.Place, used) -> str:
