@@ -1,6 +1,6 @@
-/* Colours and base styles shared by the app and the /reference page. The app's own styles.css
-   imports this; the reference page imports only this, so styles.css is never split into a chunk
-   shared by both pages, which would load it before MapLibre's CSS and let that override it. */
+/* Colours and base styles shared by the app and its other pages. The app's own styles.css
+   imports this; the other pages import only this (and their own styles), so styles.css is never split
+   into a chunk shared by two pages, which would load it before MapLibre's CSS and let that override it. */
 
 :root {
   --bg: #f4f6f8;

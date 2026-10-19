@@ -6,9 +6,9 @@ import { defineConfig } from "vite";
 declare const process: { env: Record<string, string | undefined> }; // Node, without @types/node
 const API_URL = process.env.FLOODROUTE_API_URL ?? "http://127.0.0.1:8000";
 
-// The API redirects /reference and /benchmark to their folders (where each page's index.html is); do
-// the same in development, where Vite would otherwise fall back to the app.
-const PAGES = ["/reference", "/benchmark"];
+// The API redirects /reference, /benchmark and /slides to their folders (where each page's index.html
+// is); do the same in development, where Vite would otherwise fall back to the app.
+const PAGES = ["/reference", "/benchmark", "/slides"];
 const pageSlash = {
   name: "page-slash",
   configureServer(server: { middlewares: { use: (fn: (req: any, res: any, next: () => void) => void) => void } }) {
@@ -27,13 +27,15 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: { "/api": API_URL },
+    // /slides shows the walkthrough clips straight from docs/images, outside the client's folder.
+    fs: { allow: [".", "../docs/images"] },
   },
   build: {
     // MapLibre is most of the bundle; keep it in its own chunk so app updates do not re-download it.
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
-      // Three pages: the app, and /reference and /benchmark (reached only by their addresses).
-      input: { app: "index.html", reference: "reference/index.html", benchmark: "benchmark/index.html" },
+      // Four pages: the app, and /reference, /benchmark and /slides (reached only by their addresses).
+      input: { app: "index.html", reference: "reference/index.html", benchmark: "benchmark/index.html", slides: "slides/index.html" },
       output: { manualChunks: { maplibre: ["maplibre-gl"] } },
     },
   },
