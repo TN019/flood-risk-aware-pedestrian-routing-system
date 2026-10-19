@@ -8,6 +8,7 @@ function line(x: number, metrics: Partial<RouteJson["metrics"]> = {}): RouteJson
     access_legs: [],
     uses_steps: false,
     max_gradient: null,
+    min_gradient: null,
     from: { lat: 0, lon: 0, label: "" },
     to: { lat: 0, lon: 0, label: null },
     metrics: {

@@ -53,6 +53,7 @@ export interface Options {
   landmarks: { fraction: number; name: string }[];
   dry_depth_m: number;
   hard_limit_m: number;
+  max_gradient: number; // steepest path a mobility aid user is routed on (rise over run, 1:14)
   preferences: PreferenceOption[];
   default_preference: string;
   flood_levels: FloodLevel[];
@@ -116,6 +117,7 @@ export interface RouteJson {
   access_legs: Geometry[];
   uses_steps: boolean;
   max_gradient: number | null; // steepest measured gradient (rise over run); null when none is measured
+  min_gradient: number | null; // gentlest measured gradient; null when none is measured
   from: LatLon & { label: string };
   to: LatLon & { label: string | null };
   metrics: RouteMetrics;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessNote, cm, contains, describeDepth, distance, groupRoutes } from "./format";
+import { accessNote, cm, contains, describeDepth, distance, gradient, gradientLimit, gradientPercent, gradientRatio, gradientSummary, groupRoutes, travellerGradientLimit } from "./format";
 import type { RouteOption } from "./types";
 
 const options = {
@@ -42,6 +42,7 @@ describe("groupRoutes", () => {
     access_legs: [],
     uses_steps: false,
     max_gradient: null,
+    min_gradient: null,
     from: { lat: 0, lon: 0, label: "" },
     to: { lat: 0, lon: 0, label: null },
     metrics: { length_m: x, travel_time_s: 1, max_depth_m: 0, max_depth_label: "dry", wading_length_m: 0, segments_over_limit: 0, detour_ratio: 0 },
@@ -85,5 +86,30 @@ describe("accessNote", () => {
     expect(accessNote({ ...routes, steps_avoided: true, steep_avoided: true })).toBe(
       "Every route avoids the steps and the paths steeper than 1:14 on the shortest way.",
     );
+  });
+});
+
+describe("gradients", () => {
+  const plain = (s: string) => s.replace(/\u00a0/g, " "); // the ratio is kept on one line
+  it("shows a percentage and a 1 in N ratio", () => {
+    expect(plain(gradient(0.0829))).toBe("8.3% (1 in 12.1)");
+    expect(plain(gradient(0.0699))).toBe("7.0% (1 in 14.3)");
+    expect(plain(gradient(1 / 14))).toBe("7.1% (1 in 14)");
+    expect(plain(gradient(0.004))).toBe("0.4% (1 in 250)");
+    expect(gradient(0)).toBe("0% (flat)");
+    expect([gradientPercent(0.0829), gradientRatio(0.0829)]).toEqual(["8.3%", "1\u00a0in\u00a012.1"]);
+    expect(gradientLimit(1 / 14)).toBe("1:14 (7.1%)");
+  });
+  it("sums up a route, with the limit only for mobility aid users", () => {
+    const route = { max_gradient: 0.0829, min_gradient: 0.004 };
+    expect(plain(gradientSummary(route, null))).toBe("Steepest 8.3% (1 in 12.1) · gentlest 0.4% (1 in 250)");
+    expect(plain(gradientSummary(route, 1 / 14))).toBe(
+      "Steepest 8.3% (1 in 12.1) · gentlest 0.4% (1 in 250) · your limit 1:14 (7.1%)",
+    );
+    expect(gradientSummary({ max_gradient: null, min_gradient: null }, null)).toBe("No gradient data");
+    expect(gradientSummary({ max_gradient: null, min_gradient: null }, 1 / 14)).toBe("No gradient data · your limit 1:14 (7.1%)");
+    const options = { max_gradient: 1 / 14 };
+    expect(travellerGradientLimit({ traveller: { mobility_aid: "none" } } as never, options)).toBeNull();
+    expect(travellerGradientLimit({ traveller: { mobility_aid: "mobility_scooter" } } as never, options)).toBeCloseTo(1 / 14);
   });
 });

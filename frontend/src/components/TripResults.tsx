@@ -1,4 +1,4 @@
-import { accessNote, cm, depthSummary, distance, minutes } from "../format";
+import { accessNote, cm, depthSummary, distance, gradientSummary, minutes, travellerGradientLimit } from "../format";
 import type { RouteKind } from "../routeStyles";
 import type { Options, TripPlan } from "../types";
 import { NextStep } from "./NextStep";
@@ -67,6 +67,7 @@ function Emergency({ trip, options, sos, onSos }: Pick<Props, "trip" | "options"
 /** Every route that was planned, each selectable to see it on the map. */
 function Comparison({ trip, options, selected, onSelect }: Pick<Props, "trip" | "options" | "selected" | "onSelect">) {
   const routes = trip.routes!;
+  const limit = travellerGradientLimit(trip, options);
   return (
     <section className="card" aria-labelledby="compare-title">
       <h2 id="compare-title">Compare routes</h2>
@@ -100,6 +101,7 @@ function Comparison({ trip, options, selected, onSelect }: Pick<Props, "trip" | 
                     <span>
                       Deepest {depthSummary(m.max_depth_m, m.max_depth_label, options.dry_depth_m)} · {distance(m.wading_length_m)} in water
                     </span>
+                    <span>{gradientSummary(o.route!, limit)}</span>
                     {unsafe && <span className="warn-text">{m.segments_over_limit} section(s) over your limit</span>}
                   </span>
                 ) : (

@@ -55,7 +55,7 @@ export const DATASETS: Dataset[] = [
   {
     name: "Footpath steepness",
     publisher: "City of Melbourne",
-    use: "The gradient of each council footpath section, so wheelchair and scooter routes leave out paths steeper than 1:14.",
+    use: "The gradient of each council footpath section: every route shows its steepest and gentlest measured gradient, and wheelchair and scooter routes leave out paths steeper than 1:14.",
     licence: "CC BY 4.0",
     url: "https://data.melbourne.vic.gov.au/explore/dataset/footpath-steepness/",
     licenceUrl: CC_BY_4,
@@ -238,6 +238,6 @@ export const LIMITS: string[] = [
   "Rain-driven surcharge at a normal tide is missed, because pit and pipe levels are not published; a short storm can leave deeper water than the light flooding scenario shows.",
   "River levels are the bay's tide levels; river flows can raise them, so river depths are a lower bound.",
   "Every building with a way in counts as a shelter; whether it is open to the public is not known from the data.",
-  "Gradients are known only where the City of Melbourne has surveyed the footpath (about two thirds of footpath length in Southbank); a path without one, such as a carriageway or a private path, is not treated as steep.",
+  "Gradients are known only where the City of Melbourne has surveyed the footpath (about two thirds of footpath length in Southbank); a path without one, such as a carriageway or a private path, is not treated as steep, and a route's steepest and gentlest gradient cover only its measured parts.",
   "A footpath section's gradient is an average between its lowest and highest points, so a short steep part of a long section can be missed; sections that seem to join two levels (at bridges and overpasses) are left out.",
 ];
