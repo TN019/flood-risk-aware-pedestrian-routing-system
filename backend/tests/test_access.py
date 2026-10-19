@@ -238,9 +238,11 @@ def test_mobility_aid_users_get_the_detour_round_a_steep_path_and_walkers_do_not
     walker = plan(WALKER, gradients=gradients)
     assert {round(o.route.length_m, 6) for o in walker.options} == {300.0}
     assert all(o.route.max_gradient == pytest.approx(0.10) for o in walker.options) and not walker.steep_avoided
+    assert all(o.route.min_gradient == pytest.approx(0.10) for o in walker.options)
     chair = plan(CHAIR, gradients=gradients)
     assert {round(o.route.length_m, 6) for o in chair.options} == {350.0}
     assert all(o.route.max_gradient == pytest.approx(0.03) for o in chair.options)
+    assert all(o.route.min_gradient == pytest.approx(0.03) for o in chair.options)  # e2 has no gradient
     assert chair.step_free and chair.steep_avoided and not chair.steps_avoided
 
 
@@ -249,3 +251,12 @@ def test_both_pieces_of_a_steep_path_split_by_a_start_point_are_steep():
     assert not any(o.found for o in chair.options) and chair.steep_avoided
     assert all(o.error == NO_STEP_FREE_ROUTE for o in chair.options)
     assert plan(WALKER, gradients={"e0": 0.10}, start=(150, 0)).recommended.found
+
+
+def test_a_route_reports_its_steepest_and_gentlest_measured_gradient():
+    p = plan(CHAIR, gradients={"e0": 0.10, "e1": 0.05, "e2": 0.02})
+    route = p.recommended.route
+    assert route.length_m == pytest.approx(350)
+    assert (route.max_gradient, route.min_gradient) == (pytest.approx(0.05), pytest.approx(0.02))
+    unmeasured = plan(CHAIR).recommended.route
+    assert unmeasured.max_gradient is None and unmeasured.min_gradient is None

@@ -200,13 +200,16 @@ def test_wheelchair_trips_never_use_steps(stepped_client):
 def test_mobility_aid_trips_never_use_steep_paths(steep_client):
     walker = trip(steep_client, scenario="dry").json()
     chair = trip(steep_client, scenario="dry", mobility_aid="mobility_scooter").json()
+    assert steep_client.get("/api/options").json()["max_gradient"] == pytest.approx(1 / 14)
     for o in walker["routes"]["options"]:
+        assert o["route"]["min_gradient"] == pytest.approx(0.10)
         assert o["route"]["max_gradient"] == pytest.approx(0.10) and o["route"]["metrics"]["length_m"] == pytest.approx(
             310, abs=1
         )
     assert not walker["routes"]["steep_avoided"]
     for o in chair["routes"]["options"]:
-        assert o["route"]["max_gradient"] is None and o["route"]["metrics"]["length_m"] == pytest.approx(510, abs=1)
+        assert o["route"]["max_gradient"] is None and o["route"]["min_gradient"] is None
+        assert o["route"]["metrics"]["length_m"] == pytest.approx(510, abs=1)
     assert chair["routes"]["step_free"] and chair["routes"]["steep_avoided"] and not chair["routes"]["steps_avoided"]
 
 

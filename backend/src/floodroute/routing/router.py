@@ -91,7 +91,16 @@ class Route:
     @property
     def max_gradient(self) -> float | None:
         """The steepest measured gradient on the route (None: none measured)."""
-        return max((seg.gradient for seg in self.segments if seg.gradient is not None), default=None)
+        return max(self._gradients, default=None)
+
+    @property
+    def min_gradient(self) -> float | None:
+        """The gentlest measured gradient on the route (None: none measured)."""
+        return min(self._gradients, default=None)
+
+    @property
+    def _gradients(self) -> list[float]:
+        return [seg.gradient for seg in self.segments if seg.gradient is not None]
 
 
 class Router:
