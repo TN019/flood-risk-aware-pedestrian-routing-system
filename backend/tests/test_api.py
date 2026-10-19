@@ -158,7 +158,7 @@ def test_no_route_reports_the_least_water_and_where_it_is(client):
 def test_standing_in_deep_water_offers_help_and_the_shelter(client):
     j = trip(client, start=(75, -2)).json()
     assert j["origin"]["level"] == "very_deep" and j["origin"]["depth_m"] == pytest.approx(0.5)
-    assert j["emergency"]["advice"] == "recommended"
+    assert j["emergency"]["advice"] == "recommended" and j["emergency"]["reason"] == "depth"
     assert j["emergency"]["sos"]["depth_m"] == pytest.approx(0.5)
     assert j["refuge"]["name"] == "Shelter" and not j["refuge"]["within_limit"]
 

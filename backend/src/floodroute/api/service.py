@@ -356,6 +356,7 @@ class Service:
             sos = trip.emergency.sos
             emergency = {
                 "advice": trip.emergency.advice,
+                "reason": trip.emergency.reason,
                 "sos": {
                     **self.latlon(sos.location),
                     "depth_m": sos.depth_m,

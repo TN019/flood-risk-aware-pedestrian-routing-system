@@ -10,7 +10,7 @@ from floodroute.places.refuges import RefugeIndex
 from floodroute.risk import HARD_LIMIT_M, BodyPart, MobilityAid, TravellerProfile
 from floodroute.risk.alerts import AlertLevel, alert_level
 from floodroute.routing import Router
-from floodroute.trip import ONLY_OPTION, plan_trip
+from floodroute.trip import CUT_OFF, FROM_DEPTH, NO_REFUGE, ONLY_OPTION, plan_trip
 
 ADULT = 1.70
 
@@ -140,6 +140,7 @@ def test_refuge_from_deep_water_is_the_safest_way_out():
     assert plan.refuge.refuge.name == "North" and not plan.refuge.within_limit
     assert plan.refuge.metrics.max_depth_m == pytest.approx(0.52)
     assert plan.emergency.advice == "available" and plan.emergency.sos.depth_m == pytest.approx(0.52)
+    assert plan.emergency.reason == FROM_DEPTH
     assert plan.downgrade is None  # get out of the water first
 
 
@@ -153,12 +154,32 @@ def test_critical_depth_strongly_recommends_help():
 def test_emergency_is_the_only_option_when_nothing_is_reachable():
     plan = trip(snapshot(e0=0.2, e1=0.4, e4=0.4, e2=0.4), TravellerProfile(ADULT, BodyPart.ANKLE), buildings=())
     assert plan.refuge is None and plan.emergency.advice == ONLY_OPTION
+    assert plan.emergency.reason == NO_REFUGE
 
 
 def test_starting_inside_a_building_counts_as_sheltered():
     plan = trip(snapshot(e1=0.4, e4=0.4), TravellerProfile(ADULT, BodyPart.ANKLE), origin=(40, 125))
     assert plan.origin.sheltered and plan.origin.level == AlertLevel.OK
     assert plan.refuge is None and plan.emergency is None
+
+
+def test_inside_a_building_cut_off_by_deep_water_help_is_available():
+    # Every way from North to the destination crosses e1 or e4 at 60 cm: beyond the hard limit, so
+    # no downgrade either. Staying inside is still the advice; help is made available.
+    plan = trip(snapshot(e1=0.6, e4=0.6), TravellerProfile(ADULT, BodyPart.ANKLE), origin=(40, 125))
+    assert plan.origin.sheltered and not plan.has_safe_route and plan.downgrade is None
+    assert plan.refuge is None
+    assert plan.emergency.advice == "available" and plan.emergency.reason == CUT_OFF
+    assert plan.emergency.sos.depth_m is None  # indoors
+
+
+def test_inside_a_building_cut_off_beyond_a_wheelchairs_cap():
+    # 10 cm is within reach for walkers (a downgrade) but beyond the manual wheelchair's 7.5 cm cap.
+    walker = trip(snapshot(e1=0.1, e4=0.1), TravellerProfile(ADULT, BodyPart.NO_WADING), origin=(40, 125))
+    assert walker.downgrade is not None and walker.emergency is None
+    chair = TravellerProfile(ADULT, mobility_aid=MobilityAid.MANUAL_WHEELCHAIR)
+    plan = trip(snapshot(e1=0.1, e4=0.1), chair, origin=(40, 125))
+    assert plan.downgrade is None and plan.emergency.reason == CUT_OFF
 
 
 def test_a_corner_beside_a_flooded_street_is_not_deep_water():
