@@ -1,4 +1,4 @@
-// Regenerate the README walkthrough: one short animated clip for each situation the app handles.
+// Regenerate the walkthrough (docs/walkthrough.md): one short animated clip for each situation the app handles.
 //
 // Needs, running locally: the API (`uv run uvicorn floodroute.api.app:app --port 8010` in backend/)
 // and the web dev server (`npm run dev`, with FLOODROUTE_API_URL pointing at that API).
@@ -38,6 +38,9 @@ const SOUTH_OF_CROWN = [-37.82704, 144.9541];
 // Either side of an 8.3% path on the promenade: 109 m on foot, 429 m round it in a wheelchair.
 const PROMENADE_WEST = [-37.820479, 144.963567];
 const PROMENADE_EAST = [-37.820245, 144.964435];
+// Under moderate flooding with a knee limit, each route preference gives a different route here.
+const PREFERENCE_START = [-37.825239, 144.965677];
+const CROWN_PROMENADE_HOTEL = [-37.824044, 144.960144];
 
 const DESKTOP = { width: 1280, height: 800, deviceScaleFactor: 1 };
 const PHONE = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
@@ -248,6 +251,44 @@ async function switchAid(page, aid) {
   await showResults(page, false);
 }
 
+/** Choose a device and one of its levels (an index into its levels), then wait for the new plan. */
+async function switchDevice(page, aid, level) {
+  await switchAid(page, aid);
+  await page.evaluate(() =>
+    [...document.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === "0"))?.scrollIntoView({ block: "center" }),
+  );
+  await sleep(600);
+  await choose(page, "0", String(level));
+  await sleep(2600); // the plan for the new level
+  await mapIdle(page);
+  await showResults(page, false);
+}
+
+/** Type a place into the start (0) or destination (1) search box and pick the first match. */
+async function searchPlace(page, which, text) {
+  const box = await page.evaluate((which) => {
+    const input = document.querySelectorAll(".place")[which].querySelector("form.search input");
+    input.scrollIntoView({ block: "nearest" });
+    const r = input.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }, which);
+  await clickAt(page, box);
+  await page.keyboard.type(text, { delay: 70 });
+  await sleep(300);
+  await page.keyboard.press("Enter");
+  await page.waitForSelector(".hits button", { timeout: 20000 });
+  await sleep(800);
+  await clickButton(page, ".hits button", text);
+}
+
+/** Pick a route preference and wait for the plan it gives. */
+async function pickPreference(page, label) {
+  const before = await nextStepText(page);
+  await clickButton(page, ".pref", label);
+  await waitForNewPlan(page, before);
+  await showResults(page, false);
+}
+
 async function useLimit(page) {
   const before = await nextStepText(page);
   await clickButton(page, ".choice button.button", "Use this limit");
@@ -255,7 +296,7 @@ async function useLimit(page) {
   await showResults(page, false);
 }
 
-// One clip per situation, in the order the README shows them. Before recording, the map is framed on
+// One clip per situation, in the order docs/walkthrough.md shows them. Before recording, the map is framed on
 // `frame` and `setup` runs.
 const CLIPS = {
   "flood-levels": {
@@ -264,6 +305,19 @@ const CLIPS = {
         await pickLevel(page, level);
         await sleep(1300);
       }
+    },
+  },
+  search: {
+    setup: (page) => setWading(page, "ankle"),
+    run: async (page) => {
+      await pickLevel(page, "Light");
+      await searchPlace(page, 0, "Eureka Tower");
+      await sleep(900);
+      const before = await nextStepText(page);
+      await searchPlace(page, 1, "Crown Melbourne");
+      await waitForNewPlan(page, before);
+      await showResults(page, false);
+      await sleep(3000);
     },
   },
   detour: {
@@ -277,6 +331,19 @@ const CLIPS = {
       await sleep(2000);
       await clickButton(page, ".compare-row", "Recommended");
       await sleep(1800);
+    },
+  },
+  preferences: {
+    frame: [PREFERENCE_START, CROWN_PROMENADE_HOTEL],
+    setup: (page) => setWading(page, "knee"),
+    run: async (page) => {
+      await pickLevel(page, "Moderate");
+      await planTrip(page, PREFERENCE_START, CROWN_PROMENADE_HOTEL);
+      await sleep(2200);
+      await pickPreference(page, "Shortest");
+      await sleep(2200);
+      await pickPreference(page, "Stay as dry as possible");
+      await sleep(2600);
     },
   },
   choose: {
@@ -328,6 +395,21 @@ const CLIPS = {
       await sleep(2400);
       await useLimit(page);
       await sleep(2200);
+    },
+  },
+  "mobility-aids": {
+    frame: [CROWN_WEST, BOYD_VILLAGE],
+    setup: async (page) => {
+      await setAid(page, "powered_wheelchair");
+      await sleep(300);
+      await choose(page, "0", "1"); // well below the chassis, 5 cm
+    },
+    run: async (page) => {
+      await pickLevel(page, "Light");
+      await planTrip(page, CROWN_WEST, BOYD_VILLAGE);
+      await sleep(2600);
+      await switchDevice(page, "mobility_scooter", 1); // a shallow puddle, 2.5 cm: the scooter's cap
+      await sleep(3200);
     },
   },
   "steep-path": {
