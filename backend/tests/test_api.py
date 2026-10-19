@@ -221,3 +221,13 @@ def test_mobility_aid_requests_are_checked(client):
     assert trip(client, mobility_aid="hoverboard").status_code == 422
     r = trip(client, mobility_aid="mobility_scooter", aid_level=2)
     assert r.status_code == 422 and "no level 2" in r.json()["detail"]
+
+
+def test_benchmark_results_or_a_message(client, tmp_path, monkeypatch):
+    from floodroute import config
+
+    monkeypatch.setattr(config, "BENCHMARK_PATH", tmp_path / "benchmark.json")
+    missing = client.get("/api/benchmark")
+    assert missing.status_code == 404 and "scripts/benchmark.py" in missing.json()["detail"]
+    (tmp_path / "benchmark.json").write_text('{"commit": "abc123"}')
+    assert client.get("/api/benchmark").json() == {"commit": "abc123"}
