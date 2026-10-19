@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessNote, cm, contains, describeDepth, distance, gradient, gradientLimit, gradientPercent, gradientRatio, gradientSummary, groupRoutes, travellerGradientLimit } from "./format";
+import { accessNote, cm, contains, describeDepth, distance, gradientPercent, gradientSummary, groupRoutes, hasGradients } from "./format";
 import type { RouteOption } from "./types";
 
 const options = {
@@ -90,26 +90,19 @@ describe("accessNote", () => {
 });
 
 describe("gradients", () => {
-  const plain = (s: string) => s.replace(/\u00a0/g, " "); // the ratio is kept on one line
-  it("shows a percentage and a 1 in N ratio", () => {
-    expect(plain(gradient(0.0829))).toBe("8.3% (1 in 12.1)");
-    expect(plain(gradient(0.0699))).toBe("7.0% (1 in 14.3)");
-    expect(plain(gradient(1 / 14))).toBe("7.1% (1 in 14)");
-    expect(plain(gradient(0.004))).toBe("0.4% (1 in 250)");
-    expect(gradient(0)).toBe("0% (flat)");
-    expect([gradientPercent(0.0829), gradientRatio(0.0829)]).toEqual(["8.3%", "1\u00a0in\u00a012.1"]);
-    expect(gradientLimit(1 / 14)).toBe("1:14 (7.1%)");
+  it("shows plain percentages, without a sign", () => {
+    expect(gradientPercent(0.0829)).toBe("8.3%");
+    expect(gradientPercent(-0.024)).toBe("2.4%");
+    expect(gradientPercent(0)).toBe("0.0%");
+    expect(gradientSummary({ max_gradient: 0.024, min_gradient: 0.006 })).toBe("Gradient 0.6% to 2.4%");
+    expect(gradientSummary({ max_gradient: 0.024, min_gradient: 0.024 })).toBe("Gradient 2.4%");
   });
-  it("sums up a route, with the limit only for mobility aid users", () => {
-    const route = { max_gradient: 0.0829, min_gradient: 0.004 };
-    expect(plain(gradientSummary(route, null))).toBe("Steepest 8.3% (1 in 12.1) · gentlest 0.4% (1 in 250)");
-    expect(plain(gradientSummary(route, 1 / 14))).toBe(
-      "Steepest 8.3% (1 in 12.1) · gentlest 0.4% (1 in 250) · your limit 1:14 (7.1%)",
-    );
-    expect(gradientSummary({ max_gradient: null, min_gradient: null }, null)).toBe("No gradient data");
-    expect(gradientSummary({ max_gradient: null, min_gradient: null }, 1 / 14)).toBe("No gradient data · your limit 1:14 (7.1%)");
-    const options = { max_gradient: 1 / 14 };
-    expect(travellerGradientLimit({ traveller: { mobility_aid: "none" } } as never, options)).toBeNull();
-    expect(travellerGradientLimit({ traveller: { mobility_aid: "mobility_scooter" } } as never, options)).toBeCloseTo(1 / 14);
+  it("never shows NaN when a gradient is missing", () => {
+    for (const g of [null, undefined, Number.NaN, Infinity]) expect(gradientPercent(g)).toBe("—");
+    expect(hasGradients({ max_gradient: null, min_gradient: null })).toBe(false);
+    expect(gradientSummary({ max_gradient: null, min_gradient: null })).toBe("No gradient data");
+    expect(gradientSummary({ max_gradient: 0.03 })).toBe("No gradient data"); // an API without min_gradient
+    expect(gradientSummary({})).toBe("No gradient data");
+    expect(gradientSummary({ max_gradient: Number.NaN, min_gradient: 0.01 })).toBe("No gradient data");
   });
 });

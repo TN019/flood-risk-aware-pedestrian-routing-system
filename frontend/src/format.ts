@@ -71,36 +71,20 @@ export function accessNote(routes: Pick<NonNullable<TripPlan["routes"]>, "step_f
   return routes.step_free ? "Every route is step-free." : "";
 }
 
-/** A gradient (rise over run) as a percentage, e.g. "8.3%". */
-export function gradientPercent(g: number): string {
-  return g <= 0 ? "0%" : `${(g * 100).toFixed(1)}%`;
+/** A measured gradient (rise over run) as a plain percentage, e.g. "8.3%"; "—" when it is missing. */
+export function gradientPercent(g: number | null | undefined): string {
+  return typeof g === "number" && Number.isFinite(g) ? `${(Math.abs(g) * 100).toFixed(1)}%` : "—";
 }
 
-/** A gradient as a "1 in N" ratio, e.g. "1 in 12.1", kept on one line. */
-export function gradientRatio(g: number): string {
-  if (g <= 0) return "flat";
-  const run = 1 / g;
-  return `1\u00a0in\u00a0${run >= 100 ? Math.round(run) : Number(run.toPrecision(3))}`;
+/** Whether a route has a steepest and a gentlest measured gradient to show. */
+export function hasGradients(route: Partial<Pick<RouteJson, "max_gradient" | "min_gradient">>): boolean {
+  return [route.max_gradient, route.min_gradient].every((g) => typeof g === "number" && Number.isFinite(g));
 }
 
-/** A gradient as a percentage and a "1 in N" ratio, e.g. "8.3% (1 in 12.1)". */
-export function gradient(g: number): string {
-  return `${gradientPercent(g)} (${gradientRatio(g)})`;
-}
-
-/** A gradient limit as a ratio and a percentage, e.g. "1:14 (7.1%)". */
-export function gradientLimit(g: number): string {
-  return `1:${Math.round(1 / g)} (${(g * 100).toFixed(1)}%)`;
-}
-
-/** The steepest path the traveller may be routed on: only mobility aid users have one. */
-export function travellerGradientLimit(trip: Pick<TripPlan, "traveller">, options: Pick<Options, "max_gradient">): number | null {
-  return trip.traveller.mobility_aid === "none" ? null : options.max_gradient;
-}
-
-/** The steepest and gentlest measured gradient along a route, and the traveller's limit if they have one. */
-export function gradientSummary(route: Pick<RouteJson, "max_gradient" | "min_gradient">, limit: number | null): string {
-  const within = limit === null ? "" : ` · your limit ${gradientLimit(limit)}`;
-  if (route.max_gradient === null || route.min_gradient === null) return `No gradient data${within}`;
-  return `Steepest ${gradient(route.max_gradient)} · gentlest ${gradient(route.min_gradient)}${within}`;
+/** The measured gradients along a route, e.g. "Gradient 0.6% to 2.4%". */
+export function gradientSummary(route: Partial<Pick<RouteJson, "max_gradient" | "min_gradient">>): string {
+  if (!hasGradients(route)) return "No gradient data";
+  const gentlest = gradientPercent(route.min_gradient);
+  const steepest = gradientPercent(route.max_gradient);
+  return gentlest === steepest ? `Gradient ${steepest}` : `Gradient ${gentlest} to ${steepest}`;
 }

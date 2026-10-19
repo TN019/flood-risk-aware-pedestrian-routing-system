@@ -53,7 +53,6 @@ export interface Options {
   landmarks: { fraction: number; name: string }[];
   dry_depth_m: number;
   hard_limit_m: number;
-  max_gradient: number; // steepest path a mobility aid user is routed on (rise over run, 1:14)
   preferences: PreferenceOption[];
   default_preference: string;
   flood_levels: FloodLevel[];

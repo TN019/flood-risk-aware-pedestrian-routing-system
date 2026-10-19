@@ -1,4 +1,4 @@
-import { cm, depthSummary, distance, gradientLimit, gradientPercent, gradientRatio, minutes, travellerGradientLimit } from "../format";
+import { cm, depthSummary, distance, gradientPercent, hasGradients, minutes } from "../format";
 import { acceptText, detourText, route, situation, whyNoRoute } from "../guidance";
 import type { RouteKind } from "../routeStyles";
 import type { Options, RouteJson, TripPlan } from "../types";
@@ -12,10 +12,9 @@ interface Props {
   onUseLimit: (downgrade: NonNullable<TripPlan["downgrade"]>) => void;
 }
 
-function Metrics({ r, options, limit }: { r: RouteJson; options: Options; limit: number | null }) {
+function Metrics({ r, options }: { r: RouteJson; options: Options }) {
   const m = r.metrics;
   const wet = m.max_depth_m !== null && m.max_depth_m > options.dry_depth_m;
-  const yourLimit = limit === null ? "" : ` · your limit ${gradientLimit(limit)}`;
   return (
     <div className="metrics">
       <div>
@@ -36,25 +35,22 @@ function Metrics({ r, options, limit }: { r: RouteJson; options: Options; limit:
         <span className="metric-value">{distance(m.wading_length_m)}</span>
         <span className="metric-label">in water</span>
       </div>
-      {r.max_gradient === null || r.min_gradient === null ? (
-        <div className="metric-wide">
-          <span className="metric-value">No gradient data</span>
-          <span className="metric-label">not measured along this route{yourLimit}</span>
-        </div>
-      ) : (
+      {hasGradients(r) ? (
         <>
           <div>
             <span className="metric-value">{gradientPercent(r.max_gradient)}</span>
-            <span className="metric-label">
-              steepest, {gradientRatio(r.max_gradient)}
-              {yourLimit}
-            </span>
+            <span className="metric-label">steepest</span>
           </div>
           <div>
             <span className="metric-value">{gradientPercent(r.min_gradient)}</span>
-            <span className="metric-label">gentlest, {gradientRatio(r.min_gradient)}</span>
+            <span className="metric-label">gentlest</span>
           </div>
         </>
+      ) : (
+        <div>
+          <span className="metric-value">—</span>
+          <span className="metric-label">no gradient data</span>
+        </div>
       )}
     </div>
   );
@@ -142,14 +138,14 @@ export function NextStep({ trip, options, selected, onSelect, onUseLimit }: Prop
   switch (sit) {
     case "go":
       headline = "You can go: this route stays within your limit";
-      body = <Metrics r={route(trip, "recommended")!} options={options} limit={travellerGradientLimit(trip, options)} />;
+      body = <Metrics r={route(trip, "recommended")!} options={options} />;
       break;
     case "detour":
       headline = "Take the recommended route";
       body = (
         <>
           <p>{detourText(trip)}</p>
-          <Metrics r={route(trip, "recommended")!} options={options} limit={travellerGradientLimit(trip, options)} />
+          <Metrics r={route(trip, "recommended")!} options={options} />
         </>
       );
       break;

@@ -329,10 +329,6 @@
   color: var(--muted);
 }
 
-.metric-wide {
-  grid-column: 1 / -1;
-}
-
 .compare {
   list-style: none;
   margin: 0;
