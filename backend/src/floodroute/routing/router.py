@@ -46,7 +46,13 @@ ACCESS_EDGE = "access"
 
 
 class RoutingError(Exception):
-    """A user-facing reason why no route can be produced."""
+    """A user-facing reason why no route can be produced. ``key`` and ``values`` name the reason
+    for clients that word it themselves, e.g. in the traveller's language (see ``api.i18n``)."""
+
+    def __init__(self, message: str, key: str | None = None, **values):
+        super().__init__(message)
+        self.key = key
+        self.values = values
 
 
 @dataclass(frozen=True)
@@ -120,11 +126,16 @@ class Router:
     def snap_candidates(self, point: Point) -> list[Snap]:
         """Footpaths this point could be joined to, nearest first."""
         if self.study_area is not None and not self.study_area.covers(point):
-            raise RoutingError("This point is outside Southbank. Please choose a point inside the boundary.")
+            raise RoutingError(
+                "This point is outside Southbank. Please choose a point inside the boundary.", "outside_area"
+            )
         nearest = self._geoms[self._tree.nearest(point)].distance(point)
         if nearest > self.max_snap_m:
             raise RoutingError(
-                f"This point is {nearest:.0f} m from the nearest footpath (limit {self.max_snap_m:.0f} m)."
+                f"This point is {nearest:.0f} m from the nearest footpath (limit {self.max_snap_m:.0f} m).",
+                "far_from_path",
+                distance=f"{nearest:.0f}",
+                limit=f"{self.max_snap_m:.0f}",
             )
         snaps = []
         for i in self._tree.query(point.buffer(nearest + SNAP_SLACK_M)):
@@ -164,7 +175,7 @@ class Router:
             standing = tuple(self.graph.edges[s.edge]["edge_id"] for s in candidates if s.distance_m <= closest)
             snaps.extend((s, standing) for s in candidates)
         if not snaps:
-            raise first_error or RoutingError("No usable point to route from.")
+            raise first_error or RoutingError("No usable point to route from.", "no_usable_point")
         return snaps
 
     def route(
@@ -206,7 +217,7 @@ class Router:
         try:
             nodes = (path_finder or self.path_finder).find_path(graph, ORIGIN, DESTINATION, cost)
         except NoPathError:
-            raise RoutingError("No route connects these two points.") from None
+            raise RoutingError("No route connects these two points.", "not_connected") from None
 
         o_snap = graph.edges[nodes[0], nodes[1]]["snap"]
         d_snap = graph.edges[nodes[-2], nodes[-1]]["snap"]

@@ -40,7 +40,8 @@ refuges and scenarios once and answers in WGS84 GeoJSON; `api.app` maps it onto 
 | `GET /api/benchmark` | the latest benchmark results (`docs/benchmark.json`, written by `scripts/benchmark.py`) |
 
 Start and destination must lie inside the study area; requests that cannot be answered as asked
-return 422 with a message for the user. The web client (`frontend/`, React, TypeScript and
+return 422 with a message for the user. Every route answers in the language asked for (see
+[Languages](#languages) below). The web client (`frontend/`, React, TypeScript and
 MapLibre on an OpenStreetMap basemap) keeps no routing rules of its own: it shows what the API
 returns, with the map and a side panel on desktops and the map above a sliding sheet on phones.
 A **Get help** button stays on the map whatever the trip says, with calls to 000 (life in
@@ -66,6 +67,51 @@ cross, against the traveller's limit or the 50 cm hard limit, with that point ma
 Picking a choice, or a row under "Compare routes", highlights its route, dims the others and zooms
 to it; every route has a white outline so it stays readable above the water. The legend lists only
 what is on the map, and starts folded on phones.
+
+## Languages
+
+The web client's three pages (the app, `/reference` and `/benchmark`) are offered in English,
+Spanish, Chinese (Simplified), Hindi and Korean; `/slides`, the Streamlit app and the documentation
+stay in English. Why these languages: [parameters.md](parameters.md#languages); conventions, the
+glossary: [languages.md](languages.md).
+
+**Each side translates the text it composes.** The API composes sentences from the engine's
+values (where water reaches on a body, a route preference's example in metres, why an option has no
+route, an error), so it words them, and the client words its own pages:
+
+- The API takes the language as the `lang` query parameter, else the `Accept-Language` header, else
+  English (`api.i18n.negotiate`; any Chinese tag gets Simplified Chinese), and says which in
+  `Content-Language`. Its sentences come from one catalogue per language,
+  `api/locales/<language>.json`, by key, with values filled in: labels in `/api/options`, scenario
+  titles, descriptions and source notes in `/api/scenarios` (English from `data/scenarios`), the
+  limit and its example in `/api/traveller`, every label and route error in `/api/trip`, and error
+  messages.
+- To word them, the engine hands over values and keys instead of English text:
+  `risk.profile.depth_reach` (a body landmark), `risk.preference.example` (the metres in a
+  preference's example), `RoutingError.key`, `RouteOption.reason`, `AccessPoint.kind` and
+  `Refuge.named`. Its own English sentences remain for the Streamlit app, the scripts and the
+  benchmark records, and the English catalogue says the same (`tests/test_i18n.py`).
+- The client's catalogues are `frontend/src/i18n/messages/<language>.ts`, one object per language,
+  typed by the English one so a missing sentence does not compile. English ships with each page;
+  another language is loaded when chosen. Sentences are whole templates (`{placeholders}` for
+  values), never pieced together from fragments, so each language orders its own words; where a
+  placeholder takes a phrase from the API (e.g. "up to the knee"), the API sends the whole phrase
+  rather than a noun to build it from.
+- The choice is shared by the three pages: remembered in `localStorage` (when storage is
+  unavailable, the browser's language decides each time), sent with every API request, and set as
+  `<html lang>`, which also picks the fonts for Devanagari, Hangul and Chinese characters
+  (`theme.css`). Changing the language fetches the same plan again in its words and keeps the route
+  shown.
+- What stays in English everywhere: dataset and document names, with their authors, years, table
+  numbers and licences, and the citations on `/reference` (in a scenario's source notes only the
+  words around them are translated); place names from OpenStreetMap; and the vocabulary of `docs/benchmark.json`, a stored
+  record the API sends as written (the `/benchmark` page words its travellers, outcomes and faults
+  itself, falling back to the English for anything new).
+
+The alternative, an API that returns only keys and values for the client to word, would keep all
+wording in one place but duplicate the engine's rules in the client (where water reaches on a body,
+what a preference means) and move scenario descriptions out of the scenario files; an API composing
+its own sentences keeps each rule next to the words that state it.
 
 ## Routing graph
 

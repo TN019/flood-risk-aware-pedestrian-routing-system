@@ -12,6 +12,7 @@ up to about 75 m further."
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 
 from floodroute.hazard import DRY_DEPTH_M
@@ -53,16 +54,33 @@ class RoutePreference(Enum):
 DEFAULT_PREFERENCE = RoutePreference.BALANCED
 
 
-def explain(alpha: float, profile: TravellerProfile) -> str:
-    """What ``alpha`` means for this traveller, as an example in metres."""
+@dataclass(frozen=True)
+class Example:
+    """To avoid ``water_m`` of water ``depth_m`` deep, a traveller would walk up to ``detour_m`` further."""
+
+    water_m: float
+    depth_m: float
+    detour_m: int
+
+
+def example(alpha: float, profile: TravellerProfile) -> Example | None:
+    """What ``alpha`` means for this traveller, in metres; None when they do not walk through water
+    at all, so the setting has no effect."""
     depth = round(EXAMPLE_DEPTH_SHARE * profile.depth_limit_m, 2)
     if depth <= DRY_DEPTH_M:
-        return "You will not walk through water, so routes never enter it; this setting has no effect."
+        return None
     risk = depth / profile.depth_limit_m
-    detour = alpha * risk * EXAMPLE_WATER_M
+    return Example(EXAMPLE_WATER_M, depth, _round_m(alpha * risk * EXAMPLE_WATER_M))
+
+
+def explain(alpha: float, profile: TravellerProfile) -> str:
+    """What ``alpha`` means for this traveller, as an example in metres."""
+    ex = example(alpha, profile)
+    if ex is None:
+        return "You will not walk through water, so routes never enter it; this setting has no effect."
     return (
-        f"To avoid {EXAMPLE_WATER_M:.0f} m of water {depth * 100:.0f} cm deep "
-        f"({profile.describe_depth(depth)}), you would walk up to about {_round_m(detour)} m further."
+        f"To avoid {ex.water_m:.0f} m of water {ex.depth_m * 100:.0f} cm deep "
+        f"({profile.describe_depth(ex.depth_m)}), you would walk up to about {ex.detour_m} m further."
     )
 
 

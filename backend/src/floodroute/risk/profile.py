@@ -158,13 +158,25 @@ class TravellerProfile:
         return describe_depth(depth_m, self.height_m)
 
 
-def describe_depth(depth_m: float | None, height_m: float) -> str:
-    """Where water of this depth reaches on a person of this height, e.g. "up to the ankle"."""
+# What ``depth_reach`` returns besides a landmark's name.
+UNKNOWN_DEPTH, DRY, ABOVE_SHOULDERS = "unknown depth", "dry", "above the shoulders"
+
+
+def depth_reach(depth_m: float | None, height_m: float) -> str:
+    """Where water of this depth reaches on a person of this height: the first landmark of
+    ``LANDMARKS`` it does not pass (e.g. "ankle"), or ``UNKNOWN_DEPTH``, ``DRY`` or
+    ``ABOVE_SHOULDERS``. The web API words it in the traveller's language."""
     if depth_m is None:
-        return "unknown depth"
+        return UNKNOWN_DEPTH
     if depth_m <= DRY_DEPTH_M:
-        return "dry"
+        return DRY
     for fraction, name in LANDMARKS:
         if depth_m <= fraction * height_m:
-            return f"up to the {name}"
-    return "above the shoulders"
+            return name
+    return ABOVE_SHOULDERS
+
+
+def describe_depth(depth_m: float | None, height_m: float) -> str:
+    """Where water of this depth reaches on a person of this height, e.g. "up to the ankle"."""
+    reach = depth_reach(depth_m, height_m)
+    return reach if reach in (UNKNOWN_DEPTH, DRY, ABOVE_SHOULDERS) else f"up to the {reach}"

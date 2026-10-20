@@ -28,12 +28,21 @@ NOT_FOR_LEAVING = {"emergency", "service", "garage", "construction", "subway_ent
 PRIVATE_ACCESS = {"private", "no", "permit", "delivery"}
 
 ORIGIN, DESTINATION = "origin", "destination"
+# Kinds of access point.
+MAIN_ENTRANCE, ENTRANCE, BUILDING_EDGE, CHOSEN_POINT = "main_entrance", "entrance", "building_edge", "chosen_point"
 
 
 @dataclass(frozen=True)
 class AccessPoint:
     point: Point
-    label: str  # e.g. "main entrance", "entrance", "building edge"
+    kind: str  # MAIN_ENTRANCE, ENTRANCE, BUILDING_EDGE or CHOSEN_POINT
+    name: str | None = None  # an entrance's own name, if it has one
+
+    @property
+    def label(self) -> str:
+        """In English, e.g. "main entrance", "entrance (Riverside)", "building edge"."""
+        words = self.kind.replace("_", " ")
+        return f"{words} ({self.name})" if self.name else words
 
 
 @dataclass(frozen=True)
@@ -48,8 +57,12 @@ class Place:
     def access_points(self) -> list[Point]:
         return [a.point for a in self.access]
 
+    def access_at(self, point: Point) -> AccessPoint:
+        """The access point nearest to ``point`` (where a route starts or ends)."""
+        return min(self.access, key=lambda a: a.point.distance(point))
+
     def access_label(self, point: Point) -> str:
-        return min(self.access, key=lambda a: a.point.distance(point)).label
+        return self.access_at(point).label
 
 
 class PlaceResolver:
@@ -69,7 +82,7 @@ class PlaceResolver:
     ) -> Place:
         building, name = self.building_at(point, footprint)
         if building is None:
-            return Place(label, point, (AccessPoint(point, "chosen point"),), None, "point")
+            return Place(label, point, (AccessPoint(point, CHOSEN_POINT),), None, "point")
         label = name or label
         access = self.entrances_of(building, role)
         if access:
@@ -77,7 +90,7 @@ class PlaceResolver:
         access = self.outline_points(building)
         if access:
             return Place(label, point, tuple(access), building, "outline")
-        return Place(label, point, (AccessPoint(point, "chosen point"),), building, "point")
+        return Place(label, point, (AccessPoint(point, CHOSEN_POINT),), building, "point")
 
     def building_at(
         self, point: Point, footprint: BaseGeometry | None = None
@@ -117,8 +130,7 @@ class PlaceResolver:
                 continue
             kind = _tag(row, "entrance")
             name = _tag(row, "name")
-            label = "main entrance" if kind == "main" else "entrance"
-            out.append(AccessPoint(row.geometry, f"{label} ({name})" if name else label))
+            out.append(AccessPoint(row.geometry, MAIN_ENTRANCE if kind == "main" else ENTRANCE, name))
         return out[: MAX_ACCESS_POINTS * 2]
 
     def outline_points(self, building: BaseGeometry) -> list[AccessPoint]:
@@ -134,7 +146,7 @@ class PlaceResolver:
                 picked.append(p)
             if len(picked) == MAX_ACCESS_POINTS:
                 break
-        return [AccessPoint(p, "building edge") for p in picked]
+        return [AccessPoint(p, BUILDING_EDGE) for p in picked]
 
 
 def _tag(row, key: str) -> str | None:

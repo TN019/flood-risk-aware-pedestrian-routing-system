@@ -3,6 +3,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { cm, describeDepth } from "../format";
 import { route as routeOf } from "../guidance";
+import { useI18n } from "../i18n/I18n";
+import type { Translate } from "../i18n/translate";
 import { DRAW_ORDER, ROUTE_STYLES, type RouteKind } from "../routeStyles";
 import type { Area, ChosenPoint, FeatureCollection, Options, TripPlan } from "../types";
 
@@ -60,6 +62,9 @@ interface Props {
   onMapClick: (lat: number, lon: number) => void;
 }
 
+/** What sync() needs besides the props: the words for the map's own labels. */
+type Synced = Props & { t: Translate };
+
 /** Every route of the plan, drawn once per distinct line. Where several follow the same line, it is
  * drawn as the selected one, or else as the most important (latest in DRAW_ORDER). */
 function routeFeatures(trip: TripPlan | null, selected: RouteKind | null): FeatureCollection {
@@ -87,7 +92,7 @@ function routeFeatures(trip: TripPlan | null, selected: RouteKind | null): Featu
   return { type: "FeatureCollection", features };
 }
 
-function placeFeatures(trip: TripPlan | null): FeatureCollection {
+function placeFeatures(trip: TripPlan | null, t: Translate): FeatureCollection {
   if (!trip) return EMPTY;
   const features: GeoJSON.Feature[] = [];
   for (const [role, place] of [
@@ -106,14 +111,17 @@ function placeFeatures(trip: TripPlan | null): FeatureCollection {
     }
   }
   if (trip.refuge) {
-    features.push({ type: "Feature", properties: { role: "refuge", label: `Shelter: ${trip.refuge.name}` }, geometry: trip.refuge.building });
+    features.push({ type: "Feature", properties: { role: "refuge", label: t("map.shelter", { name: trip.refuge.name }) }, geometry: trip.refuge.building });
   }
   const least = trip.least_water;
   if (least) {
-    const depth = least.required_depth_m === null ? "unknown depth" : `${cm(least.required_depth_m)} (${least.required_label})`;
+    const label =
+      least.required_depth_m === null
+        ? t("map.deepestUnknown")
+        : t("map.deepest", { depth: t("depth.withLabel", { depth: cm(least.required_depth_m), label: least.required_label }) });
     features.push({
       type: "Feature",
-      properties: { role: "deepest", label: `Deepest point on the least-water route: ${depth}` },
+      properties: { role: "deepest", label },
       geometry: { type: "Point", coordinates: [least.deepest_point.lon, least.deepest_point.lat] },
     });
   }
@@ -129,7 +137,7 @@ function wrap(g: GeoJSON.Geometry): FeatureCollection {
 
 /** Push the current data into the app's layers. Safe to call at any time: while a style is still
  * being (re)loaded it changes nothing, and the next style load calls it again with every part. */
-function sync(m: maplibregl.Map, p: Props, parts: Part[], fitted: { current: boolean }): void {
+function sync(m: maplibregl.Map, p: Synced, parts: Part[], fitted: { current: boolean }): void {
   const source = (id: string) => m.getSource(id) as GeoJSONSource | undefined;
   try {
     for (const part of parts) {
@@ -153,7 +161,7 @@ function sync(m: maplibregl.Map, p: Props, parts: Part[], fitted: { current: boo
         m.setFilter("water-ok", ["<=", depth, p.depthLimitM]);
       } else if (part === "trip") {
         source("routes")?.setData(routeFeatures(p.trip, p.selected));
-        source("places")?.setData(placeFeatures(p.trip));
+        source("places")?.setData(placeFeatures(p.trip, p.t));
       }
     }
   } catch {
@@ -164,9 +172,20 @@ function sync(m: maplibregl.Map, p: Props, parts: Part[], fitted: { current: boo
 function markerElement(kind: "start" | "destination"): HTMLElement {
   const el = document.createElement("div");
   el.className = `pin pin-${kind}`;
-  el.setAttribute("aria-label", kind === "start" ? "Start" : "Destination");
   el.textContent = kind === "start" ? "A" : "B";
   return el;
+}
+
+/** MapLibre's own buttons, named in the language shown. */
+function localiseControls(m: maplibregl.Map, t: Translate) {
+  const name = (selector: string, text: string) =>
+    m.getContainer().querySelectorAll(selector).forEach((el) => {
+      el.setAttribute("title", text);
+      el.setAttribute("aria-label", text);
+    });
+  name(".maplibregl-ctrl-zoom-in", t("map.zoomIn"));
+  name(".maplibregl-ctrl-zoom-out", t("map.zoomOut"));
+  name(".maplibregl-ctrl-attrib-button", t("map.attribution"));
 }
 
 /** Room around a fitted trip or route: on a desktop the legend takes the bottom left; on a phone
@@ -178,22 +197,24 @@ function fitPadding(): PaddingOptions {
 }
 
 export function MapView(props: Props) {
+  const { lang, t } = useI18n();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<{ start?: maplibregl.Marker; destination?: maplibregl.Marker }>({});
   const clickHandler = useRef(props.onMapClick);
-  const popupInfo = useRef({ limit: props.depthLimitM, height: props.heightM, options: props.options });
+  const popupInfo = useRef({ limit: props.depthLimitM, height: props.heightM, options: props.options, t });
   // Bumped each time a style finishes parsing and the app layers have been (re)added to it.
   const [styleVersion, setStyleVersion] = useState(0);
   const [generation, setGeneration] = useState(0); // bumped to rebuild the map after a lost context
   const lastRebuild = useRef(0); // time of the last automatic rebuild
   const [failed, setFailed] = useState(false); // the map keeps losing its context
   const camera = useRef<{ center: [number, number]; zoom: number }>({ center: [144.962, -37.826], zoom: 14.5 });
-  const latest = useRef(props);
+  const synced: Synced = { ...props, t };
+  const latest = useRef(synced);
   const fitted = useRef(false);
-  latest.current = props;
+  latest.current = synced;
   clickHandler.current = props.onMapClick;
-  popupInfo.current = { limit: props.depthLimitM, height: props.heightM, options: props.options };
+  popupInfo.current = { limit: props.depthLimitM, height: props.heightM, options: props.options, t };
 
   useEffect(() => {
     if (!container.current) return;
@@ -231,6 +252,7 @@ export function MapView(props: Props) {
       rebuildTimer = window.setTimeout(rebuild, REBUILD_DELAY_MS);
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    localiseControls(m, latest.current.t);
     // The app's own layers are added as soon as the style is parsed, not on "load", which waits for
     // every basemap tile, font and icon: if any of those fail (blocked or offline), the flood map,
     // routes and map clicks must still work.
@@ -386,8 +408,8 @@ export function MapView(props: Props) {
         const over = d === null || d > info.limit;
         const text =
           d === null
-            ? "Depth unknown · treated as too deep"
-            : `${cm(d)} · ${describeDepth(d, info.height, info.options)}${over ? " · over your limit" : ""}`;
+            ? info.t("map.unknownDepth")
+            : `${cm(d)} · ${describeDepth(d, info.height, info.options)}${over ? ` · ${info.t("map.overLimit")}` : ""}`;
         m.getCanvas().style.cursor = "crosshair";
         popup.setLngLat(e.lngLat).setText(text).addTo(m);
       });
@@ -432,24 +454,32 @@ export function MapView(props: Props) {
   }, [generation]);
 
   useEffect(() => {
-    if (styleVersion && map.current) sync(map.current, props, ["area"], fitted);
+    if (styleVersion && map.current) sync(map.current, synced, ["area"], fitted);
   }, [styleVersion, props.area]);
 
   useEffect(() => {
-    if (styleVersion && map.current) sync(map.current, props, ["network"], fitted);
+    if (styleVersion && map.current) sync(map.current, synced, ["network"], fitted);
   }, [styleVersion, props.network]);
 
   useEffect(() => {
-    if (styleVersion && map.current) sync(map.current, props, ["water"], fitted);
+    if (styleVersion && map.current) sync(map.current, synced, ["water"], fitted);
   }, [styleVersion, props.water]);
 
   useEffect(() => {
-    if (styleVersion && map.current) sync(map.current, props, ["limit"], fitted);
+    if (styleVersion && map.current) sync(map.current, synced, ["limit"], fitted);
   }, [styleVersion, props.depthLimitM]);
 
   useEffect(() => {
-    if (styleVersion && map.current) sync(map.current, props, ["trip"], fitted);
-  }, [styleVersion, props.trip, props.selected]);
+    if (styleVersion && map.current) sync(map.current, synced, ["trip"], fitted);
+  }, [styleVersion, props.trip, props.selected, lang]);
+
+  // The map's own buttons and the pins, in the language shown.
+  useEffect(() => {
+    if (map.current) localiseControls(map.current, t);
+    for (const kind of ["start", "destination"] as const) {
+      markers.current[kind]?.getElement().setAttribute("aria-label", t(kind === "start" ? "trip.start" : "trip.destination"));
+    }
+  }, [lang, generation, styleVersion]);
 
   // Bring the route the traveller picked into view.
   useEffect(() => {
@@ -485,6 +515,7 @@ export function MapView(props: Props) {
       }
       if (!markers.current[kind]) {
         markers.current[kind] = new maplibregl.Marker({ element: markerElement(kind), anchor: "bottom" });
+        markers.current[kind]!.getElement().setAttribute("aria-label", t(kind === "start" ? "trip.start" : "trip.destination"));
       }
       markers.current[kind]!.setLngLat([at.lon, at.lat]).addTo(m);
     }
@@ -511,11 +542,11 @@ export function MapView(props: Props) {
 
   return (
     <>
-      <div ref={container} className="map" role="application" aria-label="Map of Southbank" />
+      <div ref={container} className="map" role="application" aria-label={t("map.label")} />
       {failed && (
         <div className="map-failed" role="alert">
           <p>
-            <strong>The map stopped drawing.</strong> The browser ran out of graphics resources.
+            <strong>{t("map.failed")}</strong> {t("map.failedWhy")}
           </p>
           <button
             type="button"
@@ -526,9 +557,9 @@ export function MapView(props: Props) {
               setGeneration((g) => g + 1);
             }}
           >
-            Reload map
+            {t("map.reload")}
           </button>
-          <p className="muted small">If this keeps happening, quit and reopen the browser.</p>
+          <p className="muted small">{t("map.failedNote")}</p>
         </div>
       )}
     </>

@@ -15,9 +15,17 @@ body:has(.doc-page) {
   margin-bottom: 8px;
 }
 
+.doc-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
 .doc-page .back {
   display: inline-block;
-  margin-bottom: 12px;
   color: var(--brand);
   text-decoration: none;
   font-weight: 600;
@@ -139,6 +147,10 @@ body:has(.doc-page) {
   font-style: normal;
 }
 
+.doc-page p cite {
+  display: inline;
+}
+
 .doc-page .works .muted {
   display: block;
   font-size: 0.9rem;
@@ -199,7 +211,7 @@ body:has(.doc-page) {
   color: var(--brand);
   font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--caps-spacing);
 }
 
 .doc-page h2 + h3.group {

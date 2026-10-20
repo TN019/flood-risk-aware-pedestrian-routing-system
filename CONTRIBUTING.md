@@ -89,6 +89,12 @@ and the interfaces new code should plug into.
   the README's Data sources table, NOTICE (if its licence needs attribution), `docs/parameters.md`
   for the values it sets, and `frontend/src/reference/content.ts`, which the `/reference` page
   shows. Values on that page come from the API and need no edit.
+- **Text in every language.** The web client is offered in five languages. New or changed text
+  for its pages goes into `frontend/src/i18n/messages/en.ts`, and text the API composes into
+  `backend/src/floodroute/api/locales/en.json`, with the same key in the other languages' files
+  (the tests fail until it is there); conventions and the glossary are in
+  [docs/languages.md](docs/languages.md). A change to English text that has been translated needs
+  the translations updated too, or marked for review in the pull request.
 - **No secrets or large data in git.** Never commit API keys or tokens. Processed network files
   derived from OpenStreetMap are covered by the ODbL; do not commit or publish them without
   following its attribution and share-alike terms.

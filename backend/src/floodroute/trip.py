@@ -35,6 +35,7 @@ from shapely.geometry import Point
 from floodroute.hazard import HazardSnapshot
 from floodroute.places import Place
 from floodroute.places.refuges import Refuge, RefugeIndex
+from floodroute.places.resolver import AccessPoint
 from floodroute.risk import DEFAULT_ALPHA, BodyPart, TravellerProfile, risk_cost, walking_cost_for
 from floodroute.risk.alerts import AlertLevel, alert_level
 from floodroute.risk.model import edge_condition, source_edge_id
@@ -84,10 +85,14 @@ class Downgrade:
 @dataclass(frozen=True)
 class RefugeRoute:
     refuge: Refuge
-    entrance_label: str
+    entrance: AccessPoint  # where the route enters the refuge
     route: Route
     metrics: RouteMetrics
     within_limit: bool
+
+    @property
+    def entrance_label(self) -> str:
+        return self.entrance.label
 
 
 @dataclass(frozen=True)
@@ -229,7 +234,7 @@ def find_refuge(
     owner = {}
     for refuge in candidates:
         for access in refuge.access:
-            owner[(access.point.x, access.point.y)] = (refuge, access.label)
+            owner[(access.point.x, access.point.y)] = (refuge, access)
     points = [a.point for r in candidates for a in r.access]
     route = None
     if level == AlertLevel.OK:  # stay within the limit if at all possible
@@ -243,9 +248,9 @@ def find_refuge(
             route = router.route(origin.access_points, points, walking_cost_for(profile), path_finder=finder)
         except RoutingError:
             return None
-    refuge, label = owner[(route.destination.point.x, route.destination.point.y)]
+    refuge, entrance = owner[(route.destination.point.x, route.destination.point.y)]
     metrics = route_metrics(route, snapshot, profile)
-    return RefugeRoute(refuge, label, route, metrics, within_limit=metrics.segments_over_limit == 0)
+    return RefugeRoute(refuge, entrance, route, metrics, within_limit=metrics.segments_over_limit == 0)
 
 
 def emergency_advice(

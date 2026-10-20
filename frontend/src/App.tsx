@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, api } from "./api";
+import { api, errorText } from "./api";
 import { ConditionsPanel } from "./components/ConditionsPanel";
 import { GetHelp } from "./components/GetHelp";
 import { MapLegend } from "./components/MapLegend";
@@ -10,6 +10,9 @@ import { TravellerPanel } from "./components/TravellerPanel";
 import { TripResults } from "./components/TripResults";
 import { contains } from "./format";
 import { defaultChoice } from "./guidance";
+import { LanguageSwitcher, useDocumentTitle, useI18n } from "./i18n/I18n";
+import type { MessageKey } from "./i18n/messages/en";
+import type { Values } from "./i18n/translate";
 import type { RouteKind } from "./routeStyles";
 import type {
   Area,
@@ -25,6 +28,9 @@ import type {
 
 type Which = "start" | "destination";
 
+/** A message to the traveller, kept as a key so it follows a change of language. */
+type Notice = { key: MessageKey; values?: Values };
+
 const DEFAULT_TRAVELLER: Traveller = {
   height_cm: 170,
   wading: "ankle",
@@ -35,11 +41,14 @@ const DEFAULT_TRAVELLER: Traveller = {
 };
 
 export default function App() {
+  const { lang, t, rich } = useI18n();
+  useDocumentTitle("app.title");
   const [area, setArea] = useState<Area | null>(null);
   const [network, setNetwork] = useState<FeatureCollection | null>(null);
   const [options, setOptions] = useState<Options | null>(null);
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const loaded = useRef(false);
 
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const [water, setWater] = useState<Record<string, FeatureCollection>>({});
@@ -52,45 +61,54 @@ export default function App() {
   const [trip, setTrip] = useState<TripPlan | null>(null);
   const [tripError, setTripError] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [sos, setSos] = useState<SosState | null>(null);
   const [selected, setSelected] = useState<RouteKind | null>(null);
   const [focus, setFocus] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const shownEnds = useRef("");
+  const plannedFor = useRef(""); // what the shown plan was asked for, apart from its language
 
-  // Static data, once.
+  // The map data once (it has no text); the options and scenarios again in each language chosen.
   useEffect(() => {
-    Promise.all([api.area(), api.options(), api.scenarios()])
-      .then(([a, o, s]) => {
-        setArea(a);
+    api.area(lang).then(setArea).catch((err) => setLoadError(errorText(err, t, t("app.loadError"))));
+    api.network(lang).then(setNetwork).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([api.options(lang), api.scenarios(lang)])
+      .then(([o, s]) => {
         setOptions(o);
         setScenarios(s);
-        setScenarioId(s[0]?.id ?? null);
+        setLoadError(null);
+        if (!loaded.current) setScenarioId(s[0]?.id ?? null);
+        loaded.current = true;
       })
-      .catch((err) => setLoadError(err instanceof ApiError ? err.message : "Could not load the map data."));
-    api.network().then(setNetwork).catch(() => undefined);
-  }, []);
+      .catch((err) => {
+        if (!loaded.current) setLoadError(errorText(err, t, t("app.loadError")));
+      });
+  }, [lang, t]);
 
   useEffect(() => {
     if (!scenarioId || water[scenarioId]) return;
     api
-      .water(scenarioId)
+      .water(scenarioId, lang)
       .then((fc) => setWater((w) => ({ ...w, [scenarioId]: fc })))
       .catch(() => undefined);
-  }, [scenarioId, water]);
+  }, [scenarioId, water, lang]);
 
   useEffect(() => {
     const controller = new AbortController();
     api
-      .traveller(traveller, controller.signal)
+      .traveller(traveller, lang, controller.signal)
       .then(setInfo)
       .catch(() => undefined);
     return () => controller.abort();
-  }, [traveller]);
+  }, [traveller, lang]);
 
-  // Plan whenever anything the plan depends on changes.
+  // Plan whenever anything the plan depends on changes; in another language, the same plan is
+  // fetched again in its words, keeping the route shown.
   useEffect(() => {
     if (!start || !destination || !scenarioId) {
       setTrip(null);
@@ -98,13 +116,16 @@ export default function App() {
       return;
     }
     const controller = new AbortController();
+    const asked = JSON.stringify([start, destination, scenarioId, traveller]);
     const timer = window.setTimeout(() => {
       setPlanning(true);
+      const named = (p: ChosenPoint) => (p.label === null && p.source === "location" ? { ...p, label: t("trip.yourLocation") } : p);
       api
-        .trip(start, destination, scenarioId, traveller, controller.signal)
-        .then((t) => {
-          setTrip(t);
-          setSelected(defaultChoice(t));
+        .trip(named(start), named(destination), scenarioId, traveller, lang, controller.signal)
+        .then((plan) => {
+          setTrip(plan);
+          if (asked !== plannedFor.current) setSelected(defaultChoice(plan));
+          plannedFor.current = asked;
           setTripError(null);
           const ends = `${start.lat},${start.lon};${destination.lat},${destination.lon}`;
           if (ends !== shownEnds.current) {
@@ -118,7 +139,8 @@ export default function App() {
         .catch((err) => {
           if ((err as Error).name === "AbortError") return;
           setTrip(null);
-          setTripError(err instanceof ApiError ? err.message : "Could not plan this trip.");
+          plannedFor.current = "";
+          setTripError(errorText(err, t, t("app.planError")));
         })
         .finally(() => setPlanning(false));
     }, 150);
@@ -126,7 +148,7 @@ export default function App() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [start, destination, scenarioId, traveller]);
+  }, [start, destination, scenarioId, traveller, lang, t]);
 
   useEffect(() => setSos(null), [start, destination]);
 
@@ -148,7 +170,7 @@ export default function App() {
   const onMapClick = useCallback(
     (lat: number, lon: number) => {
       if (!inside(lat, lon)) {
-        setNotice("Pick a point inside Southbank (the black boundary).");
+        setNotice({ key: "trip.outside" });
         return;
       }
       setPoint(clickTarget, { lat, lon, label: null, footprint: null, source: "map" });
@@ -158,7 +180,7 @@ export default function App() {
 
   const pick = (which: Which) => (hit: SearchHit) => {
     if (!inside(hit.lat, hit.lon)) {
-      setNotice(`${hit.label.split(",")[0]} is outside Southbank.`);
+      setNotice({ key: "trip.placeOutside", values: { place: hit.label.split(",")[0] } });
       return;
     }
     setPoint(which, { lat: hit.lat, lon: hit.lon, label: hit.label.split(",")[0], footprint: hit.footprint, source: "search" });
@@ -166,20 +188,21 @@ export default function App() {
 
   const locate = () => {
     if (!navigator.geolocation) {
-      setNotice("Location is not available in this browser. Click the map to set your start instead.");
+      setNotice({ key: "trip.noGeolocation" });
       return;
     }
-    setNotice("Finding your location…");
+    setNotice({ key: "trip.locating" });
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lon } = pos.coords;
         if (!inside(lat, lon)) {
-          setNotice("Your location is outside Southbank. Click the map to set a simulated current location instead.");
+          setNotice({ key: "trip.locationOutside" });
           return;
         }
-        setPoint("start", { lat, lon, label: "Your location", footprint: null, source: "location" });
+        // No label of its own: it is named in the language shown (PlaceSearch, api.trip).
+        setPoint("start", { lat, lon, label: null, footprint: null, source: "location" });
       },
-      () => setNotice("Location unavailable (permission denied or not supported). Click the map to set your start instead."),
+      () => setNotice({ key: "trip.locationFailed" }),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
@@ -190,7 +213,10 @@ export default function App() {
   if (loadError) {
     return (
       <div className="fatal">
-        <h1>Southbank Flood Routes</h1>
+        <div className="brand-row">
+          <h1>{t("app.title")}</h1>
+          <LanguageSwitcher />
+        </div>
         <p>{loadError}</p>
       </div>
     );
@@ -198,19 +224,22 @@ export default function App() {
 
   return (
     <div className="app">
-      <aside ref={panelRef} className={`panel ${sheetOpen ? "panel-open" : ""}`} aria-label="Trip planner">
+      <aside ref={panelRef} className={`panel ${sheetOpen ? "panel-open" : ""}`} aria-label={t("app.panel")}>
         <button type="button" className="sheet-handle" onClick={() => setSheetOpen((o) => !o)} aria-expanded={sheetOpen}>
           <span />
-          {sheetOpen ? "Show more map" : "Show details"}
+          {sheetOpen ? t("app.sheetMore") : t("app.sheetDetails")}
         </button>
         <header className="brand">
-          <h1>Southbank Flood Routes</h1>
-          <p>Walking routes that avoid water deeper than you choose to walk through.</p>
+          <div className="brand-row">
+            <h1>{t("app.title")}</h1>
+            <LanguageSwitcher />
+          </div>
+          <p>{t("app.tagline")}</p>
         </header>
 
-        <section className="card trip-card" aria-label="Start and destination">
+        <section className="card trip-card" aria-label={t("trip.label")}>
           <PlaceSearch
-            label="Start"
+            label={t("trip.start")}
             value={start}
             active={clickTarget === "start"}
             onActivate={() => setClickTarget("start")}
@@ -221,12 +250,12 @@ export default function App() {
             }}
             extra={
               <button type="button" className="link locate" onClick={locate}>
-                ◎ Use my current location
+                ◎ {t("trip.locate")}
               </button>
             }
           />
           <PlaceSearch
-            label="Destination"
+            label={t("trip.destination")}
             value={destination}
             active={clickTarget === "destination"}
             onActivate={() => setClickTarget("destination")}
@@ -246,7 +275,7 @@ export default function App() {
                 setDestination(start);
               }}
             >
-              ⇅ Swap
+              ⇅ {t("trip.swap")}
             </button>
             <button
               type="button"
@@ -258,16 +287,14 @@ export default function App() {
                 setClickTarget("start");
               }}
             >
-              Clear
+              {t("trip.clear")}
             </button>
           </div>
-          {notice && <p className="hint">{notice}</p>}
-          {!start && !destination && !notice && (
-            <p className="hint">Search for a place, or click the map: the first click sets the start, the next the destination.</p>
-          )}
+          {notice && <p className="hint">{t(notice.key, notice.values)}</p>}
+          {!start && !destination && !notice && <p className="hint">{t("trip.hint")}</p>}
         </section>
 
-        {planning && <p className="planning" role="status">Planning…</p>}
+        {planning && <p className="planning" role="status">{t("app.planning")}</p>}
         {tripError && <div className="alert alert-red" role="alert">{tripError}</div>}
         {trip && options && (
           <TripResults
@@ -292,12 +319,8 @@ export default function App() {
         {options && <TravellerPanel options={options} traveller={traveller} info={info} onChange={setTraveller} />}
 
         <footer className="footnote">
-          <p>
-            Routes are guidance based on modelled conditions, which can be incomplete or wrong, and floods change quickly. Never walk
-            through floodwater you do not have to, follow directions from emergency services, and in an emergency call 000 (VICSES
-            132 500 for flood or storm help).
-          </p>
-          <p>Map data © OpenStreetMap contributors. Flood scenarios: see Sources under each level.</p>
+          <p>{t("app.safety")}</p>
+          <p>{t("app.credits")}</p>
         </footer>
       </aside>
 
@@ -319,7 +342,7 @@ export default function App() {
         <MapLegend trip={trip} selected={selected} hasWater={!!scenarioId && (water[scenarioId]?.features.length ?? 0) > 0} />
         <GetHelp start={start} sos={sos} undoSeconds={options?.sos_undo_seconds ?? 5} onSos={setSos} />
         <div className="click-target" role="status">
-          Next click sets the <strong>{clickTarget}</strong>
+          {rich("app.nextClick", { target: <strong key="target">{t(`app.nextClick.${clickTarget}`)}</strong> })}
         </div>
       </main>
     </div>

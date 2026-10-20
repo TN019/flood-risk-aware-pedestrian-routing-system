@@ -111,3 +111,23 @@ figures are for the download area (`config.SOUTHBANK_BBOX`) and the current netw
 | Pits lifted | more than 0.5 m below the median of a 25 m window | `hazard.terrain` | Chosen: removes basement ramps and cuttings, which would otherwise read as metres of water beside a footpath |
 | Ground smoothing | 3 × 3 cell median | `hazard.terrain.GROUND_FILTER_CELLS` | Chosen: removes single-cell noise |
 | Sampling along an edge | every 2 m | `hazard.grid.SAMPLE_SPACING_M` | Chosen: finer than the 5 m cells, so no cell an edge crosses is skipped |
+
+## Languages
+
+The web client is offered in English and the four languages below (see [languages.md](languages.md)
+for how they are translated). Source: Australian Bureau of Statistics, 2021 Census of Population
+and Housing, QuickStats, "Language used at home", for
+[Southbank](https://abs.gov.au/census/find-census-data/quickstats/2021/SAL22315) (suburb, SAL22315,
+22,631 people) and
+[Southbank (West) – South Wharf](https://abs.gov.au/census/find-census-data/quickstats/2021/206041508)
+(SA2 206041508, 6,463 people).
+
+| Language used at home | Southbank (suburb) | Southbank (West) – South Wharf | Offered as | Basis |
+|---|---|---|---|---|
+| English only | 45.4% | 46.2% | English | Cited |
+| Mandarin | 11.6% | 11.3% | Chinese (Simplified) | Cited |
+| Spanish | 5.3% | 3.5% | Spanish | Cited |
+| Hindi | 4.0% | 3.4% | Hindi | Cited |
+| Cantonese | 3.1% | 2.9% | Chinese (Simplified) | Cited; **Chosen**: Mandarin and Cantonese are both written in Chinese characters, so one written form covers them, and Simplified is offered. Cantonese speakers who read Traditional characters are not specifically served |
+| Indonesian | 2.1% | not in the top five | not offered | **Chosen**: fifth across the whole suburb, and not offered; the project chose Korean instead |
+| Korean | not in the top five | 2.0% | Korean | Cited: the fifth language in the western part of Southbank. **Chosen**: offered in place of Indonesian |

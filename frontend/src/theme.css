@@ -22,10 +22,38 @@
   --info-line: #6a9fd8;
   --radius: 12px;
   --panel-width: 400px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --caps-spacing: 0.04em; /* letter spacing of small upper-case headings */
+  --font-latin: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  font-family: var(--font-latin), "Noto Sans", sans-serif;
   color: var(--text);
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
+}
+
+/* Fonts for the other scripts the pages are offered in (<html lang> is the chosen language): Latin
+   text keeps the system font, and each script falls back to the fonts macOS, iOS, Windows and
+   Android (Noto) have for it. Chinese, Japanese and Korean fonts draw the same Han characters
+   differently, so Chinese and Korean each name their own. Letter spacing would split joined
+   Devanagari letters and gains nothing in Chinese or Korean, which have no upper case. */
+:root:lang(zh) {
+  --caps-spacing: 0;
+  font-family: var(--font-latin), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC",
+    "Source Han Sans SC", sans-serif;
+}
+
+/* Korean breaks lines between words, as it is written with spaces. */
+:root:lang(ko) {
+  --caps-spacing: 0;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  font-family: var(--font-latin), "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", "Source Han Sans K",
+    sans-serif;
+}
+
+:root:lang(hi) {
+  --caps-spacing: 0;
+  font-family: var(--font-latin), "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Mangal", "Noto Sans Devanagari",
+    sans-serif;
 }
 
 * {
@@ -54,4 +82,35 @@ input,
 select {
   font: inherit;
   color: inherit;
+}
+
+/* Choosing the language, on every page but /slides. */
+.lang-switch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+}
+
+.lang-switch svg {
+  width: 14px;
+  height: 14px;
+}
+
+.lang-switch select {
+  field-sizing: content; /* as wide as the language shown, where supported */
+  padding: 2px 2px 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .lang-switch select {
+    font-size: 16px; /* avoids zoom on focus on phones */
+  }
 }

@@ -1,17 +1,20 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { api } from "../api";
+import { api, errorText } from "../api";
+import { LanguageSwitcher, useDocumentTitle, useI18n } from "../i18n/I18n";
+import type { ScenarioSummary } from "../types";
 import type { BenchmarkResults } from "./types";
+import { faultText, OUTCOMES, TRAVELLERS, words } from "./vocabulary";
 
 const REPOSITORY = "https://github.com/TN019/flood-risk-aware-pedestrian-routing-system";
 
 const pct = (x: number | null | undefined, digits = 0) => (x === null || x === undefined ? "—" : `${(x * 100).toFixed(digits)}%`);
 const metres = (x: number | null) => (x === null ? "—" : `${Math.round(x)} m`);
-const share = (n: number, of: number) => `${n} of ${of}`;
 
 /** Whether a result came out as docs/benchmarks.md predicted, or is a measurement. */
 function Verdict({ ok }: { ok?: boolean }) {
-  if (ok === undefined) return <span className="verdict verdict-measured">Measured</span>;
-  return <span className={`verdict ${ok ? "verdict-ok" : "verdict-bad"}`}>{ok ? "As predicted" : "Not as predicted"}</span>;
+  const { t } = useI18n();
+  if (ok === undefined) return <span className="verdict verdict-measured">{t("bench.measured")}</span>;
+  return <span className={`verdict ${ok ? "verdict-ok" : "verdict-bad"}`}>{ok ? t("bench.asPredicted") : t("bench.notAsPredicted")}</span>;
 }
 
 function Result({ title, ok, children }: { title: string; ok?: boolean; children: ReactNode }) {
@@ -28,49 +31,72 @@ function Result({ title, ok, children }: { title: string; ok?: boolean; children
 /** What the routing engine shows about its correctness, safety and accessibility. Reached only by
  * its address, /benchmark. */
 export function BenchmarkPage() {
+  const { lang, t, rich } = useI18n();
+  useDocumentTitle("bench.pageTitle");
   const [results, setResults] = useState<BenchmarkResults | null>(null);
+  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .benchmark()
+      .benchmark(lang)
       .then(setResults)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+      .catch((err: Error) => setError(errorText(err, t, err.message)));
+    // The flood levels' titles, in the language shown.
+    api
+      .scenarios(lang)
+      .then(setScenarios)
+      .catch(() => undefined);
+  }, [lang, t]);
 
   return (
     <main className="doc-page">
       <header>
-        <a className="back" href="/">
-          ← Southbank Flood Routes
-        </a>
-        <h1>Benchmarks</h1>
+        <div className="doc-top">
+          <a className="back" href="/">
+            {t("doc.back")}
+          </a>
+          <LanguageSwitcher />
+        </div>
+        <h1>{t("bench.title")}</h1>
         <p>
-          Whether routes follow their rules on the data they are given, checked automatically on made-up data (a small test town) and
-          on the real Southbank network. The predictions were written before the first run, in{" "}
-          <a href={`${REPOSITORY}/blob/main/docs/benchmarks.md`}>docs/benchmarks.md</a>.
+          {rich("bench.intro", {
+            benchmarks: (
+              <a key="benchmarks" href={`${REPOSITORY}/blob/main/docs/benchmarks.md`}>
+                docs/benchmarks.md
+              </a>
+            ),
+          })}
         </p>
         {results && (
           <p className="muted small">
-            Run {new Date(results.generated_at).toLocaleString()} on commit {results.commit ?? "unknown"}; network of{" "}
-            {results.network.nodes.toLocaleString()} junctions and {results.network.edges.toLocaleString()} sections.
+            {t("bench.run", {
+              date: new Date(results.generated_at).toLocaleString(lang === "en" ? "en-AU" : lang),
+              commit: results.commit ?? t("bench.unknownCommit"),
+              nodes: results.network.nodes.toLocaleString("en-AU"),
+              edges: results.network.edges.toLocaleString("en-AU"),
+            })}
           </p>
         )}
       </header>
 
-      {error && <p className="notice">The benchmark results could not be loaded: {error}</p>}
-      {!results && !error && <p className="muted">Loading the results…</p>}
-      {results && <Results r={results} />}
+      {error && <p className="notice">{t("bench.loadError", { error })}</p>}
+      {!results && !error && <p className="muted">{t("bench.loading")}</p>}
+      {results && <Results r={results} scenarios={scenarios} />}
 
       <footer className="muted">
-        Run them again with <code>uv run python scripts/benchmark.py</code> in <code>backend/</code>; the results are written to{" "}
-        <code>docs/benchmark.json</code>.
+        {rich("bench.footer", {
+          command: <code key="command">uv run python scripts/benchmark.py</code>,
+          folder: <code key="folder">backend/</code>,
+          file: <code key="file">docs/benchmark.json</code>,
+        })}
       </footer>
     </main>
   );
 }
 
-function Results({ r }: { r: BenchmarkResults }) {
+function Results({ r, scenarios }: { r: BenchmarkResults; scenarios: ScenarioSummary[] }) {
+  const { t, rich, plural } = useI18n();
   const c = r.correctness;
   const np = c.dijkstra_node_pairs;
   const e2e = c.dijkstra_end_to_end;
@@ -79,33 +105,46 @@ function Results({ r }: { r: BenchmarkResults }) {
   const rising = r.safety.rising_flood;
   const sf = r.access.step_free_pairs;
   const levels = Object.entries(r.safety.cost.levels);
-  const overLimit = levels.flatMap(([, l]) => Object.values(l.travellers)).reduce((n, t) => n + t.recommended_over_limit, 0);
+  const overLimit = levels.flatMap(([, l]) => Object.values(l.travellers)).reduce((n, tr) => n + tr.recommended_over_limit, 0);
+  const share = (count: number, total: number) => t("bench.share", { count, total });
+  const strong = (key: string, text: string) => <strong key={key}>{text}</strong>;
+  // A level's title in the language shown; the schedule names levels only by their English title.
+  const levelTitle = (key: string, english: string) => scenarios.find((s) => s.id === key)?.title ?? english;
+  const titleOf = (english: string) => {
+    const key = levels.find(([, l]) => l.title === english)?.[0];
+    return key ? levelTitle(key, english) : english;
+  };
+  const offered = (counts: Record<string, number>) =>
+    Object.entries(counts)
+      .map(([what, n]) => `${words(t, OUTCOMES, what)} ${n}`)
+      .join(", ");
 
   return (
     <>
       <section id="algorithm">
-        <h2>Algorithm layer</h2>
-        <h3 className="group">Correctness</h3>
-        <Result title="Path finder against NetworkX" ok={np.cost_match === np.pairs && e2e.length_match === e2e.routes}>
+        <h2>{t("bench.algorithm")}</h2>
+        <h3 className="group">{t("bench.correctness")}</h3>
+        <Result title={t("bench.pathFinder")} ok={np.cost_match === np.pairs && e2e.length_match === e2e.routes}>
           <p>
-            Node to node: same cost for <strong>{share(np.cost_match, np.pairs)}</strong> random pairs ({np.same_path} with the identical
-            path). Through the router, with snapping and access legs: same length for <strong>{share(e2e.length_match, e2e.routes)}</strong>{" "}
-            random trips.
+            {rich("bench.pathFinderText", {
+              pairs: strong("pairs", share(np.cost_match, np.pairs)),
+              same: np.same_path,
+              routes: strong("routes", share(e2e.length_match, e2e.routes)),
+            })}
           </p>
         </Result>
-        <Result title="Safest-path search against brute force" ok={mm.match === mm.pairs}>
-          <p>
-            The lowest possible deepest point, then the shortest path that deep, agreed with enumerating every path for{" "}
-            <strong>{share(mm.match, mm.pairs)}</strong> node pairs on {mm.graphs} random graphs.
-          </p>
+        <Result title={t("bench.minimax")} ok={mm.match === mm.pairs}>
+          <p>{rich("bench.minimaxText", { pairs: strong("pairs", share(mm.match, mm.pairs)), graphs: mm.graphs })}</p>
         </Result>
-        <Result title="Hand-derived predictions" ok={v.test_town.met === v.test_town.total && v.southbank.met === v.southbank.total}>
+        <Result title={t("bench.predictions")} ok={v.test_town.met === v.test_town.total && v.southbank.met === v.southbank.total}>
           <p>
-            Test town cases A–J: <strong>{share(v.test_town.met, v.test_town.total)}</strong> met. Southbank properties R-A to R-I:{" "}
-            <strong>{share(v.southbank.met, v.southbank.total)}</strong> met.
+            {rich("bench.predictionsText", {
+              town: strong("town", share(v.test_town.met, v.test_town.total)),
+              southbank: strong("southbank", share(v.southbank.met, v.southbank.total)),
+            })}
           </p>
           {[...v.test_town.not_met, ...v.southbank.not_met].length > 0 && (
-            <ul>
+            <ul lang="en">
               {[...v.test_town.not_met, ...v.southbank.not_met].map((x) => (
                 <li key={x}>{x}</li>
               ))}
@@ -113,30 +152,34 @@ function Results({ r }: { r: BenchmarkResults }) {
           )}
         </Result>
         {c.faults && (
-          <Result title="Fault injection" ok={c.faults.faults.every((f) => f.caught)}>
+          <Result title={t("bench.faults")} ok={c.faults.faults.every((f) => f.caught)}>
             <p>
-              Each fault breaks one safety rule on purpose; the whole test suite then runs against the broken code. As written, the suite
-              has {c.faults.baseline.failed} failures in {c.faults.baseline.passed + c.faults.baseline.failed} tests.
+              {t("bench.faultsText", {
+                failed: c.faults.baseline.failed,
+                tests: c.faults.baseline.passed + c.faults.baseline.failed,
+              })}
             </p>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Fault</th>
-                    <th>Tests failed</th>
-                    <th>Test town cases failed</th>
-                    <th>Caught</th>
+                    <th>{t("bench.fault")}</th>
+                    <th>{t("bench.testsFailed")}</th>
+                    <th>{t("bench.casesFailed")}</th>
+                    <th>{t("bench.caught")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {c.faults.faults.map((f) => (
                     <tr key={f.fault}>
                       <td>
-                        <strong>{f.fault}</strong> {f.breaks}
+                        <strong>{f.fault}</strong> {faultText(t, f.fault, f.breaks)}
                       </td>
                       <td className="num">{share(f.tests_failed, f.tests_run)}</td>
-                      <td>{f.test_town_cases_failed.length ? f.test_town_cases_failed.join(", ") : <span className="muted">none</span>}</td>
-                      <td>{f.caught ? "Yes" : <strong className="warn-text">No</strong>}</td>
+                      <td>
+                        {f.test_town_cases_failed.length ? f.test_town_cases_failed.join(", ") : <span className="muted">{t("bench.none")}</span>}
+                      </td>
+                      <td>{f.caught ? t("bench.yes") : <strong className="warn-text">{t("bench.no")}</strong>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -144,43 +187,47 @@ function Results({ r }: { r: BenchmarkResults }) {
             </div>
           </Result>
         )}
-        <h3 className="group">Pedestrian safety</h3>
-        <Result title="Safety and what it costs" ok={overLimit === 0}>
+        <h3 className="group">{t("bench.safety")}</h3>
+        <Result title={t("bench.cost")} ok={overLimit === 0}>
           <p>
-            {r.safety.cost.trips} random trips at each flood level. No recommended route crossed water over the traveller's limit in{" "}
-            {levels.length * Object.keys(levels[0]?.[1].travellers ?? {}).length * r.safety.cost.trips} plans
-            {overLimit > 0 && <strong className="warn-text"> ({overLimit} did)</strong>}. Where the plain shortest way crosses water over the
-            limit, the recommended route is longer by the median shown and avoids the median length of water over the limit.
+            {rich("bench.costText", {
+              trips: r.safety.cost.trips,
+              plans: levels.length * Object.keys(levels[0]?.[1].travellers ?? {}).length * r.safety.cost.trips,
+              overLimit:
+                overLimit > 0 ? (
+                  <strong key="over" className="warn-text">
+                    {t("bench.costOverLimit", { count: overLimit })}
+                  </strong>
+                ) : (
+                  ""
+                ),
+            })}
           </p>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Level and traveller</th>
-                  <th>Route within the limit</th>
-                  <th>Shortest way unsafe</th>
-                  <th>Longer by</th>
-                  <th>Water over the limit avoided</th>
-                  <th>Without a route, offered</th>
+                  <th>{t("bench.levelTraveller")}</th>
+                  <th>{t("bench.withRoute")}</th>
+                  <th>{t("bench.shortestUnsafe")}</th>
+                  <th>{t("bench.longerBy")}</th>
+                  <th>{t("bench.avoided")}</th>
+                  <th>{t("bench.offered")}</th>
                 </tr>
               </thead>
               <tbody>
                 {levels.flatMap(([key, level]) =>
-                  Object.entries(level.travellers).map(([name, t], i) => (
+                  Object.entries(level.travellers).map(([name, tr], i) => (
                     <tr key={`${key}/${name}`} className={i === 0 ? "group-start" : undefined}>
                       <td>
-                        {i === 0 && <strong>{level.title}: </strong>}
-                        {name}
+                        {i === 0 && <strong>{levelTitle(key, level.title)}: </strong>}
+                        {words(t, TRAVELLERS, name)}
                       </td>
-                      <td className="num">{share(t.with_route, r.safety.cost.trips)}</td>
-                      <td className="num">{t.shortest_unsafe}</td>
-                      <td className="num">{t.shortest_unsafe ? pct(t.detour_median) : "—"}</td>
-                      <td className="num">{t.shortest_unsafe ? metres(t.over_limit_avoided_m_median) : "—"}</td>
-                      <td>
-                        {Object.entries(t.without_route)
-                          .map(([what, n]) => `${what} ${n}`)
-                          .join(", ") || <span className="muted">—</span>}
-                      </td>
+                      <td className="num">{share(tr.with_route, r.safety.cost.trips)}</td>
+                      <td className="num">{tr.shortest_unsafe}</td>
+                      <td className="num">{tr.shortest_unsafe ? pct(tr.detour_median) : "—"}</td>
+                      <td className="num">{tr.shortest_unsafe ? metres(tr.over_limit_avoided_m_median) : "—"}</td>
+                      <td>{offered(tr.without_route) || <span className="muted">—</span>}</td>
                     </tr>
                   )),
                 )}
@@ -188,62 +235,58 @@ function Results({ r }: { r: BenchmarkResults }) {
             </table>
           </div>
         </Result>
-        <Result title="Rising flood: rerouting on the way" ok={rising.violations_m === 0 && !rising.outcomes.nothing}>
+        <Result title={t("bench.rising")} ok={rising.violations_m === 0 && !rising.outcomes.nothing}>
           <p>
-            {rising.trips} trips for an {rising.traveller} traveller walking while the flood rises:{" "}
-            {rising.schedule.map((s) => `${s.level.toLowerCase()} from ${Math.round(s.from_s / 60)} min`).join(", ")}. At every rise the
-            trip is planned again from where they are.
+            {t("bench.risingText", {
+              trips: rising.trips,
+              traveller: words(t, TRAVELLERS, rising.traveller),
+              schedule: rising.schedule
+                .map((s) => t("bench.risingFrom", { level: titleOf(s.level).toLowerCase(), minutes: Math.round(s.from_s / 60) }))
+                .join(", "),
+            })}
           </p>
           <ul>
+            <li>{rich("bench.risingViolations", { metres: strong("metres", metres(rising.violations_m)) })}</li>
             <li>
-              Walked in water over the limit on a route given as within it: <strong>{metres(rising.violations_m)}</strong>.
+              {t("bench.risingReroutes", {
+                reroutes: rising.reroutes,
+                trips: rising.trips_rerouted,
+                caught: rising.caught_by_rising_water,
+                metres: metres(rising.escape_over_limit_m),
+              })}
             </li>
-            <li>
-              Rerouted {rising.reroutes} times, in {rising.trips_rerouted} trips; {rising.caught_by_rising_water} times the water had risen
-              over the limit where they stood, and the safest way out crossed {metres(rising.escape_over_limit_m)} of it in all.
-            </li>
-            <li>
-              Outcomes:{" "}
-              {Object.entries(rising.outcomes)
-                .map(([what, n]) => `${what} ${n}`)
-                .join(", ")}
-              .
-            </li>
-            <li>
-              Arrivals walked {pct(rising.extra_walk_median, 1)} further than first planned (median; 90th percentile{" "}
-              {pct(rising.extra_walk_p90, 1)}).
-            </li>
+            <li>{t("bench.risingOutcomes", { outcomes: offered(rising.outcomes) })}</li>
+            <li>{t("bench.risingExtra", { median: pct(rising.extra_walk_median, 1), p90: pct(rising.extra_walk_p90, 1) })}</li>
           </ul>
           {rising.not_replanned_outside_area > 0 && (
             <p className="notice">
-              <strong>Finding:</strong> {rising.not_replanned_outside_area} times the flood rose while the route ran through the network's
-              margin outside Southbank, where no trip can be planned (a start must lie inside). The traveller kept to the route they had and
-              walked {metres(rising.over_limit_outside_area_m)} over the limit there in all. Replanning should work from anywhere on the
-              network a route can take.
+              <strong>{t("bench.finding")}</strong>{" "}
+              {t("bench.findingText", { count: rising.not_replanned_outside_area, metres: metres(rising.over_limit_outside_area_m) })}
             </p>
           )}
         </Result>
-        <h3 className="group">Public area accessibility</h3>
+        <h3 className="group">{t("bench.access")}</h3>
         <Result
-          title="Step-free connectivity between buildings"
+          title={t("bench.stepFree")}
           ok={sf.step_free_using_steps === 0 && sf.step_free_using_steep === 0 && sf.step_free_cheaper === 0}
         >
           <p>
-            {sf.pairs} random pairs of buildings connected on foot, normal conditions. The step-free route also leaves out paths steeper
-            than 1:14, which {sf.walking_using_steep} of the walking routes use. A step-free route exists for{" "}
-            <strong>{share(sf.step_free_route, sf.pairs)}</strong>, and for {sf.same_length} it is the walking route itself (no steps or
-            steep paths on the way). Over all pairs it is longer by {pct(sf.longer_median, 1)} at the median, {pct(sf.longer_p90, 1)} at the 90th
-            percentile and {pct(sf.longer_max, 1)} at most. No
-            step-free route uses steps ({sf.step_free_using_steps}) or a path steeper than 1:14 ({sf.step_free_using_steep}), or costs
-            less than the walking route ({sf.step_free_cheaper}).
-            {sf.step_free_shorter > 0 &&
-              ` ${sf.step_free_shorter} ${sf.step_free_shorter === 1 ? "is" : "are"} shorter in metres but cost more: routes minimise walking cost, with a carriageway counted three times its length.`}
+            {rich("bench.stepFreeText", {
+              pairs: sf.pairs,
+              steep: sf.walking_using_steep,
+              routes: strong("routes", share(sf.step_free_route, sf.pairs)),
+              same: sf.same_length,
+              median: pct(sf.longer_median, 1),
+              p90: pct(sf.longer_p90, 1),
+              max: pct(sf.longer_max, 1),
+              steps: sf.step_free_using_steps,
+              steepUsed: sf.step_free_using_steep,
+              cheaper: sf.step_free_cheaper,
+            })}
+            {sf.step_free_shorter > 0 && ` ${plural("bench.stepFreeShorter", sf.step_free_shorter)}`}
           </p>
         </Result>
       </section>
-
-
     </>
   );
 }
-

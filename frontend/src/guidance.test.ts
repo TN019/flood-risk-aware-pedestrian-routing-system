@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { acceptText, defaultChoice, detourText, situation, whyNoRoute } from "./guidance";
+import { defaultChoice, detourText, situation, whyNoRoute } from "./guidance";
+import { english as t } from "./i18n/translate";
 import type { RouteJson, RouteOption, TripPlan } from "./types";
 
 function line(x: number, metrics: Partial<RouteJson["metrics"]> = {}): RouteJson {
@@ -73,6 +74,7 @@ const downgrade: NonNullable<TripPlan["downgrade"]> = {
   aid_level: null,
   label: "knee",
   body_part_label: "knee",
+  water: "water up to the knee",
   depth_limit_m: 0.48,
   required_depth_m: 0.4,
   route: line(300),
@@ -88,14 +90,14 @@ describe("situation", () => {
   it("explains a detour", () => {
     const p = plan({ shortest: line(300, { max_depth_m: 0.19, max_depth_label: "up to the lower calf", wading_length_m: 36, segments_over_limit: 2 }), recommended: line(385) });
     expect(situation(p)).toBe("detour");
-    expect(detourText(p)).toBe(
+    expect(detourText(p, t)).toBe(
       "The shortest way (300 m) crosses water deeper than your limit, up to 19 cm (up to the lower calf). This route walks 85 m further to stay within it.",
     );
   });
 
   it("says when the shortest way's water is of unknown depth", () => {
     const p = plan({ shortest: line(300, { max_depth_m: null, max_depth_label: "unknown depth", segments_over_limit: 1 }), recommended: line(312) });
-    expect(detourText(p)).toBe("The shortest way (300 m) crosses water of unknown depth. This route walks 12 m further to stay within it.");
+    expect(detourText(p, t)).toBe("The shortest way (300 m) crosses water of unknown depth. This route walks 12 m further to stay within it.");
   });
 
   it("offers a choice when a higher limit or a shelter would both work", () => {
@@ -121,13 +123,13 @@ describe("situation", () => {
 
 describe("whyNoRoute", () => {
   it("names the least water and the limit it breaks", () => {
-    expect(whyNoRoute(plan({ recommended: null, least_water: least(0.32) }))).toBe(
+    expect(whyNoRoute(plan({ recommended: null, least_water: least(0.32) }), t)).toBe(
       "Every way to Crown crosses at least 32 cm of water (up to the mid calf), deeper than your limit of 6.6 cm. The deepest point is marked on the map.",
     );
-    expect(whyNoRoute(plan({ recommended: null, least_water: least(0.55, true) }))).toContain(
+    expect(whyNoRoute(plan({ recommended: null, least_water: least(0.55, true) }), t)).toContain(
       "more than the 50 cm anyone is routed through",
     );
-    expect(whyNoRoute(plan({ recommended: null, least_water: least(null, true) }))).toBe("Every way to Crown crosses water of unknown depth.");
+    expect(whyNoRoute(plan({ recommended: null, least_water: least(null, true) }), t)).toBe("Every way to Crown crosses water of unknown depth.");
   });
 });
 
@@ -135,12 +137,12 @@ describe("mobility aids", () => {
   it("names the device's cap when the least water is beyond it", () => {
     const p = plan({ recommended: null, least_water: least(0.04, true) });
     p.traveller = { ...p.traveller, depth_limit_m: 0.02, hard_limit_m: 0.025, mobility_aid: "mobility_scooter", mobility_aid_label: "mobility scooter" };
-    expect(whyNoRoute(p)).toContain("more than the 2.5 cm a mobility scooter is routed through");
+    expect(whyNoRoute(p, t)).toContain("more than the 2.5 cm a mobility scooter is routed through");
   });
 
-  it("words the higher limit for walkers and for devices", () => {
-    expect(acceptText(downgrade)).toBe("water up to the knee");
-    expect(acceptText({ ...downgrade, body_part: null, aid_level: 1, label: "below a 4-inch castor axle" })).toBe("water below a 4-inch castor axle");
-    expect(acceptText({ ...downgrade, body_part: null, aid_level: 1, label: "a shallow puddle" })).toBe("a shallow puddle");
+  it("says where to when the destination is a building, and not for a point", () => {
+    const p = plan({ recommended: null, least_water: least(0.32) });
+    p.destination = { ...p.destination, method: "point" };
+    expect(whyNoRoute(p, t)).toMatch(/^Every way there crosses at least 32 cm/);
   });
 });
