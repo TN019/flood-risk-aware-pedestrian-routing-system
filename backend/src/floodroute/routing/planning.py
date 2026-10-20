@@ -34,6 +34,9 @@ from floodroute.routing.router import Route, Router, RoutingError
 
 SHORTEST, SAFE_SHORTEST, RECOMMENDED = "shortest", "safe_shortest", "recommended"
 NO_STEP_FREE_ROUTE = "No route without steps or steep paths connects these places."
+# Why an option has no route (``RouteOption.reason``).
+NOT_STEP_FREE = "no_step_free_route"  # the places are connected only by steps or steep paths
+OVER_LIMIT = "over_limit"  # every way crosses water over the traveller's limit
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,7 @@ class RouteOption:
     route: Route | None
     metrics: RouteMetrics | None
     error: str | None = None
+    reason: str | None = None  # NOT_STEP_FREE or OVER_LIMIT when there is no route
 
     @property
     def found(self) -> bool:
@@ -90,7 +94,10 @@ def plan_routes(
     except RoutingError:
         if not step_free:
             raise
-        none = [RouteOption(kind, None, None, NO_STEP_FREE_ROUTE) for kind in (SHORTEST, SAFE_SHORTEST, RECOMMENDED)]
+        none = [
+            RouteOption(kind, None, None, NO_STEP_FREE_ROUTE, NOT_STEP_FREE)
+            for kind in (SHORTEST, SAFE_SHORTEST, RECOMMENDED)
+        ]
         return RoutePlan(
             *none,
             alpha=alpha,
@@ -107,7 +114,9 @@ def plan_routes(
         except RoutingError:
             limit_cm = profile.depth_limit_m * 100
             way = "route without steps or steep paths" if step_free else "route"
-            return RouteOption(kind, None, None, f"No {way} keeps you within your limit ({limit_cm:.0f} cm).")
+            return RouteOption(
+                kind, None, None, f"No {way} keeps you within your limit ({limit_cm:.0f} cm).", OVER_LIMIT
+            )
         return RouteOption(kind, route, route_metrics(route, snapshot, profile, reference))
 
     return RoutePlan(

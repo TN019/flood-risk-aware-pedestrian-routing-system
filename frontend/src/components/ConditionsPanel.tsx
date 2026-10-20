@@ -1,4 +1,6 @@
 import { cm } from "../format";
+import { useI18n } from "../i18n/I18n";
+import type { Translate } from "../i18n/translate";
 import type { FloodLevel, Options, ScenarioSummary } from "../types";
 
 interface Props {
@@ -8,17 +10,18 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-function band(level: FloodLevel): string {
+function band(level: FloodLevel, t: Translate): string {
   const low = Math.round(level.lower_m * 100);
-  return level.upper_m === null ? `over ${low} cm` : `${low}–${Math.round(level.upper_m * 100)} cm`;
+  return level.upper_m === null ? t("conditions.over", { depth: `${low} cm` }) : `${low}–${Math.round(level.upper_m * 100)} cm`;
 }
 
 export function ConditionsPanel({ scenarios, selected, options, onSelect }: Props) {
+  const { t, rich } = useI18n();
   const height = Math.round(options.reference_height_m * 100);
   return (
     <section className="card" aria-labelledby="conditions-title">
-      <h2 id="conditions-title">Flood conditions</h2>
-      <div className="levels" role="radiogroup" aria-label="Flood scenario">
+      <h2 id="conditions-title">{t("conditions.title")}</h2>
+      <div className="levels" role="radiogroup" aria-label={t("conditions.group")}>
         {scenarios.map((s) => (
           <button
             key={s.id}
@@ -28,7 +31,7 @@ export function ConditionsPanel({ scenarios, selected, options, onSelect }: Prop
             className={`level level-${s.level?.key ?? "none"} ${selected?.id === s.id ? "level-on" : ""}`}
             onClick={() => onSelect(s.id)}
           >
-            {s.level ? s.level.label : "None"}
+            {s.level ? s.level.label : t("conditions.none")}
           </button>
         ))}
       </div>
@@ -37,16 +40,20 @@ export function ConditionsPanel({ scenarios, selected, options, onSelect }: Prop
           <p className="level-title">{selected.title}</p>
           {selected.level && selected.typical_depth_m !== null ? (
             <p>
-              Water {selected.level.body_range} ({band(selected.level)} for a {height} cm adult). Typical depth on
-              flooded footpaths here: <strong>{cm(selected.typical_depth_m)}</strong>.
+              {rich("conditions.water", {
+                range: selected.level.body_range,
+                band: band(selected.level, t),
+                height,
+                depth: <strong key="depth">{cm(selected.typical_depth_m)}</strong>,
+              })}
             </p>
           ) : (
-            <p>No standing water.</p>
+            <p>{t("conditions.dry")}</p>
           )}
           <p className="muted">{selected.description}</p>
           {selected.sources.length > 0 && (
             <details>
-              <summary>Sources</summary>
+              <summary>{t("conditions.sources")}</summary>
               <ul className="sources">
                 {selected.sources.map((s) => (
                   <li key={s}>{s}</li>

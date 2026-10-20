@@ -126,6 +126,14 @@ export const CLIPS: Clip[] = [
     alt: "Get help: calls to 000 and VICSES, and an SOS alert with undo",
   },
   {
+    name: "languages",
+    title: "In your language",
+    text: "English, Spanish, Chinese, Hindi and Korean, from the 2021 Census: the same plan in each, with numbers, places and phone numbers unchanged.",
+    alt: "The same trip in Spanish, Chinese, Hindi and Korean",
+    flood: "moderate",
+    tags: ["Mid-calf limit"],
+  },
+  {
     name: "phone",
     title: "On a phone",
     text: "The map sits above a sheet that slides up; the legend starts folded.",

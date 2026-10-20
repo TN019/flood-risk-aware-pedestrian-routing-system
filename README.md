@@ -22,7 +22,7 @@ backend/                 Python package, scripts and tests (uv project)
 frontend/                web client: React, TypeScript and MapLibre; phones and desktops
 data/                    raw downloads and processed networks (git-ignored, rebuilt by scripts);
                          data/scenarios/ holds the flood scenario definitions (JSON)
-docs/                    architecture, parameters and their basis, verification
+docs/                    architecture, parameters and their basis, verification, languages
 ```
 
 ## Getting started
@@ -50,7 +50,9 @@ cd ../backend && uv run uvicorn floodroute.api.app:app --port 8000
 ```
 
 then open http://localhost:8000; the API serves the built client and its own routes under
-`/api` (interactive reference at http://localhost:8000/docs). The data sources, documents and
+`/api` (interactive reference at http://localhost:8000/docs). The web client is offered in
+English, Spanish, Chinese (Simplified), Hindi and Korean, chosen from the menu at the top of each
+page ([docs/languages.md](docs/languages.md)). The data sources, documents and
 the basis of every depth limit are at http://localhost:8000/reference, a page the app does not
 link to. While working on the client, run
 `npm run dev` in `frontend/` instead and open the address it prints; it passes `/api` requests to
@@ -152,6 +154,7 @@ uv run python scripts/ground_truth_compare.py ../data/ground_truth/inspected.csv
 | Footpath gradients | City of Melbourne, Footpath steepness | CC BY |
 | Flood mechanisms, tide levels and checks | Melbourne Water Southbank Local Floodplain Development Plan (2026); GHD for Melbourne Water (2017); Port Phillip Bay Coastal Hazard Assessment (2023); City of Melbourne flood and storm sub-plan (2025); VICSES Southbank Local Flood Guide (2021) | cited, not redistributed |
 | Flood level boundaries | Feng, Brenner & Sester (2020); Drillis & Contini (1966); Smith, Davey & Cox (2014); ABS Australian Health Survey 2011–12 | cited |
+| Languages the web client is offered in | ABS 2021 Census QuickStats, Language used at home: Southbank (SAL22315) and Southbank (West) – South Wharf (SA2 206041508) | cited |
 
 ## Contributing
 

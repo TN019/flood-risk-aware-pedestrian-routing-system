@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { cm } from "../format";
+import { useI18n } from "../i18n/I18n";
 import type { Options, Traveller, TravellerInfo } from "../types";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function TravellerPanel({ options, traveller, info, onChange }: Props) {
+  const { t, rich } = useI18n();
   const ids = { height: useId(), wading: useId(), aid: useId(), level: useId(), alpha: useId() };
   const aid = options.mobility_aids.find((a) => a.key === traveller.mobility_aid) ?? null;
   const set = (patch: Partial<Traveller>) => onChange({ ...traveller, ...patch });
@@ -17,9 +19,9 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
 
   return (
     <section className="card" aria-labelledby="you-title">
-      <h2 id="you-title">You</h2>
+      <h2 id="you-title">{t("you.title")}</h2>
       <div className="row">
-        <label htmlFor={ids.height}>Height</label>
+        <label htmlFor={ids.height}>{t("you.height")}</label>
         <div className="height">
           <input
             id={ids.height}
@@ -38,9 +40,9 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
         </div>
       </div>
       <div className="row">
-        <label htmlFor={ids.aid}>Mobility aid</label>
+        <label htmlFor={ids.aid}>{t("you.aid")}</label>
         <select id={ids.aid} value={traveller.mobility_aid} onChange={(e) => set({ mobility_aid: e.target.value, aid_level: 0 })}>
-          <option value="none">None</option>
+          <option value="none">{t("you.aidNone")}</option>
           {options.mobility_aids.map((a) => (
             <option key={a.key} value={a.key}>
               {a.label.charAt(0).toUpperCase() + a.label.slice(1)}
@@ -50,7 +52,7 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
       </div>
       {aid ? (
         <div className="row">
-          <label htmlFor={ids.level}>Deepest water for your {aid.label}</label>
+          <label htmlFor={ids.level}>{t("you.aidDepth", { aid: aid.label })}</label>
           <select id={ids.level} value={traveller.aid_level} onChange={(e) => set({ aid_level: Number(e.target.value) })}>
             {aid.levels.map((level, i) => (
               <option key={level.key} value={i}>
@@ -58,14 +60,11 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
               </option>
             ))}
           </select>
-          <p className="muted small">
-            Limits for wheeled aids follow the device (castor axle, chassis, manufacturer advice), not your height. Routes never use
-            steps or footpaths measured steeper than 1:14.
-          </p>
+          <p className="muted small">{t("you.aidNote")}</p>
         </div>
       ) : (
         <div className="row">
-          <label htmlFor={ids.wading}>Deepest water you will walk through</label>
+          <label htmlFor={ids.wading}>{t("you.wading")}</label>
           <select id={ids.wading} value={traveller.wading} onChange={(e) => set({ wading: e.target.value })}>
             {options.body_parts.map((p) => (
               <option key={p.key} value={p.key}>
@@ -79,13 +78,13 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
       )}
       {info && (
         <p className="limit">
-          Your limit: <strong>{cm(info.depth_limit_m)}</strong>{" "}
-          <span className="muted">(never more than {cm(info.hard_limit_m)})</span>
+          {rich("you.limit", { limit: <strong key="limit">{cm(info.depth_limit_m)}</strong> })}{" "}
+          <span className="muted">{t("you.cap", { cap: cm(info.hard_limit_m) })}</span>
         </p>
       )}
 
       <fieldset className="prefs">
-        <legend>Route preference</legend>
+        <legend>{t("you.preference")}</legend>
         {options.preferences.map((p) => (
           <label key={p.key} className={`pref ${traveller.preference === p.key && traveller.alpha === null ? "pref-on" : ""}`}>
             <input
@@ -103,11 +102,11 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
         ))}
       </fieldset>
       {info && <p className="explain">{info.explanation}</p>}
-      <p className="muted small">Water deeper than your limit is always avoided; this only decides whether water within it is worth walking around.</p>
+      <p className="muted small">{t("you.preferenceNote")}</p>
       <details>
-        <summary>Advanced</summary>
+        <summary>{t("you.advanced")}</summary>
         <label htmlFor={ids.alpha} className="row-inline">
-          Risk weight α: <strong>{(traveller.alpha ?? info?.alpha ?? 2).toFixed(1)}</strong>
+          {rich("you.alpha", { alpha: <strong key="alpha">{(traveller.alpha ?? info?.alpha ?? 2).toFixed(1)}</strong> })}
         </label>
         <input
           id={ids.alpha}
@@ -118,10 +117,10 @@ export function TravellerPanel({ options, traveller, info, onChange }: Props) {
           value={traveller.alpha ?? info?.alpha ?? 2}
           onChange={(e) => set({ alpha: Number(e.target.value) })}
         />
-        <p className="muted small">Extra metres worth walking to avoid one metre of water right at your limit.</p>
+        <p className="muted small">{t("you.alphaNote")}</p>
         {traveller.alpha !== null && (
           <button type="button" className="link" onClick={() => set({ alpha: null })}>
-            Back to the preference
+            {t("you.alphaBack")}
           </button>
         )}
       </details>

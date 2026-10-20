@@ -1,14 +1,22 @@
+import type { Translate } from "./i18n/translate";
 import type { Geometry, Options, RouteJson, RouteOption, TripPlan } from "./types";
 
-/** Where water of this depth reaches on a person of this height, e.g. "up to the ankle".
- * Mirrors floodroute.risk.profile.describe_depth. */
-export function describeDepth(depthM: number | null, heightM: number, options: Pick<Options, "landmarks" | "dry_depth_m">): string {
-  if (depthM === null) return "unknown depth";
-  if (depthM <= options.dry_depth_m) return "dry";
-  for (const { fraction, name } of options.landmarks) {
-    if (depthM <= fraction * heightM) return `up to the ${name}`;
+// Numbers are written the same way in every language: Western digits, a full stop as the decimal
+// point, and the unit symbols cm, m and km (docs/languages.md).
+
+/** Where water of this depth reaches on a person of this height, e.g. "up to the ankle", in the
+ * words the API sent. Mirrors floodroute.risk.profile.depth_reach. */
+export function describeDepth(
+  depthM: number | null,
+  heightM: number,
+  options: Pick<Options, "landmarks" | "depth_labels" | "dry_depth_m">,
+): string {
+  if (depthM === null) return options.depth_labels.unknown;
+  if (depthM <= options.dry_depth_m) return options.depth_labels.dry;
+  for (const { fraction, label } of options.landmarks) {
+    if (depthM <= fraction * heightM) return label;
   }
-  return "above the shoulders";
+  return options.depth_labels.above;
 }
 
 /** Centimetres: whole above 10 cm; below that, one decimal when it matters (2.5 cm, 6.6 cm). */
@@ -23,15 +31,14 @@ export function distance(metres: number): string {
   return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1)} km`;
 }
 
-export function minutes(seconds: number): string {
-  const m = Math.max(1, Math.round(seconds / 60));
-  return `${m} min`;
+export function minutes(seconds: number, t: Translate): string {
+  return t("unit.min", { count: Math.max(1, Math.round(seconds / 60)) });
 }
 
-export function depthSummary(depthM: number | null, label: string, dryDepthM: number): string {
-  if (depthM === null) return "unknown";
-  if (depthM <= dryDepthM) return "none";
-  return `${cm(depthM)} (${label})`;
+export function depthSummary(depthM: number | null, label: string, dryDepthM: number, t: Translate): string {
+  if (depthM === null) return t("depth.unknown");
+  if (depthM <= dryDepthM) return t("depth.none");
+  return t("depth.withLabel", { depth: cm(depthM), label });
 }
 
 /** Point-in-polygon for GeoJSON Polygon / MultiPolygon in lon/lat (even–odd rule). */
@@ -65,10 +72,14 @@ export function groupRoutes(options: RouteOption[]): { option: RouteOption; kind
 }
 
 /** What the routes leave out for a mobility aid user, as a sentence (empty for walkers). */
-export function accessNote(routes: Pick<NonNullable<TripPlan["routes"]>, "step_free" | "steps_avoided" | "steep_avoided">): string {
-  const avoided = [routes.steps_avoided && "the steps", routes.steep_avoided && "the paths steeper than 1:14"].filter(Boolean);
-  if (avoided.length > 0) return `Every route avoids ${avoided.join(" and ")} on the shortest way.`;
-  return routes.step_free ? "Every route is step-free." : "";
+export function accessNote(
+  routes: Pick<NonNullable<TripPlan["routes"]>, "step_free" | "steps_avoided" | "steep_avoided">,
+  t: Translate,
+): string {
+  if (routes.steps_avoided && routes.steep_avoided) return t("access.avoidsBoth");
+  if (routes.steps_avoided) return t("access.avoidsSteps");
+  if (routes.steep_avoided) return t("access.avoidsSteep");
+  return routes.step_free ? t("access.stepFree") : "";
 }
 
 /** A measured gradient (rise over run) as a plain percentage, e.g. "8.3%"; "—" when it is missing. */
@@ -82,9 +93,9 @@ export function hasGradients(route: Partial<Pick<RouteJson, "max_gradient" | "mi
 }
 
 /** The measured gradients along a route, e.g. "Gradient 0.6% to 2.4%". */
-export function gradientSummary(route: Partial<Pick<RouteJson, "max_gradient" | "min_gradient">>): string {
-  if (!hasGradients(route)) return "No gradient data";
+export function gradientSummary(route: Partial<Pick<RouteJson, "max_gradient" | "min_gradient">>, t: Translate): string {
+  if (!hasGradients(route)) return t("gradient.none");
   const gentlest = gradientPercent(route.min_gradient);
   const steepest = gradientPercent(route.max_gradient);
-  return gentlest === steepest ? `Gradient ${steepest}` : `Gradient ${gentlest} to ${steepest}`;
+  return gentlest === steepest ? t("gradient.one", { gradient: steepest }) : t("gradient.range", { from: gentlest, to: steepest });
 }

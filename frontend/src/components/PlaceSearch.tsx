@@ -1,5 +1,8 @@
 import { type FormEvent, useId, useState } from "react";
-import { ApiError, api } from "../api";
+import { api, errorText } from "../api";
+import { useI18n } from "../i18n/I18n";
+import type { MessageKey } from "../i18n/messages/en";
+import type { Translate } from "../i18n/translate";
 import type { ChosenPoint, SearchHit } from "../types";
 
 interface Props {
@@ -12,32 +15,34 @@ interface Props {
   extra?: React.ReactNode;
 }
 
-function describe(p: ChosenPoint): string {
+function describe(p: ChosenPoint, t: Translate): string {
   if (p.label) return p.label;
-  const how = p.source === "location" ? "Your location" : "Point on the map";
-  return `${how} (${p.lat.toFixed(5)}, ${p.lon.toFixed(5)})`;
+  const place = p.source === "location" ? t("trip.yourLocation") : t("trip.pointOnMap");
+  return t("trip.pointAt", { place, lat: p.lat.toFixed(5), lon: p.lon.toFixed(5) });
 }
 
 export function PlaceSearch({ label, value, active, onActivate, onPick, onClear, extra }: Props) {
+  const { lang, t } = useI18n();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // The service's own message, or one of ours (a key, so it follows a change of language).
+  const [error, setError] = useState<{ text: string } | { key: MessageKey } | null>(null);
   const inputId = useId();
 
   async function search(e: FormEvent) {
     e.preventDefault();
     if (query.trim().length < 3) {
-      setError("Type at least three letters.");
+      setError({ key: "search.tooShort" });
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      setHits(await api.search(query));
+      setHits(await api.search(query, lang));
     } catch (err) {
       setHits(null);
-      setError(err instanceof ApiError ? err.message : "Search failed.");
+      setError({ text: errorText(err, t, t("search.failed")) });
     } finally {
       setBusy(false);
     }
@@ -48,14 +53,14 @@ export function PlaceSearch({ label, value, active, onActivate, onPick, onClear,
       <div className="place-head">
         <label htmlFor={inputId}>{label}</label>
         <button type="button" className={`chip ${active ? "chip-on" : ""}`} onClick={onActivate} aria-pressed={active}>
-          {active ? "Next map click sets this" : "Set on map"}
+          {active ? t("search.onMapActive") : t("search.onMap")}
         </button>
       </div>
       {value ? (
         <div className="place-value">
-          <span>{describe(value)}</span>
+          <span>{describe(value, t)}</span>
           <button type="button" className="link" onClick={onClear}>
-            Change
+            {t("search.change")}
           </button>
         </div>
       ) : (
@@ -65,17 +70,17 @@ export function PlaceSearch({ label, value, active, onActivate, onPick, onClear,
               id={inputId}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. Eureka Tower, 1 City Road"
+              placeholder={t("search.placeholder")}
               autoComplete="off"
               enterKeyHint="search"
             />
             <button type="submit" disabled={busy}>
-              {busy ? "…" : "Search"}
+              {busy ? "…" : t("search.button")}
             </button>
           </form>
           {extra}
-          {error && <p className="hint error-text">{error}</p>}
-          {hits && hits.length === 0 && <p className="hint">No match inside Southbank. Try another name, or click the map.</p>}
+          {error && <p className="hint error-text">{"key" in error ? t(error.key) : error.text}</p>}
+          {hits && hits.length === 0 && <p className="hint">{t("search.noMatch")}</p>}
           {hits && hits.length > 0 && (
             <ul className="hits">
               {hits.map((hit) => (

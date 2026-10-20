@@ -1,7 +1,8 @@
 // What the traveller should do next, worked out from a trip plan. Kept free of React so it can be
-// tested on its own.
+// tested on its own; the sentences come from the catalogue of the chosen language (i18n/messages).
 
 import { cm, distance } from "./format";
+import type { Translate } from "./i18n/translate";
 import type { RouteKind } from "./routeStyles";
 import type { RouteJson, TripPlan } from "./types";
 
@@ -61,42 +62,30 @@ export function defaultChoice(trip: TripPlan): RouteKind | null {
 }
 
 /** Why no route fits the traveller's limit, from the least water any route has to face. */
-export function whyNoRoute(trip: TripPlan): string | null {
+export function whyNoRoute(trip: TripPlan, t: Translate): string | null {
   const least = trip.least_water;
   if (!least) return null;
-  const where = trip.destination.method === "point" ? "there" : `to ${trip.destination.label}`;
-  if (least.required_depth_m === null) return `Every way ${where} crosses water of unknown depth.`;
-  const depth = `${cm(least.required_depth_m)} of water (${least.required_label})`;
-  const t = trip.traveller;
-  const cap =
-    t.mobility_aid === "none"
-      ? `more than the ${cm(t.hard_limit_m)} anyone is routed through`
-      : `more than the ${cm(t.hard_limit_m)} a ${t.mobility_aid_label} is routed through`;
-  const limit = least.beyond_hard_limit ? cap : `deeper than your limit of ${cm(t.depth_limit_m)}`;
-  return `Every way ${where} crosses at least ${depth}, ${limit}. The deepest point is marked on the map.`;
+  const to = trip.destination.method === "point" ? "" : "To";
+  const place = trip.destination.label;
+  if (least.required_depth_m === null) return t(`why.unknown${to}`, { place });
+  const tr = trip.traveller;
+  const values = { place, depth: cm(least.required_depth_m), label: least.required_label, aid: tr.mobility_aid_label };
+  if (!least.beyond_hard_limit) return t(`why.overLimit${to}`, { ...values, limit: cm(tr.depth_limit_m) });
+  const cap = tr.mobility_aid === "none" ? "overCap" : "overAidCap";
+  return t(`why.${cap}${to}`, { ...values, limit: cm(tr.hard_limit_m) });
 }
 
 /** What the recommended route gains over the plain shortest way, when they differ. */
-export function detourText(trip: TripPlan): string | null {
+export function detourText(trip: TripPlan, t: Translate): string | null {
   const rec = route(trip, "recommended");
   const short = route(trip, "shortest");
   if (!rec || !short || sameLine(rec, short)) return null;
-  const extra = Math.max(0, rec.metrics.length_m - short.metrics.length_m);
+  const extra = distance(Math.max(0, rec.metrics.length_m - short.metrics.length_m));
   const s = short.metrics;
   if (s.segments_over_limit > 0) {
-    const crosses =
-      s.max_depth_m === null
-        ? "crosses water of unknown depth"
-        : `crosses water deeper than your limit, up to ${cm(s.max_depth_m)} (${s.max_depth_label})`;
-    return `The shortest way (${distance(s.length_m)}) ${crosses}. This route walks ${distance(extra)} further to stay within it.`;
+    if (s.max_depth_m === null) return t("detour.unknown", { distance: distance(s.length_m), extra });
+    return t("detour.overLimit", { distance: distance(s.length_m), depth: cm(s.max_depth_m), label: s.max_depth_label, extra });
   }
   const avoided = Math.max(0, s.wading_length_m - rec.metrics.wading_length_m);
-  return `This route walks ${distance(extra)} further than the shortest way to avoid ${distance(avoided)} of water up to ${cm(s.max_depth_m ?? 0)} (${s.max_depth_label}).`;
-}
-
-/** The water a higher limit accepts, in words: "water up to the knee", "water below a 4-inch castor
- * axle", "a shallow puddle". */
-export function acceptText(d: NonNullable<TripPlan["downgrade"]>): string {
-  if (d.body_part !== null) return `water up to the ${d.label}`;
-  return d.label.startsWith("a ") ? d.label : `water ${d.label}`;
+  return t("detour.avoid", { extra, water: distance(avoided), depth: cm(s.max_depth_m ?? 0), label: s.max_depth_label });
 }

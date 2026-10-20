@@ -50,6 +50,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function open(browser, viewport) {
   const page = await browser.newPage();
   await page.setViewport(viewport);
+  // Every clip starts in English, whatever an earlier clip chose (the choice is kept in storage).
+  await page.evaluateOnNewDocument(() => {
+    try {
+      localStorage.setItem("floodroute.language", "en");
+    } catch {
+      // no storage: the browser's language, English here, decides
+    }
+  });
   await page.goto(APP, { waitUntil: "networkidle0" });
   await page.waitForFunction(() => window.__floodrouteMap && document.querySelector(".levels button"));
   await mapIdle(page);
@@ -289,6 +297,23 @@ async function pickPreference(page, label) {
   await showResults(page, false);
 }
 
+/** Choose a language from the menu at the top of the panel, with the pointer on it, and wait for
+ * the plan in its words. */
+async function switchLanguage(page, lang) {
+  const before = await nextStepText(page);
+  const box = await page.evaluate(() => {
+    document.querySelector(".panel").scrollTo({ top: 0, behavior: "smooth" });
+    const r = document.querySelector(".lang-switch select").getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await sleep(500);
+  await page.mouse.move(box.x, box.y, { steps: 20 });
+  await sleep(400);
+  await choose(page, "ko", lang);
+  await waitForNewPlan(page, before);
+  await sleep(600);
+}
+
 async function useLimit(page) {
   const before = await nextStepText(page);
   await clickButton(page, ".choice button.button", "Use this limit");
@@ -431,6 +456,19 @@ const CLIPS = {
       await sleep(2400);
       await clickButton(page, ".get-help-panel button.link", "Undo");
       await sleep(1400);
+    },
+  },
+  languages: {
+    frame: [BOYD_VILLAGE, CROWN],
+    setup: (page) => setWading(page, "mid_calf"),
+    run: async (page) => {
+      await pickLevel(page, "Moderate");
+      await planTrip(page, BOYD_VILLAGE, CROWN);
+      await sleep(1600);
+      for (const lang of ["es", "zh-Hans", "hi", "ko"]) {
+        await switchLanguage(page, lang);
+        await sleep(2400);
+      }
     },
   },
   phone: {

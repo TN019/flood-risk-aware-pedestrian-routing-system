@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { accessNote, cm, contains, describeDepth, distance, gradientPercent, gradientSummary, groupRoutes, hasGradients } from "./format";
+import { accessNote, cm, contains, describeDepth, distance, gradientPercent, gradientSummary, groupRoutes, hasGradients, minutes } from "./format";
+import { english as t } from "./i18n/translate";
 import type { RouteOption } from "./types";
 
 const options = {
   dry_depth_m: 0.02,
   landmarks: [
-    { fraction: 0.039, name: "ankle" },
-    { fraction: 0.285, name: "knee" },
+    { fraction: 0.039, key: "ankle", label: "up to the ankle" },
+    { fraction: 0.285, key: "knee", label: "up to the knee" },
   ],
+  depth_labels: { unknown: "unknown depth", dry: "dry", above: "above the shoulders" },
 };
 
 describe("describeDepth", () => {
-  it("matches the backend wording", () => {
+  it("uses the API's words", () => {
     expect(describeDepth(null, 1.7, options)).toBe("unknown depth");
     expect(describeDepth(0.02, 1.7, options)).toBe("dry");
     expect(describeDepth(0.06, 1.7, options)).toBe("up to the ankle");
@@ -77,13 +79,13 @@ describe("cm", () => {
 describe("accessNote", () => {
   const routes = { step_free: true, steps_avoided: false, steep_avoided: false };
   it("says nothing for walkers", () => {
-    expect(accessNote({ ...routes, step_free: false })).toBe("");
+    expect(accessNote({ ...routes, step_free: false }, t)).toBe("");
   });
   it("names what the routes avoid", () => {
-    expect(accessNote(routes)).toBe("Every route is step-free.");
-    expect(accessNote({ ...routes, steps_avoided: true })).toBe("Every route avoids the steps on the shortest way.");
-    expect(accessNote({ ...routes, steep_avoided: true })).toBe("Every route avoids the paths steeper than 1:14 on the shortest way.");
-    expect(accessNote({ ...routes, steps_avoided: true, steep_avoided: true })).toBe(
+    expect(accessNote(routes, t)).toBe("Every route is step-free.");
+    expect(accessNote({ ...routes, steps_avoided: true }, t)).toBe("Every route avoids the steps on the shortest way.");
+    expect(accessNote({ ...routes, steep_avoided: true }, t)).toBe("Every route avoids the paths steeper than 1:14 on the shortest way.");
+    expect(accessNote({ ...routes, steps_avoided: true, steep_avoided: true }, t)).toBe(
       "Every route avoids the steps and the paths steeper than 1:14 on the shortest way.",
     );
   });
@@ -94,15 +96,22 @@ describe("gradients", () => {
     expect(gradientPercent(0.0829)).toBe("8.3%");
     expect(gradientPercent(-0.024)).toBe("2.4%");
     expect(gradientPercent(0)).toBe("0.0%");
-    expect(gradientSummary({ max_gradient: 0.024, min_gradient: 0.006 })).toBe("Gradient 0.6% to 2.4%");
-    expect(gradientSummary({ max_gradient: 0.024, min_gradient: 0.024 })).toBe("Gradient 2.4%");
+    expect(gradientSummary({ max_gradient: 0.024, min_gradient: 0.006 }, t)).toBe("Gradient 0.6% to 2.4%");
+    expect(gradientSummary({ max_gradient: 0.024, min_gradient: 0.024 }, t)).toBe("Gradient 2.4%");
   });
   it("never shows NaN when a gradient is missing", () => {
     for (const g of [null, undefined, Number.NaN, Infinity]) expect(gradientPercent(g)).toBe("—");
     expect(hasGradients({ max_gradient: null, min_gradient: null })).toBe(false);
-    expect(gradientSummary({ max_gradient: null, min_gradient: null })).toBe("No gradient data");
-    expect(gradientSummary({ max_gradient: 0.03 })).toBe("No gradient data"); // an API without min_gradient
-    expect(gradientSummary({})).toBe("No gradient data");
-    expect(gradientSummary({ max_gradient: Number.NaN, min_gradient: 0.01 })).toBe("No gradient data");
+    expect(gradientSummary({ max_gradient: null, min_gradient: null }, t)).toBe("No gradient data");
+    expect(gradientSummary({ max_gradient: 0.03 }, t)).toBe("No gradient data"); // an API without min_gradient
+    expect(gradientSummary({}, t)).toBe("No gradient data");
+    expect(gradientSummary({ max_gradient: Number.NaN, min_gradient: 0.01 }, t)).toBe("No gradient data");
+  });
+});
+
+describe("minutes", () => {
+  it("rounds to whole minutes, at least one", () => {
+    expect(minutes(20, t)).toBe("1 min");
+    expect(minutes(150, t)).toBe("3 min");
   });
 });

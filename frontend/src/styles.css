@@ -27,9 +27,17 @@
   display: none;
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .brand h1 {
   font-size: 1.25rem;
   color: var(--brand);
+  word-break: keep-all; /* the name breaks between words, not inside a Chinese one */
 }
 
 .brand p {
@@ -51,7 +59,7 @@
 .card h2 {
   font-size: 0.95rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--caps-spacing);
   color: var(--muted);
 }
 
@@ -160,6 +168,14 @@
   justify-content: space-between;
   gap: 8px;
   align-items: baseline;
+}
+
+/* A short action beside text keeps to one line; Chinese and Korean would otherwise break it
+   between any two characters. */
+.place-value button,
+.trip-actions button {
+  flex: none;
+  white-space: nowrap;
 }
 
 .search {
@@ -393,7 +409,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: calc(1.5 * var(--caps-spacing));
   color: var(--muted);
 }
 
@@ -734,6 +750,12 @@ input[type="range"] {
   flex: 1;
   min-width: 0;
   height: 100%;
+}
+
+/* MapLibre sets its own font on the map; its hover text and buttons use the page's, which covers
+   every language offered. */
+.map.maplibregl-map {
+  font-family: inherit;
 }
 
 .map {

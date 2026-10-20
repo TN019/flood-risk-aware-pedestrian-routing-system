@@ -20,11 +20,15 @@ SEARCH_RADIUS_M = 800.0  # refuges further than this (straight line) are not con
 MAX_CANDIDATES = 25  # nearest buildings offered to the router at once
 
 
+UNNAMED = "Building"  # the name of a refuge whose building has none
+
+
 @dataclass(frozen=True)
 class Refuge:
-    name: str
+    name: str  # UNNAMED when the building has no name
     building: BaseGeometry
     access: tuple[AccessPoint, ...]
+    named: bool = True
 
 
 class RefugeIndex:
@@ -46,8 +50,8 @@ class RefugeIndex:
         if i not in self._cache:
             building = self._geoms[i]
             access = self.resolver.entrances_of(building, DESTINATION) or self.resolver.outline_points(building)
-            name = self._names[i] or "Building"
-            self._cache[i] = Refuge(name, building, tuple(access)) if access else None
+            name = self._names[i]
+            self._cache[i] = Refuge(name or UNNAMED, building, tuple(access), name is not None) if access else None
         return self._cache[i]
 
     def nearest(self, point: Point, radius_m: float = SEARCH_RADIUS_M, limit: int = MAX_CANDIDATES) -> list[Refuge]:

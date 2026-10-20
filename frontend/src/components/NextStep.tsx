@@ -1,5 +1,7 @@
 import { cm, depthSummary, distance, gradientPercent, hasGradients, minutes } from "../format";
-import { acceptText, detourText, route, situation, whyNoRoute } from "../guidance";
+import { detourText, route, situation, whyNoRoute } from "../guidance";
+import { useI18n } from "../i18n/I18n";
+import type { Translate } from "../i18n/translate";
 import type { RouteKind } from "../routeStyles";
 import type { Options, RouteJson, TripPlan } from "../types";
 import { RouteSwatch } from "./Swatch";
@@ -13,6 +15,7 @@ interface Props {
 }
 
 function Metrics({ r, options }: { r: RouteJson; options: Options }) {
+  const { t } = useI18n();
   const m = r.metrics;
   const wet = m.max_depth_m !== null && m.max_depth_m > options.dry_depth_m;
   return (
@@ -20,36 +23,37 @@ function Metrics({ r, options }: { r: RouteJson; options: Options }) {
       <div>
         <span className="metric-value">{distance(m.length_m)}</span>
         <span className="metric-label">
-          walk{m.detour_ratio && m.detour_ratio > 0.005 ? ` · +${Math.round(m.detour_ratio * 100)}% vs shortest` : ""}
+          {t("metric.walk")}
+          {m.detour_ratio && m.detour_ratio > 0.005 ? ` · ${t("metric.vsShortest", { percent: Math.round(m.detour_ratio * 100) })}` : ""}
         </span>
       </div>
       <div>
-        <span className="metric-value">{minutes(m.travel_time_s)}</span>
-        <span className="metric-label">estimated</span>
+        <span className="metric-value">{minutes(m.travel_time_s, t)}</span>
+        <span className="metric-label">{t("metric.estimated")}</span>
       </div>
       <div>
-        <span className="metric-value">{m.max_depth_m === null ? "Unknown" : wet ? cm(m.max_depth_m) : "Dry"}</span>
-        <span className="metric-label">{wet ? m.max_depth_label : "deepest water"}</span>
+        <span className="metric-value">{m.max_depth_m === null ? t("metric.unknown") : wet ? cm(m.max_depth_m) : t("metric.dry")}</span>
+        <span className="metric-label">{wet ? m.max_depth_label : t("metric.deepest")}</span>
       </div>
       <div>
         <span className="metric-value">{distance(m.wading_length_m)}</span>
-        <span className="metric-label">in water</span>
+        <span className="metric-label">{t("metric.inWater")}</span>
       </div>
       {hasGradients(r) ? (
         <>
           <div>
             <span className="metric-value">{gradientPercent(r.max_gradient)}</span>
-            <span className="metric-label">steepest</span>
+            <span className="metric-label">{t("metric.steepest")}</span>
           </div>
           <div>
             <span className="metric-value">{gradientPercent(r.min_gradient)}</span>
-            <span className="metric-label">gentlest</span>
+            <span className="metric-label">{t("metric.gentlest")}</span>
           </div>
         </>
       ) : (
         <div>
           <span className="metric-value">—</span>
-          <span className="metric-label">no gradient data</span>
+          <span className="metric-label">{t("metric.noGradient")}</span>
         </div>
       )}
     </div>
@@ -67,6 +71,7 @@ interface ChoiceProps {
 
 /** One way forward. Selecting it highlights its route on the map. */
 function Choice({ kind, selected, onSelect, title, children, action }: ChoiceProps) {
+  const { t } = useI18n();
   const on = kind !== null && selected === kind;
   return (
     <div className={`choice ${on ? "choice-on" : ""}`}>
@@ -82,21 +87,26 @@ function Choice({ kind, selected, onSelect, title, children, action }: ChoicePro
           {title}
         </span>
         {children && <span className="choice-body">{children}</span>}
-        {kind && <span className="choice-hint">{on ? "Shown on the map" : "Show on the map"}</span>}
+        {kind && <span className="choice-hint">{on ? t("next.shown") : t("next.show")}</span>}
       </button>
       {action}
     </div>
   );
 }
 
-function routeLine(r: RouteJson, options: Options): string {
+function routeLine(r: RouteJson, options: Options, t: Translate): string {
   const m = r.metrics;
-  return `${distance(m.length_m)} · ${minutes(m.travel_time_s)} · deepest ${depthSummary(m.max_depth_m, m.max_depth_label, options.dry_depth_m)}`;
+  return t("next.routeLine", {
+    distance: distance(m.length_m),
+    time: minutes(m.travel_time_s, t),
+    depth: depthSummary(m.max_depth_m, m.max_depth_label, options.dry_depth_m, t),
+  });
 }
 
 export function NextStep({ trip, options, selected, onSelect, onUseLimit }: Props) {
+  const { t } = useI18n();
   const sit = situation(trip);
-  const why = whyNoRoute(trip);
+  const why = whyNoRoute(trip, t);
   const d = trip.downgrade;
   const r = trip.refuge;
   const least = trip.least_water;
@@ -106,30 +116,30 @@ export function NextStep({ trip, options, selected, onSelect, onUseLimit }: Prop
       kind="downgrade"
       selected={selected}
       onSelect={onSelect}
-      title={`Accept ${acceptText(d)} (${cm(d.depth_limit_m)})`}
+      title={t("next.accept", { water: d.water, depth: cm(d.depth_limit_m) })}
       action={
         <button type="button" className="button" onClick={() => onUseLimit(d)}>
-          Use this limit
+          {t("next.useLimit")}
         </button>
       }
     >
-      {routeLine(d.route, options)}
+      {routeLine(d.route, options, t)}
     </Choice>
   );
   const refugeChoice = r && (
-    <Choice kind="refuge" selected={selected} onSelect={onSelect} title={`Wait at a shelter: ${r.name}`}>
-      To the {r.entrance_label}: {routeLine(r.route, options)}. Wait there until the water goes down.
-      {!r.within_limit && <span className="warn-text"> The way there crosses water deeper than your limit; it is the shallowest way out.</span>}
+    <Choice kind="refuge" selected={selected} onSelect={onSelect} title={t("next.refuge", { name: r.name })}>
+      {t("next.refugeWay", { entrance: r.entrance_label, route: routeLine(r.route, options, t) })}
+      {!r.within_limit && <span className="warn-text"> {t("next.refugeOverLimit")}</span>}
     </Choice>
   );
   const stayChoice = (
-    <Choice kind={null} selected={selected} onSelect={onSelect} title={`Stay inside ${trip.start.label}`}>
-      Wait until the water goes down.
+    <Choice kind={null} selected={selected} onSelect={onSelect} title={t("next.stayInside", { place: trip.start.label })}>
+      {t("next.wait")}
     </Choice>
   );
   const leastChoice = least && (
-    <Choice kind="least_water" selected={selected} onSelect={onSelect} title="The way with the least water">
-      {routeLine(least.route, options)}
+    <Choice kind="least_water" selected={selected} onSelect={onSelect} title={t("next.leastWater")}>
+      {routeLine(least.route, options, t)}
     </Choice>
   );
 
@@ -137,20 +147,20 @@ export function NextStep({ trip, options, selected, onSelect, onUseLimit }: Prop
   let body: React.ReactNode = null;
   switch (sit) {
     case "go":
-      headline = "You can go: this route stays within your limit";
+      headline = t("next.go");
       body = <Metrics r={route(trip, "recommended")!} options={options} />;
       break;
     case "detour":
-      headline = "Take the recommended route";
+      headline = t("next.detour");
       body = (
         <>
-          <p>{detourText(trip)}</p>
+          <p>{detourText(trip, t)}</p>
           <Metrics r={route(trip, "recommended")!} options={options} />
         </>
       );
       break;
     case "choose":
-      headline = "No route keeps you within your limit. Choose one:";
+      headline = t("next.choose");
       body = (
         <div className="choices-pair">
           {downgradeChoice}
@@ -159,43 +169,43 @@ export function NextStep({ trip, options, selected, onSelect, onUseLimit }: Prop
       );
       break;
     case "downgrade":
-      headline = "No route keeps you within your limit";
+      headline = t("next.downgrade");
       body = downgradeChoice;
       break;
     case "shelter":
       if (trip.origin.level === "critical") {
-        headline = "Stay where you are if you can and call for help";
+        headline = t("next.shelterCritical");
         body = (
           <details className="fold">
-            <summary>If you cannot wait for help: the way to shelter</summary>
+            <summary>{t("next.shelterFold")}</summary>
             {refugeChoice}
           </details>
         );
       } else {
-        headline = "Go to a shelter and wait";
+        headline = t("next.shelter");
         body = refugeChoice;
       }
       break;
     case "stay":
-      headline = `Stay inside ${trip.start.label} until the water goes down`;
+      headline = t("next.stay", { place: trip.start.label });
       body = leastChoice;
       break;
     case "help":
-      headline = "No safe way out from here: call for help";
+      headline = t("next.help");
       body = (
         <>
-          <p>No shelter can be reached. Stay on the highest ground you can reach.</p>
+          <p>{t("next.helpBody")}</p>
           {leastChoice}
         </>
       );
       break;
     default:
-      headline = "No route connects these points";
+      headline = t("next.unreachable");
   }
 
   return (
     <section className={`card next next-${sit}`} aria-labelledby="next-title" aria-live="polite">
-      <p className="next-label">Next step</p>
+      <p className="next-label">{t("next.label")}</p>
       <h2 id="next-title">{headline}</h2>
       {why && sit !== "go" && sit !== "detour" && <p className="why">{why}</p>}
       {body}

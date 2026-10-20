@@ -1,4 +1,5 @@
-// Shapes returned by the API (backend/src/floodroute/api/service.py).
+// Shapes returned by the API (backend/src/floodroute/api/service.py). Its text comes in the
+// language each request asks for.
 
 export type Geometry = GeoJSON.Geometry;
 export type FeatureCollection = GeoJSON.FeatureCollection;
@@ -50,7 +51,9 @@ export interface MobilityAidOption {
 export interface Options {
   body_parts: BodyPartOption[];
   mobility_aids: MobilityAidOption[];
-  landmarks: { fraction: number; name: string }[];
+  // Where water reaches on the body, e.g. { fraction: 0.039, key: "ankle", label: "up to the ankle" }.
+  landmarks: { fraction: number; key: string; label: string }[];
+  depth_labels: { unknown: string; dry: string; above: string };
   dry_depth_m: number;
   hard_limit_m: number;
   preferences: PreferenceOption[];
@@ -173,6 +176,7 @@ export interface TripPlan {
     aid_level: number | null; // a level of their device for mobility aid users
     label: string;
     body_part_label: string;
+    water: string; // the water the higher limit accepts, e.g. "water up to the knee", "a shallow puddle"
     depth_limit_m: number;
     required_depth_m: number;
     route: RouteJson;

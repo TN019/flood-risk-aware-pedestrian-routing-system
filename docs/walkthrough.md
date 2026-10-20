@@ -86,6 +86,14 @@ alert is simulated, with a few seconds to undo it).
 
 ![Get help: calls to 000 and VICSES, and an SOS alert with undo](images/get-help.gif)
 
+**In your language.** The app, `/reference` and `/benchmark` are offered in English, Spanish,
+Chinese (Simplified), Hindi and Korean, the languages most used at home in Southbank (2021 Census),
+chosen from the menu at the top of each page and remembered. Switching on a planned trip (moderate
+flooding, Boyd Village to Crown Melbourne, mid-calf limit) gives the same next step and routes in
+each language, with numbers, place names and phone numbers unchanged.
+
+![The same trip in Spanish, Chinese, Hindi and Korean](images/languages.gif)
+
 **On a phone.** The map sits above a sheet that slides up; the legend starts folded.
 
 <img src="images/phone.gif" alt="A choice on a phone, with the sheet slid up" width="300">
