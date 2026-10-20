@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import walkthrough from "../../../docs/walkthrough.md?raw";
-import { CLIPS, clipUrl } from "./content";
+import { CLIPS, clipUrl, deckSlides, type DeckSlide, LANGUAGES, SHARE } from "./content";
 import { hashFor, keyMove, moveTo, slideFromHash, swipeMove } from "./deck";
 
 describe("slideFromHash", () => {
@@ -58,13 +58,42 @@ describe("swipeMove", () => {
   });
 });
 
-describe("clips", () => {
-  it("are the walkthrough's clips, in its order", () => {
-    const names = [...walkthrough.matchAll(/images\/([\w-]+)\.gif/g)].map((m) => m[1]);
-    expect(CLIPS.map((c) => c.name)).toEqual(names);
+describe("deck", () => {
+  const clips = [...walkthrough.matchAll(/images\/([\w-]+)\.gif/g)].map((m) => m[1]);
+  const names = (slides: DeckSlide[]) => slides.map((s) => (s.kind === "clip" ? s.clip.name : s.kind));
+  const shown = (slides: DeckSlide[]) => slides.flatMap((s) => ("clip" in s ? [s.clip.name] : []));
+
+  it("lists the walkthrough's clips, in its order", () => {
+    expect(CLIPS.map((c) => c.name)).toEqual(clips);
   });
 
-  it("are all in docs/images", () => {
+  it("shows every walkthrough clip, on a clip slide or the languages slide", () => {
+    expect(shown(deckSlides(false))).toEqual([...clips.filter((c) => c !== LANGUAGES.clip), LANGUAGES.clip]);
+  });
+
+  it("is the title, the clips but the languages one in order, then languages, testing and sources", () => {
+    expect(names(deckSlides(false))).toEqual(["intro", ...clips.filter((c) => c !== "languages"), "languages", "testing", "reference"]);
+  });
+
+  it("ends with the QR codes at a public address", () => {
+    expect(names(deckSlides(true))).toEqual(["intro", ...clips.filter((c) => c !== "languages"), "languages", "testing", "reference", "share"]);
+  });
+
+  it("has 17 slides, and 18 at a public address", () => {
+    expect(deckSlides(false)).toHaveLength(17);
+    expect(deckSlides(true)).toHaveLength(18);
+  });
+
+  it("goes to the last slide from the QR codes' address when opened locally", () => {
+    expect(slideFromHash("#18", deckSlides(false).length)).toBe(16);
+    expect(slideFromHash("#18", deckSlides(true).length)).toBe(17);
+  });
+
+  it("has the app's QR code in the middle", () => {
+    expect(SHARE.pages.map((p) => p.path)).toEqual(["/reference/", "/", "/benchmark/"]);
+  });
+
+  it("has every clip in docs/images", () => {
     for (const clip of CLIPS) expect(clipUrl(clip.name), clip.name).toBeTruthy();
   });
 });

@@ -193,7 +193,10 @@ steeper than 1:14; the predictions for F10 and 3.1 were written before it).
 - **3.1** No step-free route uses steps or a path steeper than 1:14 (**0** and **0**), none costs
   less than the walking route, and a step-free route exists for **299 of 300** pairs, as before, so
   not more. As predicted. None of the 300 walking routes uses a steep path either, so this
-  benchmark does not exercise the rule; case J, R-I and the unit tests carry it.
+  benchmark does not exercise the rule; case J, R-I and the unit tests carry it. The one pair
+  without a step-free route (pair 198 with seed 2026) is from A Block, 256–310 St Kilda Road,
+  whose only mapped entrance is reached by a flight of steps (OSM way 222721539); the other
+  building reaches the network step-free.
 - **4** No inspection filed yet. The sample now has a steep kind: 15 of the 16 steep paths that are
   not steps, the one inside Southbank first and 14 in the margin.
 
