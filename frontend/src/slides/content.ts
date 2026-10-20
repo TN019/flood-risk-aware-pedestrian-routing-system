@@ -1,5 +1,9 @@
 /* What the /slides page says: the walkthrough (docs/walkthrough.md) as slides to present, one per
-   clip and in the same order, with each caption cut down to a line or two. Keep the two in step. */
+   clip and in the same order, with each caption cut down to a line or two. Keep the two in step.
+   After the clips come the languages (with the languages clip), how it is tested and the sources,
+   then the QR codes. */
+
+import { LANGUAGES as OFFERED } from "../i18n/languages";
 
 export type FloodLevel = "none" | "light" | "moderate" | "heavy" | "extreme";
 
@@ -126,9 +130,10 @@ export const CLIPS: Clip[] = [
     alt: "Get help: calls to 000 and VICSES, and an SOS alert with undo",
   },
   {
+    // Shown on the languages slide, after the clips, with the languages themselves.
     name: "languages",
-    title: "In your language",
-    text: "English, Spanish, Chinese, Hindi and Korean, from the 2021 Census: the same plan in each, with numbers, places and phone numbers unchanged.",
+    title: "In five languages",
+    text: "The app, /reference and /benchmark, each with a language switcher. A trip gives the same plan in each, with numbers, places and phone numbers unchanged.",
     alt: "The same trip in Spanish, Chinese, Hindi and Korean",
     flood: "moderate",
     tags: ["Mid-calf limit"],
@@ -142,17 +147,78 @@ export const CLIPS: Clip[] = [
   },
 ];
 
+// The slides after the clips.
+
+/** The languages slide: the languages clip, with its title and words, and the languages by their
+    own names (as the pages' menus show them). */
+export const LANGUAGES = {
+  clip: "languages",
+  languages: OFFERED,
+  basis:
+    "Chosen from the languages used at home in Southbank (ABS 2021 Census): Mandarin 11.6% plus Cantonese 3.1% (one written Chinese), Spanish 5.3%, Hindi 4.0%, and Korean 2.0% in Southbank (West) – South Wharf, where it is the fifth language.",
+};
+
+export const TESTING = {
+  title: "How it is tested",
+  text: "Each requirement has its own tests; every result, with what was predicted, is on /benchmark.",
+  requirements: [
+    {
+      name: "Continuous Pedestrian Safety",
+      approach: ["Scenario-based algorithm testing", "Quantitative evaluation"],
+      verifies: "Continuous hazard avoidance, correct rerouting, and the safety constraints under simulated flood events.",
+    },
+    {
+      name: "Public Area Accessibility",
+      approach: ["Scenario-based algorithm testing", "Quantitative evaluation", "On-site route inspection (ground-truthing)"],
+      verifies: "Routes are accessible as computed; real connectivity, physical barriers and public entrance access are checked in the field.",
+    },
+  ],
+  results: "Latest results",
+};
+
+export const REFERENCE = {
+  title: "Sources and references",
+  /** How each value was reached, as /reference marks it. */
+  bases: ["Cited", "Derived", "Judgement"],
+  text: "/reference lists where every dataset comes from, the documents each flood level and depth limit rests on, and which values are judgements.",
+  sources: [
+    { purpose: "Map", sources: ["OpenStreetMap", "City of Melbourne footpath steepness"] },
+    { purpose: "Ground height", sources: ["Geoscience Australia 5 m LiDAR"] },
+    { purpose: "Flood levels", sources: ["Melbourne Water Southbank plan 2026", "GHD storm tides"] },
+    { purpose: "Depth limits", sources: ["Drillis & Contini", "Smith, Davey & Cox", "Feng et al."] },
+    { purpose: "Access", sources: ["AS 1428.1"] },
+  ],
+};
+
 /** The last slide, only when the deck is opened at a public address: a QR code for each page, at
-    the address the deck itself was opened at. */
+    the address the deck itself was opened at, with the app's in the middle. */
 export const SHARE = {
   title: "Try it yourself",
   pages: [
-    { path: "/", label: "The app" },
     { path: "/reference/", label: "Sources and references" },
+    { path: "/", label: "The app" },
     { path: "/benchmark/", label: "How it is tested" },
   ],
   notice: "Routes are guidance, not a guarantee. In an emergency, call 000.",
 };
+
+export type DeckSlide =
+  | { kind: "clip" | "languages"; title: string; clip: Clip }
+  | { kind: "intro" | "testing" | "reference" | "share"; title: string };
+
+/** The slides in order: the title, one per clip but the languages clip, languages (with that clip),
+    testing and sources, and last, only at a public address, the QR codes. */
+export function deckSlides(atPublicAddress: boolean): DeckSlide[] {
+  const languages = CLIPS.find((c) => c.name === LANGUAGES.clip)!;
+  return [
+    { kind: "intro", title: INTRO.title },
+    ...CLIPS.filter((c) => c !== languages).map((clip) => ({ kind: "clip" as const, title: clip.title, clip })),
+    { kind: "languages", title: languages.title, clip: languages },
+    { kind: "testing", title: TESTING.title },
+    { kind: "reference", title: REFERENCE.title },
+    ...(atPublicAddress ? [{ kind: "share" as const, title: SHARE.title }] : []),
+  ];
+}
 
 // The clips are bundled from docs/images when the client is built, rather than copied next to it.
 const FILES = import.meta.glob<string>("../../../docs/images/*.gif", { eager: true, query: "?url", import: "default" });

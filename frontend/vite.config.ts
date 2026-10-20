@@ -27,8 +27,9 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: { "/api": API_URL },
-    // /slides shows the walkthrough clips straight from docs/images, outside the client's folder.
-    fs: { allow: [".", "../docs/images"] },
+    // /slides shows the walkthrough clips straight from docs/images, and the latest benchmark results
+    // from docs/benchmark.json, both outside the client's folder.
+    fs: { allow: [".", "../docs/images", "../docs/benchmark.json"] },
   },
   build: {
     // MapLibre is most of the bundle; keep it in its own chunk so app updates do not re-download it.

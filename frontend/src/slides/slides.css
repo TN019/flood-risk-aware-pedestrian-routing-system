@@ -1,5 +1,6 @@
 /* The /slides page: the walkthrough as full-screen slides, on the app's colours. Wide screens put
-   the words beside the clip; tall or narrow ones put them above it. Like the app's styles.css, it
+   the words beside the clip (or, after the clips, beside what the slide shows); tall or narrow ones
+   put them above it. Like the app's styles.css, it
    brings in theme.css itself, so this page loads one stylesheet with the colours first. */
 
 @import "../theme.css";
@@ -11,6 +12,11 @@
   --pad-x: max(20px, min(5vw, 80px));
   --pad-top: max(20px, min(6vh, 64px));
   --pad-bottom: max(72px, min(11vh, 104px));
+  --frame-radius: max(8px, min(1.2vw, 16px));
+  --frame-shadow:
+    0 0 0 1px var(--line),
+    0 2px 4px rgb(15 76 129 / 0.06),
+    0 28px 64px -16px rgb(15 76 129 / 0.35);
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -340,19 +346,22 @@
   white-space: nowrap;
 }
 
-.tag.flood-none {
+.tag.flood-none,
+.tag.basis-derived {
   background: #e7f5ec;
   border-color: #8fcca5;
   color: #1e6b3a;
 }
 
-.tag.flood-light {
+.tag.flood-light,
+.tag.basis-cited {
   background: var(--info-bg);
   border-color: var(--info-line);
   color: var(--brand);
 }
 
-.tag.flood-moderate {
+.tag.flood-moderate,
+.tag.basis-judgement {
   background: var(--warn-bg);
   border-color: var(--warn-line);
   color: #8a5300;
@@ -378,6 +387,12 @@
   text-wrap: pretty;
 }
 
+.clip-caption code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--brand);
+}
+
 /* The clip fills its share of the slide at its own shape: as wide as it can be, unless that would
    make it too tall. */
 .clip-media {
@@ -392,12 +407,9 @@
   width: min(100cqw, 100cqh * 1.6);
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-radius: max(8px, min(1.2vw, 16px));
+  border-radius: var(--frame-radius);
   background: var(--panel);
-  box-shadow:
-    0 0 0 1px var(--line),
-    0 2px 4px rgb(15 76 129 / 0.06),
-    0 28px 64px -16px rgb(15 76 129 / 0.35);
+  box-shadow: var(--frame-shadow);
 }
 
 .clip-frame img {
@@ -451,6 +463,10 @@
     max-width: 40rem;
   }
 
+  .slide-info .clip-text {
+    max-width: none;
+  }
+
   .clip-media {
     container-type: inline-size;
     height: auto;
@@ -469,6 +485,256 @@
 
   .slide-footer {
     display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ after the clips */
+
+/* Laid out like a clip's slide: the words on the left, and in place of the clip a panel framed
+   like one. How it is tested adds its latest results in a row across the foot. */
+.slide-info {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) minmax(0, 2.5fr);
+  align-content: center;
+  align-items: center;
+  gap: max(24px, min(4vw, 72px));
+}
+
+.info-note {
+  margin-top: max(14px, min(2.4vh, 22px));
+  padding-top: max(10px, min(1.6vh, 14px));
+  border-top: 1px solid var(--line);
+  font-size: max(0.8rem, min(0.95vw, 0.92rem));
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.info-body {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+
+.info-panel {
+  margin: 0;
+  border-radius: var(--frame-radius);
+  background: var(--panel);
+  box-shadow: var(--frame-shadow);
+}
+
+/* The languages slide is a clip's slide, with the languages by their own names under its words. */
+.language-names {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.5em;
+  margin: max(12px, min(2vh, 18px)) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: max(1.1rem, min(1.6vw, 1.5rem));
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--brand);
+}
+
+.language-names li:not(:last-child)::after {
+  content: "·";
+  margin-left: 0.5em;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.sources {
+  width: min(100%, 42rem);
+  padding: 0 max(20px, min(2.2vw, 36px));
+}
+
+.sources div {
+  padding: max(12px, min(2.4vh, 22px)) 0;
+}
+
+.sources div + div {
+  border-top: 1px solid var(--line);
+}
+
+.requirement-label,
+.sources dt {
+  font-size: max(0.7rem, min(0.82vw, 0.8rem));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--water);
+}
+
+.sources div {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 0.36fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 16px;
+}
+
+/* Each source kept whole on a line where it fits, the line broken between them. */
+.sources dd {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.45em;
+  margin: 0;
+  font-size: max(1rem, min(1.4vw, 1.3rem));
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sources dd span:not(:last-child)::after {
+  content: "·";
+  margin-left: 0.45em;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.slide-testing {
+  grid-template-areas:
+    "text body"
+    "results results";
+}
+
+.slide-testing .clip-text {
+  grid-area: text;
+}
+
+.requirements {
+  grid-area: body;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  justify-items: stretch;
+  gap: max(14px, min(1.8vw, 28px));
+}
+
+.requirement {
+  padding: max(16px, min(2.2vw, 30px));
+  border-top: 4px solid var(--water);
+}
+
+.requirement h3 {
+  margin: 0 0 max(4px, min(1vh, 10px));
+  font-size: max(1.15rem, min(1.8vw, 1.7rem));
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  font-weight: 800;
+  color: var(--brand);
+  text-wrap: balance;
+}
+
+.requirement .requirement-label {
+  margin-top: max(10px, min(1.8vh, 16px));
+}
+
+.requirement .tags {
+  margin-top: 6px;
+}
+
+/* A long approach wraps, so its pill keeps round ends of a single line's height. */
+.requirement .tag {
+  border-radius: 14px;
+  white-space: normal;
+}
+
+.requirement-verifies {
+  margin-top: 6px;
+  font-size: max(0.92rem, min(1.15vw, 1.1rem));
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.results {
+  grid-area: results;
+  padding-top: max(12px, min(2vh, 20px));
+  border-top: 1px solid var(--line);
+}
+
+/* One row of equal columns, however many results there are. */
+.results ul {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: max(12px, min(1.6vw, 28px));
+  margin: max(8px, min(1.4vh, 12px)) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.results li {
+  font-size: max(0.78rem, min(0.92vw, 0.9rem));
+  line-height: 1.35;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.results strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: max(1.35rem, min(2.2vw, 2.1rem));
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand);
+}
+
+.result-note {
+  display: block;
+  margin-top: 6px;
+  padding-left: 8px;
+  border-left: 2px solid #8fcca5;
+  font-size: 0.92em;
+  line-height: 1.35;
+  color: #1e6b3a;
+}
+
+.results strong span {
+  display: inline-block;
+  font-size: 0.55em;
+  letter-spacing: 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* Tall or narrow screens: one column, as for the clips. What does not fit scrolls. */
+@media (max-aspect-ratio: 1/1), (max-width: 760px) {
+  .slide-info {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: safe center;
+    gap: max(18px, min(3vh, 32px));
+    overflow-y: auto;
+  }
+
+  .slide-testing {
+    grid-template-areas: "text" "body" "results";
+  }
+
+  .requirements {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .results ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row;
+  }
+
+  .info-body {
+    justify-items: stretch;
+  }
+
+  .sources {
+    width: auto;
+    max-width: 40rem;
+  }
+
+  .sources div {
+    padding: max(10px, min(1.6vh, 18px)) 0;
+  }
+
+  .slide-languages {
+    overflow-y: auto;
   }
 }
 
