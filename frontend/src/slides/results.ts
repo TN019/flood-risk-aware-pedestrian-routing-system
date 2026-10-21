@@ -9,13 +9,9 @@ export type Result = {
   value: string;
   of: string;
   label: string;
-  /** Why the count is as it should be when it is not all of them. */
-  note?: string;
 };
 
 const count = (n: number) => n.toLocaleString("en");
-
-export const STEP_FREE_NOTE = "As expected: the other pair includes A\u00a0Block, 256–310 St\u00a0Kilda Road, whose one mapped entrance is reached only by steps.";
 
 /** A number at the path through objects, or undefined if there is none there. */
 function numberAt(json: unknown, ...path: string[]): number | undefined {
@@ -27,8 +23,8 @@ function numberAt(json: unknown, ...path: string[]): number | undefined {
 /** The results the slide shows, from benchmark results in the shape of docs/benchmark.json. */
 export function readResults(json: unknown): Result[] {
   const results: Result[] = [];
-  const share = (met: number | undefined, of: number | undefined, label: string, note?: string) => {
-    if (met !== undefined && of !== undefined) results.push({ value: count(met), of: count(of), label, note });
+  const share = (met: number | undefined, of: number | undefined, label: string) => {
+    if (met !== undefined && of !== undefined) results.push({ value: count(met), of: count(of), label });
   };
   const sum = (a?: number, b?: number) => (a === undefined || b === undefined ? undefined : a + b);
 
@@ -53,18 +49,6 @@ export function readResults(json: unknown): Result[] {
   if (Array.isArray(faults) && faults.length > 0 && faults.every((f) => typeof f?.caught === "boolean")) {
     share(faults.filter((f) => f.caught).length, faults.length, "deliberately broken safety rules caught by the tests");
   }
-
-  const pairs = numberAt(json, "access", "step_free_pairs", "pairs");
-  const stepFree = numberAt(json, "access", "step_free_pairs", "step_free_route");
-  share(
-    stepFree,
-    pairs,
-    "pairs of buildings with a step-free route between them",
-    // The one pair without, found by running the benchmark's pairs again (seed 2026): A Block's
-    // only entrance in OpenStreetMap is at the end of a flight of steps, so no step-free route can
-    // reach it. A run with another count has not been checked, so it gets no note.
-    pairs !== undefined && stepFree === pairs - 1 ? STEP_FREE_NOTE : undefined,
-  );
   return results;
 }
 

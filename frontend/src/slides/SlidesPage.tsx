@@ -287,7 +287,6 @@ function TestingSlide({ number }: { number: number }) {
                   {r.value} <span>of {r.of}</span>
                 </strong>
                 {r.label}
-                {r.note && <span className="result-note">{r.note}</span>}
               </li>
             ))}
           </ul>
