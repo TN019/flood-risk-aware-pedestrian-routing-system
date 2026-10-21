@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import benchmark from "../../../docs/benchmark.json";
-import { readResults, STEP_FREE_NOTE } from "./results";
+import { readResults } from "./results";
 
 const FULL = {
   correctness: {
@@ -20,26 +20,16 @@ describe("readResults", () => {
       ["1,000", "1,000"],
       ["890", "891"],
       ["2", "3"],
-      ["299", "300"],
     ]);
   });
 
   it("leaves out what the results do not have", () => {
     const partial = {
       correctness: { ...FULL.correctness, verification: { test_town: FULL.correctness.verification.test_town }, faults: null },
-      access: FULL.access,
     };
-    expect(readResults(partial).map((r) => r.value)).toEqual(["1,000", "890", "299"]);
+    expect(readResults(partial).map((r) => r.value)).toEqual(["1,000", "890"]);
     expect(readResults({})).toEqual([]);
     expect(readResults(null)).toEqual([]);
-  });
-
-  it("explains the one pair without a step-free route, and no other count", () => {
-    const stepFree = (pairs: number, route: number) =>
-      readResults({ access: { step_free_pairs: { pairs, step_free_route: route } } })[0].note;
-    expect(stepFree(300, 299)).toBe(STEP_FREE_NOTE);
-    expect(stepFree(300, 300)).toBeUndefined();
-    expect(stepFree(300, 298)).toBeUndefined();
   });
 
   it("reads docs/benchmark.json", () => {
